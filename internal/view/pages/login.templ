@@ -1,0 +1,74 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+templ Login(page view.LoginPage) {
+	@layout.Base("Вход — " + page.SchoolName) {
+		<div class="flex min-h-dvh flex-col justify-center bg-gradient-to-b from-slate-50 via-slate-50 to-indigo-100 px-4 py-10">
+			<div class="mx-auto w-full max-w-sm">
+				<div class="flex flex-col items-center text-center">
+					<span class="flex size-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm">
+						@components.Icon(view.IconBook, "size-7")
+					</span>
+					<h1 class="mt-4 text-xl font-semibold text-slate-900 sm:text-2xl">Электронный журнал</h1>
+					<p class="mt-1 text-sm text-slate-500">{ page.SchoolName }</p>
+				</div>
+				<div class="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-8">
+					<form
+						hx-post="/login"
+						hx-target="#login-error"
+						hx-swap="innerHTML"
+						hx-disabled-elt="find button[type='submit']"
+						class="flex flex-col gap-4"
+					>
+						<div id="login-error">
+							@LoginError(page.Error)
+						</div>
+						<label class="flex flex-col gap-1.5">
+							<span class="text-sm font-medium text-slate-700">Логин</span>
+							<input
+								type="text"
+								name="login"
+								value={ page.Login }
+								required
+								autocomplete="username"
+								autocapitalize="none"
+								autocorrect="off"
+								spellcheck="false"
+								class="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+							/>
+						</label>
+						<label class="flex flex-col gap-1.5">
+							<span class="text-sm font-medium text-slate-700">Пароль</span>
+							<input
+								type="password"
+								name="password"
+								required
+								autocomplete="current-password"
+								enterkeyhint="go"
+								class="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-base text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+							/>
+						</label>
+						<button
+							type="submit"
+							class="mt-1 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-70"
+						>
+							<span>Войти</span>
+							<span class="htmx-indicator size-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+						</button>
+					</form>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ LoginError(message string) {
+	if message != "" {
+		@components.Alert(message)
+	}
+}

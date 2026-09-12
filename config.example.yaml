@@ -1,0 +1,32 @@
+school:
+  name: "Школа №1"
+
+http:
+  addr: ":8080"
+  read_timeout: 5s
+  write_timeout: 10s
+  idle_timeout: 60s
+  shutdown_timeout: 10s
+
+db:
+  path: ./data/school.db
+
+log:
+  file: ./logs/app.log
+  level: info
+  stdout: true
+  max_size_mb: 10
+  max_backups: 5
+  max_age_days: 30
+  compress: true
+
+session:
+  cookie_name: sid
+  ttl: 12h
+  secure: false
+  cleanup_interval: 1h
+
+admin:
+  login: admin
+  password: change-me
+  full_name: Администратор

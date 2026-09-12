@@ -1,0 +1,20 @@
+package layout
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+)
+
+templ App(shell view.Shell) {
+	@Base(shell.Title) {
+		<div class="flex min-h-dvh">
+			@components.Sidebar(shell.Nav)
+			<div class="flex min-w-0 flex-1 flex-col">
+				@components.Topbar(shell.SchoolName, shell.User)
+				<main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+					{ children... }
+				</main>
+			</div>
+		</div>
+	}
+}
