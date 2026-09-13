@@ -3,114 +3,20 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/config"
 	"github.com/ruskiiamov/school/internal/logger"
-	"github.com/ruskiiamov/school/internal/storage"
 	"github.com/ruskiiamov/school/internal/view/static"
 )
-
-const (
-	adminLogin    = "admin"
-	adminPassword = "secret"
-)
-
-func newTestServer(t *testing.T) http.Handler {
-	t.Helper()
-
-	return newTestServerWithLogger(t, slog.New(slog.NewTextHandler(io.Discard, nil)))
-}
-
-func newTestServerWithLog(t *testing.T) (http.Handler, *bytes.Buffer) {
-	t.Helper()
-
-	buf := &bytes.Buffer{}
-
-	return newTestServerWithLogger(t, slog.New(logger.NewContextHandler(slog.NewJSONHandler(buf, nil)))), buf
-}
-
-func newTestServerWithLogger(t *testing.T, log *slog.Logger) http.Handler {
-	t.Helper()
-
-	cfg := &config.Config{
-		School:  config.School{Name: "Школа №1"},
-		Session: config.Session{CookieName: "sid", TTL: time.Hour},
-		Admin:   config.Admin{Login: adminLogin, Password: adminPassword, FullName: "Иванова Мария Петровна"},
-	}
-
-	db, err := storage.Open(t.Context(), config.DB{Path: filepath.Join(t.TempDir(), "test.db")})
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, db.Close()) })
-	require.NoError(t, storage.Migrate(t.Context(), db))
-
-	authService := auth.NewService(storage.NewUserRepo(db), storage.NewSessionRepo(db), cfg.Session.TTL, log)
-	require.NoError(t, authService.EnsureAdmin(t.Context(), cfg.Admin))
-
-	return New(cfg, authService, log).Handler()
-}
-
-func postForm(t *testing.T, handler http.Handler, path string, form url.Values, cookies []*http.Cookie, headers map[string]string) *httptest.ResponseRecorder {
-	t.Helper()
-
-	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	for name, value := range headers {
-		req.Header.Set(name, value)
-	}
-
-	for _, cookie := range cookies {
-		req.AddCookie(cookie)
-	}
-
-	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, req)
-
-	return recorder
-}
-
-func login(t *testing.T, handler http.Handler) *http.Cookie {
-	t.Helper()
-
-	recorder := postForm(t, handler, "/login",
-		url.Values{"login": {adminLogin}, "password": {adminPassword}},
-		nil, map[string]string{"HX-Request": "true"})
-
-	require.Equal(t, http.StatusNoContent, recorder.Code)
-	require.Equal(t, "/", recorder.Header().Get("HX-Redirect"))
-
-	cookies := recorder.Result().Cookies()
-	require.Len(t, cookies, 1)
-
-	return cookies[0]
-}
-
-func get(t *testing.T, handler http.Handler, path string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
-	t.Helper()
-
-	req := httptest.NewRequest(http.MethodGet, path, nil)
-	for _, cookie := range cookies {
-		req.AddCookie(cookie)
-	}
-
-	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, req)
-
-	return recorder
-}
 
 func TestHomeRedirectsAnonymousUser(t *testing.T) {
 	t.Parallel()
@@ -211,7 +117,8 @@ func TestHomeRendersDashboardForAuthenticatedUser(t *testing.T) {
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Contains(t, body, "Здравствуйте, Иванова Мария Петровна")
 	assert.Contains(t, body, "Администратор")
-	assert.Contains(t, body, "Журнал оценок")
+	assert.Contains(t, body, `href="/admin/classes"`)
+	assert.Contains(t, body, "Типы работ")
 	assert.Contains(t, body, `<form method="post" action="/logout" hx-post="/logout">`)
 }
 
@@ -347,7 +254,7 @@ func TestPanicInPageIsLoggedAsRequest(t *testing.T) {
 
 	buf := &bytes.Buffer{}
 	log := slog.New(logger.NewContextHandler(slog.NewJSONHandler(buf, nil)))
-	s := New(&config.Config{}, nil, log)
+	s := New(&config.Config{}, nil, nil, log)
 
 	handler := chain(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		panic("boom")

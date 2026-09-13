@@ -1,14 +1,29 @@
 package view
 
-func NavItems(active string) []NavItem {
-	items := []NavItem{
-		{Title: "Дашборд", Href: "/", Icon: IconDashboard},
-		{Title: "Классы", Icon: IconClasses, Disabled: true},
-		{Title: "Предметы", Icon: IconSubjects, Disabled: true},
-		{Title: "Учителя", Icon: IconTeachers, Disabled: true},
-		{Title: "Ученики", Icon: IconStudents, Disabled: true},
-		{Title: "Расписание", Icon: IconSchedule, Disabled: true},
-		{Title: "Журнал оценок", Icon: IconMarks, Disabled: true},
+func NavItems(role, active string) []NavItem {
+	var items []NavItem
+
+	switch role {
+	case "admin":
+		items = []NavItem{
+			{Title: "Дашборд", Href: "/", Icon: IconDashboard},
+			{Title: "Классы", Href: "/admin/classes", Icon: IconClasses},
+			{Title: "Предметы", Href: "/admin/subjects", Icon: IconSubjects},
+			{Title: "Учителя", Href: "/admin/teachers", Icon: IconTeachers},
+			{Title: "Ученики", Href: "/admin/students", Icon: IconStudents},
+			{Title: "Родители", Href: "/admin/parents", Icon: IconParents},
+			{Title: "Типы работ", Href: "/admin/work-types", Icon: IconWorkTypes},
+		}
+	case "teacher":
+		items = []NavItem{
+			{Title: "Дашборд", Href: "/", Icon: IconDashboard},
+			{Title: "Журнал", Href: "/journal", Icon: IconMarks},
+		}
+	default:
+		items = []NavItem{
+			{Title: "Дашборд", Href: "/", Icon: IconDashboard},
+			{Title: "Дневник", Href: "/diary", Icon: IconDiary},
+		}
 	}
 
 	for i := range items {

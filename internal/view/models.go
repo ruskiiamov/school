@@ -12,8 +12,10 @@ const (
 	IconSubjects  Icon = "subjects"
 	IconTeachers  Icon = "teachers"
 	IconStudents  Icon = "students"
-	IconSchedule  Icon = "schedule"
+	IconParents   Icon = "parents"
+	IconWorkTypes Icon = "work-types"
 	IconMarks     Icon = "marks"
+	IconDiary     Icon = "diary"
 	IconClock     Icon = "clock"
 	IconMegaphone Icon = "megaphone"
 	IconAlert     Icon = "alert"
@@ -25,11 +27,10 @@ type User struct {
 }
 
 type NavItem struct {
-	Title    string
-	Href     string
-	Icon     Icon
-	Active   bool
-	Disabled bool
+	Title  string
+	Href   string
+	Icon   Icon
+	Active bool
 }
 
 type Shell struct {
@@ -55,4 +56,9 @@ type HomePage struct {
 	Shell Shell
 	Stats []Stat
 	Today string
+}
+
+type StubPage struct {
+	Shell   Shell
+	Heading string
 }

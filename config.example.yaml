@@ -1,5 +1,8 @@
 school:
   name: "Школа №1"
+  year_start_month: 8
+
+timezone: Europe/Moscow
 
 http:
   addr: ":8080"

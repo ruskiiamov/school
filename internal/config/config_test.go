@@ -33,6 +33,18 @@ func TestLoadExample(t *testing.T) {
 	assert.Equal(t, slog.LevelInfo, cfg.Log.Level.Slog())
 	assert.True(t, cfg.Log.Stdout)
 	assert.Equal(t, "admin", cfg.Admin.Login)
+	assert.Equal(t, "Europe/Moscow", cfg.Timezone)
+	assert.Equal(t, "Europe/Moscow", cfg.Location.String())
+	assert.Equal(t, time.August, cfg.School.YearStartMonth)
+}
+
+func TestLoadYearStartMonth(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := Load(writeConfig(t, "school:\n  year_start_month: 9\ndb:\n  path: ./x.db\nlog:\n  file: ./x.log\nadmin:\n  login: a\n  password: p\n  full_name: n\n"))
+	require.NoError(t, err)
+
+	assert.Equal(t, time.September, cfg.School.YearStartMonth)
 }
 
 func TestLoadInvalid(t *testing.T) {
@@ -52,6 +64,21 @@ func TestLoadInvalid(t *testing.T) {
 			name: "zero session ttl",
 			body: "db:\n  path: ./x.db\nlog:\n  file: ./x.log\nsession:\n  ttl: 0s\nadmin:\n  login: a\n  password: p\n  full_name: n\n",
 			want: "session.ttl must be positive",
+		},
+		{
+			name: "unknown timezone",
+			body: "timezone: Mars/Olympus\n",
+			want: `timezone "Mars/Olympus" is unknown`,
+		},
+		{
+			name: "year start month out of range",
+			body: "school:\n  year_start_month: 13\n",
+			want: "school.year_start_month must be between 1 and 12",
+		},
+		{
+			name: "zero year start month",
+			body: "school:\n  year_start_month: 0\n",
+			want: "school.year_start_month must be between 1 and 12",
 		},
 		{
 			name: "unknown log level",

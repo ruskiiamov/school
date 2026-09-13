@@ -13,6 +13,7 @@ import (
 
 	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/config"
+	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server"
 	"github.com/ruskiiamov/school/internal/storage"
 )
@@ -56,13 +57,15 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		return nil, err
 	}
 
+	schoolService := school.NewService(cfg.School.YearStartMonth, cfg.Location, log)
+
 	return &App{
 		log:  log,
 		db:   db,
 		auth: authService,
 		http: &http.Server{
 			Addr:         cfg.HTTP.Addr,
-			Handler:      server.New(cfg, authService, log).Handler(),
+			Handler:      server.New(cfg, authService, schoolService, log).Handler(),
 			ReadTimeout:  cfg.HTTP.ReadTimeout,
 			WriteTimeout: cfg.HTTP.WriteTimeout,
 			IdleTimeout:  cfg.HTTP.IdleTimeout,

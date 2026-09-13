@@ -14,6 +14,7 @@ type User struct {
 	PasswordHash string
 	FullName     string
 	Role         string
+	Active       bool
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -26,7 +27,7 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 	return &UserRepo{db: db}
 }
 
-const userColumns = "id, login, password_hash, full_name, role, created_at, updated_at"
+const userColumns = "id, login, password_hash, full_name, role, active, created_at, updated_at"
 
 func (r *UserRepo) ByLogin(ctx context.Context, login string) (User, error) {
 	const query = "SELECT " + userColumns + " FROM users WHERE login = ?"
@@ -40,12 +41,13 @@ func (r *UserRepo) ByLogin(ctx context.Context, login string) (User, error) {
 }
 
 func (r *UserRepo) Create(ctx context.Context, user User) (int64, error) {
-	const query = `INSERT INTO users (login, password_hash, full_name, role, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?)`
+	const query = `INSERT INTO users (login, password_hash, full_name, role, active, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`
 
 	now := toMillis(time.Now())
 
-	result, err := r.db.ExecContext(ctx, query, user.Login, user.PasswordHash, user.FullName, user.Role, now, now)
+	result, err := r.db.ExecContext(ctx, query,
+		user.Login, user.PasswordHash, user.FullName, user.Role, user.Active, now, now)
 	if err != nil {
 		return 0, fmt.Errorf("insert user: %w", err)
 	}
@@ -79,7 +81,8 @@ func scanUser(row scanner) (User, error) {
 		updatedAt int64
 	)
 
-	err := row.Scan(&user.ID, &user.Login, &user.PasswordHash, &user.FullName, &user.Role, &createdAt, &updatedAt)
+	err := row.Scan(&user.ID, &user.Login, &user.PasswordHash, &user.FullName, &user.Role, &user.Active,
+		&createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, ErrNotFound
 	}

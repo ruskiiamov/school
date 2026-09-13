@@ -18,7 +18,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, component templ.
 }
 
 func (s *Server) redirect(w http.ResponseWriter, r *http.Request, target string) {
-	if r.Header.Get("HX-Request") == "true" {
+	if isHTMX(r) {
 		w.Header().Set("HX-Redirect", target)
 		w.WriteHeader(http.StatusNoContent)
 
@@ -26,4 +26,8 @@ func (s *Server) redirect(w http.ResponseWriter, r *http.Request, target string)
 	}
 
 	http.Redirect(w, r, target, http.StatusSeeOther)
+}
+
+func isHTMX(r *http.Request) bool {
+	return r.Header.Get("HX-Request") == "true"
 }

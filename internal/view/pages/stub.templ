@@ -1,0 +1,18 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+templ Stub(page view.StubPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-6">
+			@components.PageHeader(page.Heading)
+			<div class={ components.CardClass }>
+				@components.EmptyState("Раздел в разработке и появится в одной из следующих итераций.")
+			</div>
+		</div>
+	}
+}
