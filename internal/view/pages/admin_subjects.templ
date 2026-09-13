@@ -15,7 +15,7 @@ templ Subjects(page view.SubjectsPage) {
 	@layout.App(page.Shell) {
 		<div class="flex flex-col gap-4 lg:gap-6">
 			@components.PageHeader("Предметы") {
-				@components.InactiveToggle(subjectsBase, page.ShowInactive)
+				@components.InactiveToggle(inactiveToggleURL(subjectsBase, page.ShowInactive), page.ShowInactive)
 			}
 			@SubjectsList(page)
 		</div>

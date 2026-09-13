@@ -62,6 +62,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		cfg.Location,
 		storage.NewSubjectRepo(db),
 		storage.NewWorkTypeRepo(db),
+		storage.NewClassRepo(db),
 		log,
 	)
 

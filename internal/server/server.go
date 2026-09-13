@@ -52,6 +52,13 @@ func (s *Server) pages() http.Handler {
 	mux.Handle("GET /journal", s.requireAuth(requireRole(auth.RoleTeacher)(http.HandlerFunc(s.journalStub))))
 	mux.Handle("GET /diary", s.requireAuth(requireRole(auth.RoleStudent, auth.RoleParent)(http.HandlerFunc(s.diaryStub))))
 
+	mux.Handle("GET /admin/classes", s.admin(s.classesList))
+	mux.Handle("POST /admin/classes", s.admin(s.classCreate))
+	mux.Handle("GET /admin/classes/{id}", s.admin(s.classShow))
+	mux.Handle("POST /admin/classes/{id}", s.admin(s.classUpdate))
+	mux.Handle("POST /admin/classes/{id}/deactivate", s.admin(s.classDeactivate))
+	mux.Handle("POST /admin/classes/{id}/activate", s.admin(s.classActivate))
+
 	mux.Handle("GET /admin/subjects", s.admin(s.subjectsList))
 	mux.Handle("POST /admin/subjects", s.admin(s.subjectCreate))
 	mux.Handle("POST /admin/subjects/{id}", s.admin(s.subjectUpdate))

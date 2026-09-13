@@ -99,3 +99,40 @@ type WorkTypesPage struct {
 	NewName      string
 	NewError     string
 }
+
+type YearOption struct {
+	Year   int
+	Name   string
+	Href   string
+	Active bool
+}
+
+type ClassRow struct {
+	ID      int64
+	Name    string
+	Href    string
+	Active  bool
+	Editing bool
+	Error   string
+}
+
+type ClassesPage struct {
+	Shell        Shell
+	Year         int
+	YearName     string
+	Years        []YearOption
+	Classes      []ClassRow
+	ShowInactive bool
+	CanCreate    bool
+	ToggleHref   string
+	NewName      string
+	NewError     string
+}
+
+type ClassPage struct {
+	Shell    Shell
+	ID       int64
+	Name     string
+	YearName string
+	Active   bool
+}
