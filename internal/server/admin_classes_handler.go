@@ -141,7 +141,7 @@ func (s *Server) renderClasses(w http.ResponseWriter, r *http.Request, newName, 
 		return
 	}
 
-	editing := editingID(r, edit)
+	editing := editingID(r, edit.entered, edit.id)
 
 	rows := make([]view.ClassRow, 0, len(classes))
 	for _, class := range classes {

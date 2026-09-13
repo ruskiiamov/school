@@ -30,6 +30,8 @@ linters:
         text: G304
       - path: internal/server/session.go
         text: G124
+      - path: internal/server/response.go
+        text: G710
 
 formatters:
   enable:

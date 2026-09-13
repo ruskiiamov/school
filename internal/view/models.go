@@ -136,3 +136,53 @@ type ClassPage struct {
 	YearName string
 	Active   bool
 }
+
+type Option struct {
+	ID       int64
+	Name     string
+	Selected bool
+}
+
+type UserFields struct {
+	FullName string
+	Login    string
+	Classes  []Option
+	Errors   map[string]string
+}
+
+type UserRow struct {
+	ID        int64
+	FullName  string
+	Login     string
+	ClassName string
+	Active    bool
+	Editing   bool
+	Fields    UserFields
+}
+
+type UsersPage struct {
+	Shell        Shell
+	Title        string
+	Path         string
+	ListQuery    string
+	Query        string
+	ClassFilter  []Option
+	ShowClass    bool
+	ShowInactive bool
+	ToggleHref   string
+	New          UserFields
+	Users        []UserRow
+	EmptyMessage string
+}
+
+type UserCreatedPage struct {
+	Shell    Shell
+	Title    string
+	FullName string
+	Login    string
+	Password string
+	Note     string
+	ListHref string
+	NewHref  string
+	NewTitle string
+}

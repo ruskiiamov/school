@@ -20,8 +20,14 @@ const sessionIDBytes = 32
 
 type userRepo interface {
 	ByLogin(ctx context.Context, login string) (storage.User, error)
+	ByID(ctx context.Context, id int64) (storage.User, error)
+	ListByRole(ctx context.Context, role string, includeInactive bool) ([]storage.User, error)
 	Create(ctx context.Context, user storage.User) (int64, error)
+	Update(ctx context.Context, id int64, login, fullName string) error
 	UpdatePasswordHash(ctx context.Context, id int64, hash string) error
+	SetActive(ctx context.Context, id int64, active bool) error
+	LoginExists(ctx context.Context, login string, excludeID int64) (bool, error)
+	LoginsWithPrefix(ctx context.Context, prefix string) ([]string, error)
 }
 
 type sessionRepo interface {
@@ -221,6 +227,7 @@ func toUser(stored storage.User) (User, error) {
 		Login:    stored.Login,
 		FullName: stored.FullName,
 		Role:     role,
+		Active:   stored.Active,
 	}, nil
 }
 

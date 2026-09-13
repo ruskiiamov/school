@@ -26,11 +26,27 @@ templ EditLink(href, target string) {
 
 templ ActiveForm(active bool, deactivateAction, activateAction, target string) {
 	if active {
-		<form method="post" action={ templ.SafeURL(deactivateAction) } hx-post={ deactivateAction } hx-target={ target } hx-swap="outerHTML">
+		<form
+			method="post"
+			action={ templ.SafeURL(deactivateAction) }
+			if target != "" {
+				hx-post={ deactivateAction }
+				hx-target={ target }
+				hx-swap="outerHTML"
+			}
+		>
 			<button type="submit" class={ ButtonDangerClass }>Удалить</button>
 		</form>
 	} else {
-		<form method="post" action={ templ.SafeURL(activateAction) } hx-post={ activateAction } hx-target={ target } hx-swap="outerHTML">
+		<form
+			method="post"
+			action={ templ.SafeURL(activateAction) }
+			if target != "" {
+				hx-post={ activateAction }
+				hx-target={ target }
+				hx-swap="outerHTML"
+			}
+		>
 			<button type="submit" class={ ButtonSecondaryClass }>Восстановить</button>
 		</form>
 	}
@@ -88,4 +104,31 @@ templ CreateForm(action, placeholder, label, name, message, target string) {
 		</button>
 		@FieldError(message)
 	</form>
+}
+
+templ RowInput(name, value, placeholder, label, message, class string) {
+	<span class={ "flex min-w-0 flex-col gap-1", class }>
+		<input
+			type="text"
+			name={ name }
+			value={ value }
+			placeholder={ placeholder }
+			aria-label={ label }
+			maxlength="100"
+			autocomplete="off"
+			class={ InputClassFor(message) }
+		/>
+		@FieldError(message)
+	</span>
+}
+
+templ RowSelect(name, label string, options []view.Option, message, class string) {
+	<span class={ "flex min-w-0 flex-col gap-1", class }>
+		<select name={ name } aria-label={ label } class={ SelectClassFor(message) }>
+			for _, option := range options {
+				<option value={ optionValue(option) } selected?={ option.Selected }>{ option.Name }</option>
+			}
+		</select>
+		@FieldError(message)
+	</span>
 }

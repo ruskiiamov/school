@@ -98,7 +98,7 @@ func (s *Server) renderSubjects(w http.ResponseWriter, r *http.Request, newName,
 		return
 	}
 
-	editing := editingID(r, edit)
+	editing := editingID(r, edit.entered, edit.id)
 
 	rows := make([]view.SubjectRow, 0, len(subjects))
 	for _, subject := range subjects {

@@ -53,3 +53,20 @@ func classURL(id int64, suffix string, year int, showInactive bool) string {
 func classEditURL(id int64, year int, showInactive bool) string {
 	return classesBase + classesQuery(year, showInactive) + "&edit=" + strconv.FormatInt(id, 10)
 }
+
+func userURL(path string, id int64, suffix, query string) string {
+	return path + "/" + strconv.FormatInt(id, 10) + suffix + query
+}
+
+func userEditURL(path, query string, id int64) string {
+	edit := "edit=" + strconv.FormatInt(id, 10)
+	if query == "" {
+		return path + "?" + edit
+	}
+
+	return path + query + "&" + edit
+}
+
+func passwordFormID(id int64) string {
+	return "password-" + strconv.FormatInt(id, 10)
+}

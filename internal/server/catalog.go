@@ -16,9 +16,9 @@ func showInactive(r *http.Request) bool {
 	return r.URL.Query().Get("inactive") == "1"
 }
 
-func editingID(r *http.Request, edit rowEdit) int64 {
-	if edit.entered {
-		return edit.id
+func editingID(r *http.Request, entered bool, id int64) int64 {
+	if entered {
+		return id
 	}
 
 	id, err := strconv.ParseInt(r.URL.Query().Get("edit"), 10, 64)
