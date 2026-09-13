@@ -57,7 +57,13 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		return nil, err
 	}
 
-	schoolService := school.NewService(cfg.School.YearStartMonth, cfg.Location, log)
+	schoolService := school.NewService(
+		cfg.School.YearStartMonth,
+		cfg.Location,
+		storage.NewSubjectRepo(db),
+		storage.NewWorkTypeRepo(db),
+		log,
+	)
 
 	return &App{
 		log:  log,

@@ -74,7 +74,8 @@ func newTestEnvWithLogger(t *testing.T, log *slog.Logger) *testEnv {
 	authService := auth.NewService(storage.NewUserRepo(db), storage.NewSessionRepo(db), cfg.Session.TTL, log)
 	require.NoError(t, authService.EnsureAdmin(t.Context(), cfg.Admin))
 
-	schoolService := school.NewService(cfg.School.YearStartMonth, cfg.Location, log)
+	schoolService := school.NewService(cfg.School.YearStartMonth, cfg.Location,
+		storage.NewSubjectRepo(db), storage.NewWorkTypeRepo(db), log)
 
 	return &testEnv{
 		handler: New(cfg, authService, schoolService, log).Handler(),
@@ -148,12 +149,22 @@ func postForm(t *testing.T, handler http.Handler, path string, form url.Values, 
 	return recorder
 }
 
-func get(t *testing.T, handler http.Handler, path string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
+func get(t *testing.T, handler http.Handler, path string, options ...any) *httptest.ResponseRecorder {
 	t.Helper()
 
 	req := httptest.NewRequest(http.MethodGet, path, nil)
-	for _, cookie := range cookies {
-		req.AddCookie(cookie)
+
+	for _, option := range options {
+		switch option := option.(type) {
+		case *http.Cookie:
+			req.AddCookie(option)
+		case map[string]string:
+			for name, value := range option {
+				req.Header.Set(name, value)
+			}
+		default:
+			t.Fatalf("unsupported request option %T", option)
+		}
 	}
 
 	recorder := httptest.NewRecorder()
