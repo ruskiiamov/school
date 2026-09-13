@@ -61,7 +61,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) renderLoginError(w http.ResponseWriter, r *http.Request, login, message string) {
-	if r.Header.Get("HX-Request") == "true" {
+	if isHTMX(r) {
 		s.render(w, r, pages.LoginError(message))
 		return
 	}

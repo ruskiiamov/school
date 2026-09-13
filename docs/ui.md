@@ -8,7 +8,7 @@
 
 | Роль | Пункты |
 |---|---|
-| admin | Дашборд `/`, Учебные годы `/admin/years`, Классы `/admin/classes`, Предметы `/admin/subjects`, Учителя `/admin/teachers`, Ученики `/admin/students`, Родители `/admin/parents`, Типы работ `/admin/work-types` |
+| admin | Дашборд `/`, Классы `/admin/classes`, Предметы `/admin/subjects`, Учителя `/admin/teachers`, Ученики `/admin/students`, Родители `/admin/parents`, Типы работ `/admin/work-types` |
 | teacher | Дашборд `/`, Журнал `/journal` (заглушка до итерации 3) |
 | student, parent | Дашборд `/`, Дневник `/diary` (заглушка до итерации 4) |
 
@@ -18,16 +18,9 @@
 ## Маршруты итерации 2
 
 ```
-GET  /admin/years                      список
-GET  /admin/years/new                  форма
-POST /admin/years                      создать
-GET  /admin/years/{id}/edit            форма
-POST /admin/years/{id}                 сохранить
-POST /admin/years/{id}/current         сделать текущим
-
 GET  /admin/subjects, /new, /{id}/edit; POST /admin/subjects, /{id}, /{id}/deactivate, /{id}/activate
 GET  /admin/work-types …               то же
-GET  /admin/classes?year={id}          список по году (по умолчанию текущий)
+GET  /admin/classes?year=2026          список по году (по умолчанию текущий; в селекторе — годы существующих классов, текущий и следующий)
 GET  /admin/classes/new, /{id}/edit, /{id}   карточка класса
 POST /admin/classes, /{id}, /{id}/deactivate, /{id}/activate
 POST /admin/classes/{id}/students      добавить ученика (student_id)
@@ -76,15 +69,6 @@ GET  /account/password, POST /account/password
 │ Петров Иван Сергеевич  │
 │ неактивен · petrov.i   │
 └────────────────────────┘
-```
-
-Учебные годы:
-
-```
-┌ Учебные годы ───────────────────────────────── [+ Добавить] ┐
-│ 2026/2027   01.09.2026 – 31.05.2027   ● текущий   Изменить  │
-│ 2027/2028   01.09.2027 – 31.05.2028   [Сделать текущим]     │
-└─────────────────────────────────────────────────────────────┘
 ```
 
 Карточка класса:
@@ -143,6 +127,7 @@ GET  /account/password, POST /account/password
 ## Состояния
 
 - Пустой список: «Пока нет учеников» и кнопка добавления.
-- Нет текущего года: на дашборде и в «Классах» баннер «Создайте учебный год».
+- В текущем году нет классов: на дашборде баннер «В 2026/2027 ещё нет классов»
+  со ссылкой на создание класса; список классов — пустое состояние.
 - Ошибка формы: красная строка под полем, значения полей сохранены.
 - Неактивная запись в списке: серый текст и метка «неактивен».

@@ -9,9 +9,10 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 (standalone-бинарник, без npm), данные — SQLite через `modernc.org/sqlite`.
 
 Интерфейс полностью на русском; вёрстка должна быть одинаково пригодна на телефоне
-и на десктопе. Готова итерация 1: вход и дашборд. Остальные разделы (классы, предметы,
-учителя, ученики, расписание, журнал оценок) стоят в сайдбаре заглушками — см.
-`view.NavItems`.
+и на десктопе. Готова итерация 1 (вход, дашборд); итерация 2 (справочники админа)
+идёт по срезам — что готово, см. `docs/roadmap.md`. Меню строится по роли в
+`view.NavItems(role, active)`; пункты «Журнал» и «Дневник» пока заглушки
+(`stub_handler.go`), разделы админа без страницы ведут на 404.
 
 ## Проектные документы
 
@@ -52,8 +53,9 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 ## Архитектура
 
 Зависимости идут строго в одну сторону: `cmd/server` → `internal/app` →
-`internal/server` → `internal/auth` → `internal/storage`. `internal/view` не знает
-ни о `server`, ни о `auth`; `storage` не знает о HTTP.
+`internal/server` → {`internal/auth`, `internal/school`} → `internal/storage`.
+`auth` и `school` друг о друге не знают; `internal/view` не знает ни о `server`,
+ни о сервисах; `storage` не знает о HTTP.
 
 - `cmd/server/main.go` — флаг `-config` (или `CONFIG_PATH`), логгер, `signal.NotifyContext`,
   порядок закрытия ресурсов.
@@ -64,6 +66,9 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 - `internal/config` — YAML с дефолтами в `Load` и списком проверок в `validate`
   (все ошибки собираются через `errors.Join`). Профилей окружения (`app.env`,
   `dev`/`prod`) нет и не вводить: каждое поведение — отдельное явное поле конфига.
+  `timezone` проверяется через `time.LoadLocation` и отдаётся как `Config.Location`;
+  `cmd/server` импортирует `time/tzdata`, чтобы статический бинарник не зависел
+  от системных zoneinfo. `school.year_start_month` — номер месяца (1–12), год начинается с его первого числа.
 - `internal/server` — `Handler()` собирает два `http.ServeMux`: внешний со служебными
   маршрутами (статика, `/healthz`) и внутренний `pages()` с маршрутами приложения
   (`"GET /login"`, точное совпадение корня — `"GET /{$}"`), смонтированный под `"/"`
@@ -73,11 +78,23 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
   `request_id` из контекста; `recoverPanic` внутри `logRequests`, чтобы паника попала
   в лог запроса. Новые страницы регистрировать в `pages()` — так они логируются
   автоматически; служебные маршруты без access-лога — на внешнем mux.
+  Маршруты для одной роли — `s.requireAuth(requireRole(role...)(h))`: аноним
+  уходит на `/login`, чужая роль получает 404 (не 403) — образец `/journal` и
+  `/diary` в `pages()`.
 - `internal/auth` — сервисный слой: логин/логаут/аутентификация, bcrypt, серверные
-  сессии, роли. Зависит от `storage` через локальные интерфейсы `userRepo`/`sessionRepo`
-  (объявлены в `service.go`) — тесты подставляют свои реализации.
+  сессии, роли (по D-038 сюда же ляжет управление пользователями). Зависит от
+  `storage` через локальные интерфейсы `userRepo`/`sessionRepo` (объявлены в
+  `service.go`) — тесты подставляют свои реализации. Неактивный пользователь
+  (`users.active = 0`) не входит и теряет сессию при следующем запросе.
+- `internal/school` — справочники (по D-038 сюда лягут классы, предметы, типы
+  работ, состав, нагрузка). Учебный год — не сущность (D-042):
+  `Service.CurrentYear()` считает его по «сегодня» в `Location` и месяцу
+  `year_start_month`, имя даёт `school.YearName`. «Не найдено» —
+  `school.ErrNotFound`.
 - `internal/storage` — репозитории на `database/sql`, `ErrNotFound` вместо
-  `sql.ErrNoRows` наружу, миграции goose из `embed.FS`.
+  `sql.ErrNoRows` наружу, миграции goose из `embed.FS`. Транзакции — внутри
+  одного метода репозитория: все запросы через `tx`, потому что при
+  `SetMaxOpenConns(1)` обращение к `db` изнутри транзакции повиснет.
 - `internal/view` — view-модели (`models.go`), данные для них (`data.go`), форматирование
   (`format.go`); templ-шаблоны в `layout/`, `pages/`, `components/`; статика в
   `static/` через `embed.FS`.
@@ -100,14 +117,15 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 **Время в БД — миллисекунды Unix** (`INTEGER`), через `toMillis`/`fromMillis`;
 наружу отдаётся UTC. `created_at`/`updated_at` заполняют сами репозитории через
 `time.Now()`, сервисный слой их не передаёт; доменные моменты вроде `ExpiresAt`
-задаёт сервис.
+задаёт сервис. Часовой пояс из конфига применяется только к «сегодня»;
+учебный год — просто `int` (год начала, D-042).
 
 **SQLite открывается с `SetMaxOpenConns(1)`**, WAL и `_txlock=immediate` —
 писатель один, на это можно опираться, но не менять без причины.
 
-**HTMX и редиректы.** `s.redirect` сам отличает HTMX-запрос (`HX-Request`) и отвечает
+**HTMX и редиректы.** `s.redirect` сам отличает HTMX-запрос (`isHTMX`) и отвечает
 `HX-Redirect` + 204 вместо 303. Обработчики, отвечающие и фрагментом, и целой
-страницей, ветвятся по тому же заголовку — образец `renderLoginError`. Рендер
+страницей, ветвятся по тому же `isHTMX` — образец `renderLoginError`. Рендер
 только через `s.render` (ставит Content-Type и логирует ошибку рендера).
 
 **CSP жёсткий** (`script-src 'self'`, без `unsafe-inline`) — никакого инлайнового JS
@@ -137,13 +155,19 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 
 1. View-модель в `internal/view/models.go`, данные — в `data.go`.
 2. Шаблон в `internal/view/pages/<name>.templ` поверх `layout.App` (страницы вне
-   оболочки — поверх `layout.Base`).
-3. Обработчик в `internal/server/<name>_handler.go`: достать пользователя
-   `userFromContext`, собрать `view.*Page`, отдать через `s.render`.
-4. Маршрут в `Server.pages()`, под `s.requireAuth`.
-5. Пункт меню в `view.NavItems` — снять `Disabled` и задать `Href`.
-6. Тест в `internal/server/server_test.go` через `newTestServer` (реальная БД в
-   `t.TempDir()`, миграции, админ из конфига — моков HTTP нет).
+   оболочки — поверх `layout.Base`); страницы админа — `admin_<name>.templ`.
+3. Обработчик в `internal/server/<name>_handler.go`: `s.shell(r, title, active)`
+   собирает `view.Shell`, дальше собрать `view.*Page` и отдать через `s.render`.
+   Заголовок страницы — `components.PageHeader`, пустое состояние —
+   `components.EmptyState`, карточка — `components.CardClass`.
+4. Маршрут в `Server.pages()`: под `s.requireAuth`, при ограничении по роли —
+   ещё и `requireRole(...)`. Формы — по D-035 и D-041 (`docs/decisions.md`).
+5. Пункт меню в `view.NavItems` для нужной роли (`Href` = `active`).
+6. Тест в `internal/server/<name>_test.go` через `newTestEnv` из
+   `testing_test.go` (реальная БД в `t.TempDir()`, миграции, админ из конфига,
+   доступ к `env.school`/`env.auth`/`env.db` — моков HTTP нет). Пользователей
+   других ролей создаёт `env.createUser`, вход — `env.loginAs`; редирект
+   проверяет `assertRedirect`. Негативный тест на чужую роль обязателен.
 
 ## Стиль Go
 

@@ -6,8 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"slices"
 	"time"
 
+	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/logger"
 )
 
@@ -139,4 +141,18 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r.WithContext(withUser(r.Context(), user)))
 	})
+}
+
+func requireRole(roles ...auth.Role) middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user, ok := userFromContext(r.Context())
+			if !ok || !slices.Contains(roles, user.Role) {
+				http.NotFound(w, r)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

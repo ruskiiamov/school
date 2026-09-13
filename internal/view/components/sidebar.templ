@@ -28,26 +28,16 @@ templ Sidebar(items []view.NavItem) {
 }
 
 templ navLink(item view.NavItem) {
-	if item.Disabled {
-		<span
-			aria-disabled="true"
-			class="flex min-h-11 cursor-not-allowed items-center gap-3 rounded-lg px-3 text-sm text-slate-400"
-		>
-			@Icon(item.Icon, "size-5 shrink-0")
-			<span class="truncate">{ item.Title }</span>
-		</span>
-	} else {
-		<a
-			href={ templ.SafeURL(item.Href) }
-			if item.Active {
-				aria-current="page"
-				class="flex min-h-11 items-center gap-3 rounded-lg bg-indigo-50 px-3 text-sm font-medium text-indigo-700"
-			} else {
-				class="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-slate-700 hover:bg-slate-100 active:bg-slate-200"
-			}
-		>
-			@Icon(item.Icon, "size-5 shrink-0")
-			<span class="truncate">{ item.Title }</span>
-		</a>
-	}
+	<a
+		href={ templ.SafeURL(item.Href) }
+		if item.Active {
+			aria-current="page"
+			class="flex min-h-11 items-center gap-3 rounded-lg bg-indigo-50 px-3 text-sm font-medium text-indigo-700"
+		} else {
+			class="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-slate-700 hover:bg-slate-100 active:bg-slate-200"
+		}
+	>
+		@Icon(item.Icon, "size-5 shrink-0")
+		<span class="truncate">{ item.Title }</span>
+	</a>
 }

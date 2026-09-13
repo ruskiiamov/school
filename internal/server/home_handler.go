@@ -10,24 +10,24 @@ import (
 )
 
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
-	user, ok := userFromContext(r.Context())
-	if !ok {
-		s.redirect(w, r, "/login")
-		return
-	}
-
 	page := view.HomePage{
-		Shell: view.Shell{
-			Title:      "Дашборд — " + s.schoolName,
-			SchoolName: s.schoolName,
-			User:       toViewUser(user),
-			Nav:        view.NavItems("/"),
-		},
+		Shell: s.shell(r, "Дашборд", "/"),
 		Stats: view.PlaceholderStats(),
-		Today: view.FormatDate(time.Now()),
+		Today: view.FormatDate(time.Now().In(s.location)),
 	}
 
 	s.render(w, r, pages.Home(page))
+}
+
+func (s *Server) shell(r *http.Request, title, active string) view.Shell {
+	user, _ := userFromContext(r.Context())
+
+	return view.Shell{
+		Title:      title + " — " + s.schoolName,
+		SchoolName: s.schoolName,
+		User:       toViewUser(user),
+		Nav:        view.NavItems(string(user.Role), active),
+	}
 }
 
 func toViewUser(user auth.User) view.User {

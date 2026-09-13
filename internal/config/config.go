@@ -13,16 +13,20 @@ import (
 const DefaultPath = "config.yaml"
 
 type Config struct {
-	School  School  `yaml:"school"`
-	HTTP    HTTP    `yaml:"http"`
-	DB      DB      `yaml:"db"`
-	Log     Log     `yaml:"log"`
-	Session Session `yaml:"session"`
-	Admin   Admin   `yaml:"admin"`
+	School   School  `yaml:"school"`
+	Timezone string  `yaml:"timezone"`
+	HTTP     HTTP    `yaml:"http"`
+	DB       DB      `yaml:"db"`
+	Log      Log     `yaml:"log"`
+	Session  Session `yaml:"session"`
+	Admin    Admin   `yaml:"admin"`
+
+	Location *time.Location `yaml:"-"`
 }
 
 type School struct {
-	Name string `yaml:"name"`
+	Name           string     `yaml:"name"`
+	YearStartMonth time.Month `yaml:"year_start_month"`
 }
 
 type HTTP struct {
@@ -89,10 +93,11 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg := Config{
-		School:  School{Name: "Школа"},
-		HTTP:    HTTP{Addr: ":8080", ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: time.Minute, ShutdownTimeout: 10 * time.Second},
-		Log:     Log{Level: Level(slog.LevelInfo), MaxSizeMB: 10, MaxBackups: 5, MaxAgeDays: 30},
-		Session: Session{CookieName: "sid", TTL: 12 * time.Hour, CleanupInterval: time.Hour},
+		School:   School{Name: "Школа", YearStartMonth: time.August},
+		Timezone: "Europe/Moscow",
+		HTTP:     HTTP{Addr: ":8080", ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: time.Minute, ShutdownTimeout: 10 * time.Second},
+		Log:      Log{Level: Level(slog.LevelInfo), MaxSizeMB: 10, MaxBackups: 5, MaxAgeDays: 30},
+		Session:  Session{CookieName: "sid", TTL: 12 * time.Hour, CleanupInterval: time.Hour},
 	}
 
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -116,6 +121,14 @@ func (c *Config) validate() error {
 	}
 
 	require(c.School.Name != "", "school.name is empty")
+	require(c.School.YearStartMonth >= time.January && c.School.YearStartMonth <= time.December,
+		"school.year_start_month must be between 1 and 12")
+	require(c.Timezone != "", "timezone is empty")
+
+	location, err := time.LoadLocation(c.Timezone)
+	require(err == nil, fmt.Sprintf("timezone %q is unknown", c.Timezone))
+	c.Location = location
+
 	require(c.HTTP.Addr != "", "http.addr is empty")
 	require(c.HTTP.ReadTimeout > 0, "http.read_timeout must be positive")
 	require(c.HTTP.WriteTimeout > 0, "http.write_timeout must be positive")

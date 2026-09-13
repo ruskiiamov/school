@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	_ "time/tzdata"
 
 	"github.com/ruskiiamov/school/internal/app"
 	"github.com/ruskiiamov/school/internal/config"

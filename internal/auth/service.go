@@ -64,6 +64,10 @@ func (s *Service) Login(ctx context.Context, login, password string) (Session, e
 		return Session{}, ErrInvalidCredentials
 	}
 
+	if !stored.Active {
+		return Session{}, ErrInvalidCredentials
+	}
+
 	return s.createSession(ctx, stored.ID)
 }
 
@@ -88,9 +92,9 @@ func (s *Service) Authenticate(ctx context.Context, sessionID string) (User, err
 		return User{}, err
 	}
 
-	if !time.Now().Before(session.ExpiresAt) {
+	if !time.Now().Before(session.ExpiresAt) || !stored.Active {
 		if err := s.sessions.Delete(ctx, sessionID); err != nil {
-			s.log.ErrorContext(ctx, "delete expired session", slog.Any("error", err))
+			s.log.ErrorContext(ctx, "delete stale session", slog.Any("error", err))
 		}
 
 		return User{}, ErrUnauthenticated
@@ -157,6 +161,7 @@ func (s *Service) createAdmin(ctx context.Context, cfg config.Admin) error {
 		PasswordHash: hash,
 		FullName:     cfg.FullName,
 		Role:         string(RoleAdmin),
+		Active:       true,
 	})
 	if err != nil {
 		return err
