@@ -122,7 +122,7 @@ func (s *Server) renderWorkTypes(w http.ResponseWriter, r *http.Request, newName
 		return
 	}
 
-	editing := editingID(r, edit)
+	editing := editingID(r, edit.entered, edit.id)
 
 	rows := make([]view.WorkTypeRow, 0, len(workTypes))
 	for _, workType := range workTypes {

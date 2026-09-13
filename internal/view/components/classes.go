@@ -10,6 +10,10 @@ const (
 	ButtonIconClass      = "inline-flex size-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 active:bg-slate-200 disabled:pointer-events-none disabled:opacity-30"
 )
 
+func SelectClassFor(message string) string {
+	return InputClassFor(message) + " select-chevron appearance-none pr-10"
+}
+
 func InputClassFor(message string) string {
 	if message != "" {
 		return InputErrorClass

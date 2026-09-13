@@ -103,7 +103,7 @@ func (s *Service) SetSubjectActive(ctx context.Context, id int64, active bool) e
 }
 
 func (s *Service) validateSubject(ctx context.Context, id int64, input SubjectInput) (string, error) {
-	name := normalizeName(input.Name)
+	name := validation.NormalizeSpaces(input.Name)
 
 	errs := validation.Errors{}
 	validateName(errs, name)

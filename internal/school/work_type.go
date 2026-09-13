@@ -158,7 +158,7 @@ func (s *Service) moveWorkType(ctx context.Context, id int64, step int) error {
 }
 
 func (s *Service) validateWorkTypeName(ctx context.Context, id int64, raw string) (string, error) {
-	name := normalizeName(raw)
+	name := validation.NormalizeSpaces(raw)
 
 	errs := validation.Errors{}
 	validateName(errs, name)

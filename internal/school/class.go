@@ -59,7 +59,7 @@ func (s *Service) ClassByID(ctx context.Context, id int64) (Class, error) {
 }
 
 func (s *Service) CreateClass(ctx context.Context, name string) (int64, error) {
-	name = normalizeName(name)
+	name = validation.NormalizeSpaces(name)
 
 	errs := validation.Errors{}
 	validateName(errs, name)
@@ -90,7 +90,7 @@ func (s *Service) UpdateClass(ctx context.Context, id int64, name string) error 
 		return err
 	}
 
-	name = normalizeName(name)
+	name = validation.NormalizeSpaces(name)
 
 	errs := validation.Errors{}
 	validateName(errs, name)

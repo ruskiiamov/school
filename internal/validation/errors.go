@@ -26,3 +26,7 @@ func (e Errors) Error() string {
 
 	return "validation: " + strings.Join(parts, "; ")
 }
+
+func NormalizeSpaces(s string) string {
+	return strings.Join(strings.Fields(s), " ")
+}

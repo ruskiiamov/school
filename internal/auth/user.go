@@ -25,4 +25,5 @@ type User struct {
 	Login    string
 	FullName string
 	Role     Role
+	Active   bool
 }
