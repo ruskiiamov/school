@@ -9,11 +9,6 @@ import (
 	"github.com/ruskiiamov/school/internal/view/static"
 )
 
-const (
-	staticPrefix = "/static/"
-	healthPath   = "/healthz"
-)
-
 type Server struct {
 	auth       *auth.Service
 	schoolName string
@@ -26,30 +21,45 @@ func New(cfg *config.Config, authService *auth.Service, log *slog.Logger) *Serve
 		auth:       authService,
 		schoolName: cfg.School.Name,
 		cookie:     cfg.Session,
-		log:        slog.New(contextHandler{Handler: log.Handler()}),
+		log:        log,
 	}
 }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
-	mux.Handle("GET "+staticPrefix, staticHandler())
-	mux.HandleFunc("GET "+healthPath, s.health)
+	mux.Handle("GET "+static.Prefix+"{version}/{path...}", staticHandler())
+	mux.HandleFunc("GET /healthz", s.health)
+	mux.Handle("/", chain(s.pages(), s.logRequests, s.recoverPanic))
+
+	return chain(mux, requestID, secureHeaders, s.crossOriginProtection)
+}
+
+func (s *Server) pages() http.Handler {
+	mux := http.NewServeMux()
+
 	mux.HandleFunc("GET /login", s.loginPage)
-	mux.Handle("POST /login", s.checkOrigin(http.HandlerFunc(s.loginSubmit)))
-	mux.Handle("POST /logout", s.checkOrigin(http.HandlerFunc(s.logout)))
+	mux.HandleFunc("POST /login", s.loginSubmit)
+	mux.HandleFunc("POST /logout", s.logout)
 	mux.Handle("GET /{$}", s.requireAuth(http.HandlerFunc(s.home)))
 
-	return chain(mux, requestID, s.logRequests, secureHeaders, s.recoverPanic)
+	return mux
 }
 
 func staticHandler() http.Handler {
 	files := http.FileServerFS(static.FS)
 
-	return http.StripPrefix(staticPrefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-cache")
-		files.ServeHTTP(w, r)
-	}))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		version := r.PathValue("version")
+
+		cacheControl := "no-cache"
+		if version == static.Version() {
+			cacheControl = "public, max-age=31536000, immutable"
+		}
+
+		w.Header().Set("Cache-Control", cacheControl)
+		http.StripPrefix(static.Prefix+version, files).ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {

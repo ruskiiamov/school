@@ -27,15 +27,16 @@ templ Topbar(schoolName string, user view.User) {
 					<span class="text-sm font-medium text-slate-900">{ user.FullName }</span>
 					<span class="text-xs text-slate-500">{ user.Role }</span>
 				</span>
-				<button
-					type="button"
-					hx-post="/logout"
-					class="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 active:bg-slate-200"
-				>
-					@Icon(view.IconLogout, "size-5 shrink-0")
-					<span class="hidden sm:inline">Выйти</span>
-					<span class="sr-only sm:hidden">Выйти</span>
-				</button>
+				<form method="post" action="/logout" hx-post="/logout">
+					<button
+						type="submit"
+						class="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 active:bg-slate-200"
+					>
+						@Icon(view.IconLogout, "size-5 shrink-0")
+						<span class="hidden sm:inline">Выйти</span>
+						<span class="sr-only sm:hidden">Выйти</span>
+					</button>
+				</form>
 			</div>
 		</div>
 	</header>

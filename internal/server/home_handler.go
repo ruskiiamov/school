@@ -33,6 +33,6 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 func toViewUser(user auth.User) view.User {
 	return view.User{
 		FullName: user.FullName,
-		Role:     user.Role.Title(),
+		Role:     view.RoleTitle(string(user.Role)),
 	}
 }

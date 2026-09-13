@@ -39,17 +39,6 @@ func (r *UserRepo) ByLogin(ctx context.Context, login string) (User, error) {
 	return user, nil
 }
 
-func (r *UserRepo) ByID(ctx context.Context, id int64) (User, error) {
-	const query = "SELECT " + userColumns + " FROM users WHERE id = ?"
-
-	user, err := scanUser(r.db.QueryRowContext(ctx, query, id))
-	if err != nil {
-		return User{}, fmt.Errorf("select user by id: %w", err)
-	}
-
-	return user, nil
-}
-
 func (r *UserRepo) Create(ctx context.Context, user User) (int64, error) {
 	const query = `INSERT INTO users (login, password_hash, full_name, role, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?)`

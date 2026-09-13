@@ -90,7 +90,7 @@ func (s *Service) Authenticate(ctx context.Context, sessionID string) (User, err
 
 	if !time.Now().Before(session.ExpiresAt) {
 		if err := s.sessions.Delete(ctx, sessionID); err != nil {
-			s.log.Error("delete expired session", slog.Any("error", err))
+			s.log.ErrorContext(ctx, "delete expired session", slog.Any("error", err))
 		}
 
 		return User{}, ErrUnauthenticated
@@ -125,7 +125,7 @@ func (s *Service) EnsureAdmin(ctx context.Context, cfg config.Admin) error {
 		return err
 	}
 
-	s.log.Info("admin password updated from config", slog.String("login", cfg.Login))
+	s.log.InfoContext(ctx, "admin password updated from config", slog.String("login", cfg.Login))
 
 	return nil
 }
@@ -162,7 +162,7 @@ func (s *Service) createAdmin(ctx context.Context, cfg config.Admin) error {
 		return err
 	}
 
-	s.log.Info("admin user created", slog.Int64("id", id), slog.String("login", cfg.Login))
+	s.log.InfoContext(ctx, "admin user created", slog.Int64("id", id), slog.String("login", cfg.Login))
 
 	return nil
 }
@@ -173,12 +173,10 @@ func (s *Service) createSession(ctx context.Context, userID int64) (Session, err
 		return Session{}, err
 	}
 
-	now := time.Now()
 	session := storage.Session{
 		ID:        id,
 		UserID:    userID,
-		CreatedAt: now,
-		ExpiresAt: now.Add(s.ttl),
+		ExpiresAt: time.Now().Add(s.ttl),
 	}
 
 	if err := s.sessions.Create(ctx, session); err != nil {
@@ -191,18 +189,18 @@ func (s *Service) createSession(ctx context.Context, userID int64) (Session, err
 func (s *Service) cleanupSessions(ctx context.Context) {
 	expired, err := s.sessions.DeleteExpired(ctx, time.Now())
 	if err != nil {
-		s.log.Error("delete expired sessions", slog.Any("error", err))
+		s.log.ErrorContext(ctx, "delete expired sessions", slog.Any("error", err))
 		return
 	}
 
 	orphaned, err := s.sessions.DeleteOrphaned(ctx)
 	if err != nil {
-		s.log.Error("delete orphaned sessions", slog.Any("error", err))
+		s.log.ErrorContext(ctx, "delete orphaned sessions", slog.Any("error", err))
 		return
 	}
 
 	if expired+orphaned > 0 {
-		s.log.Info("sessions cleaned up",
+		s.log.InfoContext(ctx, "sessions cleaned up",
 			slog.Int64("expired", expired), slog.Int64("orphaned", orphaned))
 	}
 }

@@ -33,7 +33,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		return nil, err
 	}
 
-	if err := storage.Migrate(db); err != nil {
+	if err := storage.Migrate(ctx, db); err != nil {
 		if closeErr := db.Close(); closeErr != nil {
 			return nil, errors.Join(err, fmt.Errorf("close database: %w", closeErr))
 		}

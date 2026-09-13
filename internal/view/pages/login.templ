@@ -19,6 +19,8 @@ templ Login(page view.LoginPage) {
 				</div>
 				<div class="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-8">
 					<form
+						method="post"
+						action="/login"
 						hx-post="/login"
 						hx-target="#login-error"
 						hx-swap="innerHTML"

@@ -10,7 +10,6 @@ type contextKey int
 
 const (
 	userKey contextKey = iota
-	requestIDKey
 	requestInfoKey
 )
 
@@ -26,16 +25,6 @@ func userFromContext(ctx context.Context) (auth.User, bool) {
 	user, ok := ctx.Value(userKey).(auth.User)
 
 	return user, ok
-}
-
-func withRequestID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, requestIDKey, id)
-}
-
-func requestIDFromContext(ctx context.Context) string {
-	id, _ := ctx.Value(requestIDKey).(string)
-
-	return id
 }
 
 func withRequestInfo(ctx context.Context, info *requestInfo) context.Context {

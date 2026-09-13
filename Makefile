@@ -38,7 +38,7 @@ watch: $(TAILWIND)
 	go tool templ generate --watch & $(TAILWIND) -i $(CSS_IN) -o $(CSS_OUT) --watch
 
 test: generate
-	go test ./...
+	go test -race ./...
 
 lint: generate
 	go tool golangci-lint run
@@ -49,7 +49,7 @@ fmt:
 check: generate css
 	go tool golangci-lint fmt --diff
 	go tool golangci-lint run
-	go test ./...
+	go test -race ./...
 
 clean:
 	rm -rf $(BIN) $(CSS_OUT)

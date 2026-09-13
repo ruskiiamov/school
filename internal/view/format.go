@@ -11,6 +11,13 @@ var (
 		"июля", "августа", "сентября", "октября", "ноября", "декабря",
 	}
 
+	roleTitles = map[string]string{
+		"admin":   "Администратор",
+		"teacher": "Учитель",
+		"student": "Ученик",
+		"parent":  "Родитель",
+	}
+
 	weekdays = map[time.Weekday]string{
 		time.Monday:    "понедельник",
 		time.Tuesday:   "вторник",
@@ -24,4 +31,12 @@ var (
 
 func FormatDate(t time.Time) string {
 	return fmt.Sprintf("%s, %d %s %d", weekdays[t.Weekday()], t.Day(), monthsGenitive[t.Month()-1], t.Year())
+}
+
+func RoleTitle(role string) string {
+	if title, ok := roleTitles[role]; ok {
+		return title
+	}
+
+	return role
 }

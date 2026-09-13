@@ -23,7 +23,7 @@ func newTestService(t *testing.T, ttl time.Duration) (*Service, *sql.DB) {
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 
-	require.NoError(t, storage.Migrate(db))
+	require.NoError(t, storage.Migrate(t.Context(), db))
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 

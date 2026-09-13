@@ -49,15 +49,13 @@ func dsn(path string) string {
 	return "file:" + path + "?" + params.Encode()
 }
 
-func Migrate(db *sql.DB) error {
-	goose.SetBaseFS(migrations.FS)
-	goose.SetLogger(goose.NopLogger())
-
-	if err := goose.SetDialect("sqlite3"); err != nil {
-		return fmt.Errorf("set goose dialect: %w", err)
+func Migrate(ctx context.Context, db *sql.DB) error {
+	provider, err := goose.NewProvider(goose.DialectSQLite3, db, migrations.FS)
+	if err != nil {
+		return fmt.Errorf("create migration provider: %w", err)
 	}
 
-	if err := goose.Up(db, "."); err != nil {
+	if _, err := provider.Up(ctx); err != nil {
 		return fmt.Errorf("apply migrations: %w", err)
 	}
 

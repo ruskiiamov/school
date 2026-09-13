@@ -27,7 +27,7 @@ func (r *SessionRepo) Create(ctx context.Context, session Session) error {
 	const query = "INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)"
 
 	_, err := r.db.ExecContext(ctx, query, session.ID, session.UserID,
-		toMillis(session.CreatedAt), toMillis(session.ExpiresAt))
+		toMillis(time.Now()), toMillis(session.ExpiresAt))
 	if err != nil {
 		return fmt.Errorf("insert session: %w", err)
 	}

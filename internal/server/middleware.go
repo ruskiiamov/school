@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"runtime/debug"
-	"strings"
 	"time"
+
+	"github.com/ruskiiamov/school/internal/logger"
 )
 
 type middleware func(http.Handler) http.Handler
@@ -52,7 +52,7 @@ func requestID(next http.Handler) http.Handler {
 		id := hex.EncodeToString(buf)
 		w.Header().Set("X-Request-Id", id)
 
-		next.ServeHTTP(w, r.WithContext(withRequestID(r.Context(), id)))
+		next.ServeHTTP(w, r.WithContext(logger.WithRequestID(r.Context(), id)))
 	})
 }
 
@@ -69,18 +69,8 @@ func secureHeaders(next http.Handler) http.Handler {
 	})
 }
 
-func skipLogging(path string) bool {
-	return path == healthPath || strings.HasPrefix(path, staticPrefix)
-}
-
 func (s *Server) logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if skipLogging(r.URL.Path) {
-			next.ServeHTTP(w, r)
-
-			return
-		}
-
 		started := time.Now()
 		recorder := &recordingWriter{ResponseWriter: w}
 		info := &requestInfo{}
@@ -122,38 +112,17 @@ func (s *Server) recoverPanic(next http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) checkOrigin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !sameOrigin(r) {
-			s.log.WarnContext(r.Context(), "cross-origin request rejected",
-				slog.String("origin", r.Header.Get("Origin")),
-				slog.String("path", r.URL.Path))
+func (s *Server) crossOriginProtection(next http.Handler) http.Handler {
+	protection := http.NewCrossOriginProtection()
+	protection.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.log.WarnContext(r.Context(), "cross-origin request rejected",
+			slog.String("origin", r.Header.Get("Origin")),
+			slog.String("path", r.URL.Path))
 
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+	}))
 
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-func sameOrigin(r *http.Request) bool {
-	if origin := r.Header.Get("Origin"); origin != "" {
-		parsed, err := url.Parse(origin)
-		if err != nil {
-			return false
-		}
-
-		return parsed.Host == r.Host
-	}
-
-	switch r.Header.Get("Sec-Fetch-Site") {
-	case "same-origin", "none", "":
-		return true
-	default:
-		return false
-	}
+	return protection.Handler(next)
 }
 
 func (s *Server) requireAuth(next http.Handler) http.Handler {

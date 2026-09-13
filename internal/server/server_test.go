@@ -18,7 +18,9 @@ import (
 
 	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/config"
+	"github.com/ruskiiamov/school/internal/logger"
 	"github.com/ruskiiamov/school/internal/storage"
+	"github.com/ruskiiamov/school/internal/view/static"
 )
 
 const (
@@ -27,6 +29,20 @@ const (
 )
 
 func newTestServer(t *testing.T) http.Handler {
+	t.Helper()
+
+	return newTestServerWithLogger(t, slog.New(slog.NewTextHandler(io.Discard, nil)))
+}
+
+func newTestServerWithLog(t *testing.T) (http.Handler, *bytes.Buffer) {
+	t.Helper()
+
+	buf := &bytes.Buffer{}
+
+	return newTestServerWithLogger(t, slog.New(logger.NewContextHandler(slog.NewJSONHandler(buf, nil)))), buf
+}
+
+func newTestServerWithLogger(t *testing.T, log *slog.Logger) http.Handler {
 	t.Helper()
 
 	cfg := &config.Config{
@@ -38,9 +54,8 @@ func newTestServer(t *testing.T) http.Handler {
 	db, err := storage.Open(t.Context(), config.DB{Path: filepath.Join(t.TempDir(), "test.db")})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
-	require.NoError(t, storage.Migrate(db))
+	require.NoError(t, storage.Migrate(t.Context(), db))
 
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	authService := auth.NewService(storage.NewUserRepo(db), storage.NewSessionRepo(db), cfg.Session.TTL, log)
 	require.NoError(t, authService.EnsureAdmin(t.Context(), cfg.Admin))
 
@@ -132,6 +147,8 @@ func TestLoginPageRenders(t *testing.T) {
 	assert.Contains(t, body, "Электронный журнал")
 	assert.Contains(t, body, "Школа №1")
 	assert.Contains(t, body, `autocomplete="current-password"`)
+	assert.Contains(t, body, `method="post"`)
+	assert.Contains(t, body, `action="/login"`)
 }
 
 func TestLoginSuccessSetsSecureCookie(t *testing.T) {
@@ -195,7 +212,7 @@ func TestHomeRendersDashboardForAuthenticatedUser(t *testing.T) {
 	assert.Contains(t, body, "Здравствуйте, Иванова Мария Петровна")
 	assert.Contains(t, body, "Администратор")
 	assert.Contains(t, body, "Журнал оценок")
-	assert.Contains(t, body, `hx-post="/logout"`)
+	assert.Contains(t, body, `<form method="post" action="/logout" hx-post="/logout">`)
 }
 
 func TestLogoutClearsCookieAndSession(t *testing.T) {
@@ -231,6 +248,27 @@ func TestCrossOriginPostRejected(t *testing.T) {
 	assert.Empty(t, recorder.Result().Cookies())
 }
 
+func TestPostWithoutOriginHeadersAccepted(t *testing.T) {
+	t.Parallel()
+
+	recorder := postForm(t, newTestServer(t), "/login",
+		url.Values{"login": {adminLogin}, "password": {adminPassword}},
+		nil, map[string]string{"HX-Request": "true"})
+
+	assert.Equal(t, http.StatusNoContent, recorder.Code)
+}
+
+func TestCrossSiteFetchRejected(t *testing.T) {
+	t.Parallel()
+
+	recorder := postForm(t, newTestServer(t), "/login",
+		url.Values{"login": {adminLogin}, "password": {adminPassword}},
+		nil, map[string]string{"Sec-Fetch-Site": "cross-site"})
+
+	assert.Equal(t, http.StatusForbidden, recorder.Code)
+	assert.Empty(t, recorder.Result().Cookies())
+}
+
 func TestSameOriginPostAccepted(t *testing.T) {
 	t.Parallel()
 
@@ -258,39 +296,34 @@ func TestSecurityHeadersAndStaticAssets(t *testing.T) {
 	assert.Contains(t, recorder.Header().Get("Content-Security-Policy"), "script-src 'self'")
 	assert.NotEmpty(t, recorder.Header().Get("X-Request-Id"))
 
-	for _, path := range []string{
-		"/static/css/app.css",
-		"/static/js/htmx.min.js",
-		"/static/js/app.js",
-		"/static/favicon.svg",
-	} {
-		asset := get(t, handler, path)
-		assert.Equal(t, http.StatusOK, asset.Code, path)
-		assert.Equal(t, "no-cache", asset.Header().Get("Cache-Control"), path)
-		assert.NotEmpty(t, asset.Body.String(), path)
+	for _, name := range []string{"css/app.css", "js/htmx.min.js", "js/app.js", "favicon.svg"} {
+		asset := get(t, handler, static.URL(name))
+		assert.Equal(t, http.StatusOK, asset.Code, name)
+		assert.Equal(t, "public, max-age=31536000, immutable", asset.Header().Get("Cache-Control"), name)
+		assert.NotEmpty(t, asset.Body.String(), name)
 	}
 }
 
-func newTestServerWithLog(t *testing.T) (http.Handler, *bytes.Buffer) {
-	t.Helper()
+func TestStaleStaticVersionIsServedWithoutCaching(t *testing.T) {
+	t.Parallel()
 
-	cfg := &config.Config{
-		School:  config.School{Name: "Школа №1"},
-		Session: config.Session{CookieName: "sid", TTL: time.Hour},
-		Admin:   config.Admin{Login: adminLogin, Password: adminPassword, FullName: "Иванова Мария Петровна"},
-	}
+	handler := newTestServer(t)
 
-	db, err := storage.Open(t.Context(), config.DB{Path: filepath.Join(t.TempDir(), "test.db")})
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, db.Close()) })
-	require.NoError(t, storage.Migrate(db))
+	asset := get(t, handler, "/static/stale000/css/app.css")
+	assert.Equal(t, http.StatusOK, asset.Code)
+	assert.Equal(t, "no-cache", asset.Header().Get("Cache-Control"))
 
-	buf := &bytes.Buffer{}
-	log := slog.New(slog.NewJSONHandler(buf, nil))
-	authService := auth.NewService(storage.NewUserRepo(db), storage.NewSessionRepo(db), cfg.Session.TTL, log)
-	require.NoError(t, authService.EnsureAdmin(t.Context(), cfg.Admin))
+	assert.Equal(t, http.StatusNotFound, get(t, handler, static.URL("missing.txt")).Code)
+}
 
-	return New(cfg, authService, log).Handler(), buf
+func TestPagesLinkVersionedStaticAssets(t *testing.T) {
+	t.Parallel()
+
+	body := get(t, newTestServer(t), "/login").Body.String()
+
+	assert.Contains(t, body, `href="`+static.URL("css/app.css")+`"`)
+	assert.Contains(t, body, `src="`+static.URL("js/htmx.min.js")+`"`)
+	assert.NotContains(t, body, `"/static/css/app.css"`)
 }
 
 func TestStaticAndHealthAreNotLogged(t *testing.T) {
@@ -298,7 +331,7 @@ func TestStaticAndHealthAreNotLogged(t *testing.T) {
 
 	handler, buf := newTestServerWithLog(t)
 
-	for _, path := range []string{"/static/css/app.css", "/static/js/htmx.min.js", "/healthz"} {
+	for _, path := range []string{static.URL("css/app.css"), static.URL("js/htmx.min.js"), "/healthz"} {
 		buf.Reset()
 
 		recorder := httptest.NewRecorder()
@@ -307,6 +340,39 @@ func TestStaticAndHealthAreNotLogged(t *testing.T) {
 		require.Equal(t, http.StatusOK, recorder.Code, path)
 		assert.NotContains(t, buf.String(), `"msg":"request"`, path)
 	}
+}
+
+func TestPanicInPageIsLoggedAsRequest(t *testing.T) {
+	t.Parallel()
+
+	buf := &bytes.Buffer{}
+	log := slog.New(logger.NewContextHandler(slog.NewJSONHandler(buf, nil)))
+	s := New(&config.Config{}, nil, log)
+
+	handler := chain(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		panic("boom")
+	}), requestID, s.logRequests, s.recoverPanic)
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/boom", nil))
+
+	require.Equal(t, http.StatusInternalServerError, recorder.Code)
+
+	var entries []map[string]any
+
+	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &entry))
+
+		entries = append(entries, entry)
+	}
+
+	require.Len(t, entries, 2)
+	assert.Equal(t, "panic in handler", entries[0]["msg"])
+	assert.Equal(t, "request", entries[1]["msg"])
+	assert.InDelta(t, http.StatusInternalServerError, entries[1]["status"], 0)
+	assert.Equal(t, entries[0]["request_id"], entries[1]["request_id"])
+	assert.NotEmpty(t, entries[1]["request_id"])
 }
 
 func TestRequestLogHasReadableDuration(t *testing.T) {

@@ -1,5 +1,7 @@
 package layout
 
+import "github.com/ruskiiamov/school/internal/view/static"
+
 templ Base(title string) {
 	<!DOCTYPE html>
 	<html lang="ru" class="h-full">
@@ -9,10 +11,10 @@ templ Base(title string) {
 			<meta name="theme-color" content="#4f46e5"/>
 			<meta name="htmx-config" content="{&#34;includeIndicatorStyles&#34;:false}"/>
 			<title>{ title }</title>
-			<link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
-			<link rel="stylesheet" href="/static/css/app.css"/>
-			<script src="/static/js/htmx.min.js" defer></script>
-			<script src="/static/js/app.js" defer></script>
+			<link rel="icon" href={ static.URL("favicon.svg") } type="image/svg+xml"/>
+			<link rel="stylesheet" href={ static.URL("css/app.css") }/>
+			<script src={ static.URL("js/htmx.min.js") } defer></script>
+			<script src={ static.URL("js/app.js") } defer></script>
 		</head>
 		<body class="h-full bg-slate-50 font-sans text-slate-900 antialiased">
 			{ children... }

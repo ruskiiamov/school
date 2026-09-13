@@ -20,7 +20,7 @@ make tools     # скачать tailwindcss/htmx в bin/ и подключить
 make build     # generate + css + сборка bin/server (CGO_ENABLED=0)
 make run       # build + запуск с config.yaml (CONFIG=... чтобы указать другой)
 make watch     # templ --watch и tailwind --watch параллельно
-make test      # generate + go test ./...
+make test      # generate + go test -race ./...
 make lint      # generate + go tool golangci-lint run
 make fmt       # go tool golangci-lint fmt
 make check     # fmt --diff + lint + test (прогонять перед коммитом)
@@ -57,12 +57,15 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 - `internal/config` — YAML с дефолтами в `Load` и списком проверок в `validate`
   (все ошибки собираются через `errors.Join`). Профилей окружения (`app.env`,
   `dev`/`prod`) нет и не вводить: каждое поведение — отдельное явное поле конфига.
-- `internal/server` — `Handler()` собирает `http.ServeMux` (маршруты вида
-  `"GET /login"`, точное совпадение корня — `"GET /{$}"`) и оборачивает его
-  `chain(mux, requestID, s.logRequests, secureHeaders, s.recoverPanic)`. Порядок
-  значим: `requestID` первый, потому что логгер сервера — `contextHandler`, который
-  достаёт `request_id` из контекста; `recoverPanic` последний, чтобы паника попала
-  в лог запроса.
+- `internal/server` — `Handler()` собирает два `http.ServeMux`: внешний со служебными
+  маршрутами (статика, `/healthz`) и внутренний `pages()` с маршрутами приложения
+  (`"GET /login"`, точное совпадение корня — `"GET /{$}"`), смонтированный под `"/"`
+  как `chain(s.pages(), s.logRequests, s.recoverPanic)`. Внешний обёрнут
+  `chain(mux, requestID, secureHeaders, s.crossOriginProtection)`. Порядок значим:
+  `requestID` снаружи всего, потому что логгер — `contextHandler`, который достаёт
+  `request_id` из контекста; `recoverPanic` внутри `logRequests`, чтобы паника попала
+  в лог запроса. Новые страницы регистрировать в `pages()` — так они логируются
+  автоматически; служебные маршруты без access-лога — на внешнем mux.
 - `internal/auth` — сервисный слой: логин/логаут/аутентификация, bcrypt, серверные
   сессии, роли. Зависит от `storage` через локальные интерфейсы `userRepo`/`sessionRepo`
   (объявлены в `service.go`) — тесты подставляют свои реализации.
@@ -78,6 +81,7 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 `auth.User` (домен, с типизированной `Role`), `view.User` (только то, что рисуется).
 Конвертация на границах: `auth.toUser`, `server.toViewUser`. Не протаскивать
 `storage.User` в шаблоны и не добавлять в `view.*` поля, которых не должно быть в HTML.
+Русские подписи ролей — в `view.RoleTitle`, `auth.Role` знает только коды.
 
 **Никаких внешних ключей в схеме.** В миграциях не использовать `FOREIGN KEY`,
 `REFERENCES`, `ON DELETE CASCADE`, `CHECK`; прагма `foreign_keys` не включается.
@@ -87,7 +91,9 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 значений — в Go (`auth.ParseRole`), не в SQL.
 
 **Время в БД — миллисекунды Unix** (`INTEGER`), через `toMillis`/`fromMillis`;
-наружу отдаётся UTC.
+наружу отдаётся UTC. `created_at`/`updated_at` заполняют сами репозитории через
+`time.Now()`, сервисный слой их не передаёт; доменные моменты вроде `ExpiresAt`
+задаёт сервис.
 
 **SQLite открывается с `SetMaxOpenConns(1)`**, WAL и `_txlock=immediate` —
 писатель один, на это можно опираться, но не менять без причины.
@@ -100,12 +106,21 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 **CSP жёсткий** (`script-src 'self'`, без `unsafe-inline`) — никакого инлайнового JS
 и inline-стилей в шаблонах; поведение живёт в `static/js/app.js` и в data-атрибутах.
 
-**Формы защищены проверкой origin**, а не CSRF-токеном: каждый новый небезопасный
-маршрут оборачивать `s.checkOrigin(...)`.
+**Статика версионирована**: ссылки в шаблонах только через `static.URL("css/app.css")`
+→ `/static/<hash>/css/app.css`, где hash считается по содержимому embed-файлов при
+старте. Совпавшая версия отдаётся с `immutable` на год, чужая — с `no-cache`.
 
-**Логирование** — `slog` в JSON, всегда `*Context`-варианты внутри обработчиков
-(иначе потеряется `request_id`), ошибка как `slog.Any("error", err)`. Пути `/healthz`
-и `/static/` из лога исключены (`skipLogging`).
+**Формы защищены проверкой origin**, а не CSRF-токеном: весь mux обёрнут в
+`http.CrossOriginProtection` (`s.crossOriginProtection` в `chain`), отдельные маршруты
+оборачивать не нужно. Формы с `hx-post` обязаны иметь и `method="post" action="..."`,
+чтобы работать без JS.
+
+**Логирование** — `slog` в JSON, всегда `*Context`-варианты везде, где есть `ctx`
+(и в `server`, и в `auth`), иначе потеряется `request_id`; ошибка как
+`slog.Any("error", err)`. `request_id` кладёт в контекст middleware `requestID` через
+`logger.WithRequestID`, а добавляет в записи `logger.NewContextHandler`, которым
+обёрнут корневой логгер в `logger.New`. Access-лог пишется только для маршрутов
+`pages()`; статика и `/healthz` зарегистрированы на внешнем mux и в лог не попадают.
 
 **Ошибки** оборачиваются с контекстом (`fmt.Errorf("insert user: %w", err)`);
 на границах сравнение через `errors.Is` с сентинелами (`storage.ErrNotFound`,
@@ -118,7 +133,7 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
    оболочки — поверх `layout.Base`).
 3. Обработчик в `internal/server/<name>_handler.go`: достать пользователя
    `userFromContext`, собрать `view.*Page`, отдать через `s.render`.
-4. Маршрут в `Server.Handler()`, под `s.requireAuth` (и `s.checkOrigin` для POST).
+4. Маршрут в `Server.pages()`, под `s.requireAuth`.
 5. Пункт меню в `view.NavItems` — снять `Disabled` и задать `Href`.
 6. Тест в `internal/server/server_test.go` через `newTestServer` (реальная БД в
    `t.TempDir()`, миграции, админ из конфига — моков HTTP нет).

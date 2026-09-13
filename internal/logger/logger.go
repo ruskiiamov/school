@@ -30,7 +30,7 @@ func New(cfg config.Log) (*slog.Logger, io.Closer, error) {
 		out = io.MultiWriter(file, os.Stdout)
 	}
 
-	handler := slog.NewJSONHandler(out, &slog.HandlerOptions{Level: cfg.Level.Slog()})
+	handler := NewContextHandler(slog.NewJSONHandler(out, &slog.HandlerOptions{Level: cfg.Level.Slog()}))
 	log := slog.New(handler)
 	slog.SetDefault(log)
 
