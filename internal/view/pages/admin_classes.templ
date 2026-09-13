@@ -1,0 +1,79 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+const (
+	classesBase   = "/admin/classes"
+	classesTarget = "#classes"
+)
+
+templ Classes(page view.ClassesPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader("Классы") {
+				@components.InactiveToggle(page.ToggleHref, page.ShowInactive)
+			}
+			<nav aria-label="Учебный год" class="flex flex-wrap gap-1">
+				for _, year := range page.Years {
+					@yearTab(year)
+				}
+			</nav>
+			@ClassesList(page)
+		</div>
+	}
+}
+
+templ ClassesList(page view.ClassesPage) {
+	<div id="classes" class="flex flex-col gap-4 lg:gap-6">
+		if page.CanCreate {
+			@components.CreateForm(classURL(0, "", page.Year, page.ShowInactive),
+				"Новый класс", "Название нового класса", page.NewName, page.NewError, classesTarget)
+		}
+		<div class={ components.CardClass }>
+			if len(page.Classes) == 0 {
+				@components.EmptyState("В " + page.YearName + " пока нет классов")
+			} else {
+				<ul class="divide-y divide-slate-100">
+					for _, class := range page.Classes {
+						@classRow(class, page.Year, page.ShowInactive)
+					}
+				</ul>
+			}
+		</div>
+	</div>
+}
+
+templ yearTab(year view.YearOption) {
+	if year.Active {
+		<a href={ templ.SafeURL(year.Href) } aria-current="page" class="inline-flex min-h-11 items-center rounded-lg bg-indigo-50 px-3 text-sm font-semibold text-indigo-700">{ year.Name }</a>
+	} else {
+		<a href={ templ.SafeURL(year.Href) } class="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100">{ year.Name }</a>
+	}
+}
+
+templ classRow(row view.ClassRow, year int, showInactive bool) {
+	<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+		if row.Editing {
+			@components.EditForm(classURL(row.ID, "", year, showInactive),
+				classURL(0, "", year, showInactive), row.Name, "Название класса", row.Error, classesTarget)
+		} else {
+			if row.Active {
+				<a href={ templ.SafeURL(row.Href) } class="min-w-0 basis-full truncate text-sm font-medium text-indigo-700 hover:underline sm:flex-1 sm:basis-auto">{ row.Name }</a>
+			} else {
+				<a href={ templ.SafeURL(row.Href) } class="min-w-0 basis-full truncate text-sm text-slate-500 hover:underline sm:flex-1 sm:basis-auto">{ row.Name }</a>
+				@components.InactiveBadge()
+			}
+			<span class="ml-auto flex flex-wrap items-center gap-2">
+				@components.EditLink(classEditURL(row.ID, year, showInactive), classesTarget)
+				@components.ActiveForm(row.Active,
+					classURL(row.ID, "/deactivate", year, showInactive),
+					classURL(row.ID, "/activate", year, showInactive), classesTarget)
+			</span>
+			@components.FieldError(row.Error)
+		}
+	</li>
+}

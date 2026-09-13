@@ -12,11 +12,11 @@ templ InactiveBadge() {
 	<span class="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">удалён</span>
 }
 
-templ InactiveToggle(base string, showInactive bool) {
+templ InactiveToggle(href string, showInactive bool) {
 	if showInactive {
-		<a href={ templ.SafeURL(base) } class="text-sm font-medium text-indigo-700 hover:underline">Скрыть удалённые</a>
+		<a href={ templ.SafeURL(href) } class="text-sm font-medium text-indigo-700 hover:underline">Скрыть удалённые</a>
 	} else {
-		<a href={ templ.SafeURL(base + "?inactive=1") } class="text-sm font-medium text-indigo-700 hover:underline">Показать удалённые</a>
+		<a href={ templ.SafeURL(href) } class="text-sm font-medium text-indigo-700 hover:underline">Показать удалённые</a>
 	}
 }
 

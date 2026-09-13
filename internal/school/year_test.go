@@ -36,7 +36,7 @@ func TestCurrentYearUsesConfiguredLocation(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	svc := NewService(now.Month(), time.UTC, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc := NewService(now.Month(), time.UTC, nil, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	assert.Equal(t, YearAt(now.UTC(), now.Month()), svc.CurrentYear())
 }

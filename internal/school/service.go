@@ -17,6 +17,7 @@ type Service struct {
 	location       *time.Location
 	subjects       *storage.SubjectRepo
 	workTypes      *storage.WorkTypeRepo
+	classes        *storage.ClassRepo
 	log            *slog.Logger
 }
 
@@ -25,6 +26,7 @@ func NewService(
 	location *time.Location,
 	subjects *storage.SubjectRepo,
 	workTypes *storage.WorkTypeRepo,
+	classes *storage.ClassRepo,
 	log *slog.Logger,
 ) *Service {
 	return &Service{
@@ -32,6 +34,7 @@ func NewService(
 		location:       location,
 		subjects:       subjects,
 		workTypes:      workTypes,
+		classes:        classes,
 		log:            log,
 	}
 }

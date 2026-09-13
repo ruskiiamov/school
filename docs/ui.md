@@ -21,9 +21,9 @@
 GET  /admin/subjects?inactive=1&edit={id}   одна страница: форма добавления, строки текстом, `edit` — одна строка формой (D-043)
 POST /admin/subjects, /{id}, /{id}/deactivate, /{id}/activate
 GET  /admin/work-types?inactive=1      то же, плюс POST /{id}/up, /{id}/down — порядок стрелками
-GET  /admin/classes?year=2026          список по году (по умолчанию текущий; в селекторе — годы существующих классов, текущий и следующий)
-GET  /admin/classes/new, /{id}/edit, /{id}   карточка класса
-POST /admin/classes, /{id}, /{id}/deactivate, /{id}/activate
+GET  /admin/classes?year=2026&inactive=1&edit={id}   список по году как у предметов (D-043, D-044): вкладки-ссылки лет (годы существующих классов и текущий), строка добавления только в текущем году, `edit` — одна строка формой
+POST /admin/classes?year=2026, /{id}?year=…, /{id}/deactivate?year=…, /{id}/activate?year=…   класс создаётся в текущем году; `year` в адресе — для списка и редиректа
+GET  /admin/classes/{id}               карточка класса
 POST /admin/classes/{id}/students      добавить ученика (student_id)
 POST /admin/classes/{id}/students/{sid}/remove
 POST /admin/classes/{id}/assignments   назначить (subject_id, teacher_id)
@@ -86,6 +86,10 @@ GET  /account/password, POST /account/password
 ```
 
 На телефоне колонки идут одна под другой: сначала ученики, потом предметы.
+Список классов: под заголовком ряд вкладок-ссылок «2025/2026 · 2026/2027»,
+ниже (только в текущем году) строка «название + Добавить» и строки с
+«Изменить» и «Удалить», как у предметов; имя класса — ссылка на карточку,
+на карточке кнопки «Изменить» нет.
 
 Форма пользователя (одна для трёх разделов, у ученика добавляется класс):
 

@@ -142,7 +142,12 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 `CreateForm`, `ActiveForm`, `EditLink`. Маршруты админа регистрируются через
 `s.admin(h)`. Образец — `admin_subjects_handler.go` и
 `pages/admin_subjects.templ`; общие компоненты — `components/form.templ`,
-классы полей и кнопок — константы в `components/classes.go`.
+классы полей и кнопок — константы в `components/classes.go`. Классы (D-044)
+идут по тому же строчному паттерну поверх вкладок лет: список и редиректы
+берут год из `?year=` (`queryYear`, `classesListURL`), создание — всегда в
+`CurrentYear()`, форма добавления только на вкладке текущего года
+(`CanCreate`), карточка `/admin/classes/{id}` — отдельная страница;
+образец — `admin_classes_handler.go`.
 
 **HTMX и редиректы.** `s.redirect` сам отличает HTMX-запрос (`isHTMX`) и отвечает
 `HX-Redirect` + 204 вместо 303. Обработчики, отвечающие и фрагментом, и целой
