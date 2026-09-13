@@ -1,0 +1,88 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+const (
+	workTypesBase   = "/admin/work-types"
+	workTypesTarget = "#work-types"
+)
+
+templ WorkTypes(page view.WorkTypesPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader("Типы работ") {
+				@components.InactiveToggle(workTypesBase, page.ShowInactive)
+			}
+			@WorkTypesList(page)
+		</div>
+	}
+}
+
+templ WorkTypesList(page view.WorkTypesPage) {
+	<div id="work-types" class="flex flex-col gap-4 lg:gap-6">
+		@components.CreateForm(catalogURL(workTypesBase, 0, "", page.ShowInactive),
+			"Новый тип работы", "Название нового типа работы", page.NewName, page.NewError, workTypesTarget)
+		<div class={ components.CardClass }>
+			if len(page.WorkTypes) == 0 {
+				@components.EmptyState("Пока нет типов работ")
+			} else {
+				<ul class="divide-y divide-slate-100">
+					for _, workType := range page.WorkTypes {
+						@workTypeRow(workType, page.ShowInactive)
+					}
+				</ul>
+			}
+		</div>
+	</div>
+}
+
+templ workTypeRow(row view.WorkTypeRow, showInactive bool) {
+	<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+		if row.Active && !row.Editing {
+			<form method="post" action={ templ.SafeURL(catalogURL(workTypesBase, row.ID, "/up", showInactive)) } class="flex shrink-0 items-center">
+				@moveButton(catalogURL(workTypesBase, row.ID, "/up", showInactive), view.IconUp, "Выше", row.CanUp)
+				@moveButton(catalogURL(workTypesBase, row.ID, "/down", showInactive), view.IconDown, "Ниже", row.CanDown)
+			</form>
+		}
+		if row.Editing {
+			@components.EditForm(catalogURL(workTypesBase, row.ID, "", showInactive),
+				catalogURL(workTypesBase, 0, "", showInactive), row.Name, "Название типа работы", row.Error, workTypesTarget)
+		} else {
+			if row.Active {
+				<span class="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{ row.Name }</span>
+			} else {
+				<span class="min-w-0 flex-1 truncate text-sm text-slate-500">{ row.Name }</span>
+				@components.InactiveBadge()
+			}
+			<span class="ml-auto flex flex-wrap items-center gap-2">
+				@components.EditLink(catalogEditURL(workTypesBase, row.ID, showInactive), workTypesTarget)
+				@components.ActiveForm(row.Active,
+					catalogURL(workTypesBase, row.ID, "/deactivate", showInactive),
+					catalogURL(workTypesBase, row.ID, "/activate", showInactive), workTypesTarget)
+			</span>
+			@components.FieldError(row.Error)
+		}
+	</li>
+}
+
+templ moveButton(action string, icon view.Icon, label string, enabled bool) {
+	<button
+		type="submit"
+		formaction={ action }
+		hx-post={ action }
+		hx-target={ workTypesTarget }
+		hx-swap="outerHTML"
+		aria-label={ label }
+		title={ label }
+		if !enabled {
+			disabled
+		}
+		class={ components.ButtonIconClass }
+	>
+		@components.Icon(icon, "size-5")
+	</button>
+}

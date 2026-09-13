@@ -1,0 +1,91 @@
+package components
+
+import "github.com/ruskiiamov/school/internal/view"
+
+templ FieldError(message string) {
+	if message != "" {
+		<span class="basis-full text-sm text-rose-600">{ message }</span>
+	}
+}
+
+templ InactiveBadge() {
+	<span class="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">удалён</span>
+}
+
+templ InactiveToggle(base string, showInactive bool) {
+	if showInactive {
+		<a href={ templ.SafeURL(base) } class="text-sm font-medium text-indigo-700 hover:underline">Скрыть удалённые</a>
+	} else {
+		<a href={ templ.SafeURL(base + "?inactive=1") } class="text-sm font-medium text-indigo-700 hover:underline">Показать удалённые</a>
+	}
+}
+
+templ EditLink(href, target string) {
+	<a href={ templ.SafeURL(href) } hx-get={ href } hx-target={ target } hx-swap="outerHTML" class={ ButtonSecondaryClass }>Изменить</a>
+}
+
+templ ActiveForm(active bool, deactivateAction, activateAction, target string) {
+	if active {
+		<form method="post" action={ templ.SafeURL(deactivateAction) } hx-post={ deactivateAction } hx-target={ target } hx-swap="outerHTML">
+			<button type="submit" class={ ButtonDangerClass }>Удалить</button>
+		</form>
+	} else {
+		<form method="post" action={ templ.SafeURL(activateAction) } hx-post={ activateAction } hx-target={ target } hx-swap="outerHTML">
+			<button type="submit" class={ ButtonSecondaryClass }>Восстановить</button>
+		</form>
+	}
+}
+
+templ EditForm(action, cancelHref, name, label, message, target string) {
+	<form
+		method="post"
+		action={ templ.SafeURL(action) }
+		hx-post={ action }
+		hx-target={ target }
+		hx-swap="outerHTML"
+		class="flex flex-1 flex-wrap items-center gap-2"
+	>
+		<input
+			type="text"
+			name="name"
+			value={ name }
+			aria-label={ label }
+			maxlength="100"
+			autocomplete="off"
+			autofocus
+			class={ InputClassFor(message), "flex-1 basis-40" }
+		/>
+		<span class="ml-auto flex flex-wrap items-center gap-2">
+			<button type="submit" class={ ButtonPrimaryClass }>Сохранить</button>
+			<a href={ templ.SafeURL(cancelHref) } hx-get={ cancelHref } hx-target={ target } hx-swap="outerHTML" class={ ButtonSecondaryClass }>Отмена</a>
+		</span>
+		@FieldError(message)
+	</form>
+}
+
+templ CreateForm(action, placeholder, label, name, message, target string) {
+	<form
+		method="post"
+		action={ templ.SafeURL(action) }
+		hx-post={ action }
+		hx-target={ target }
+		hx-swap="outerHTML"
+		class={ CardClass, "flex flex-wrap items-center gap-2 p-3 sm:p-4" }
+	>
+		<input
+			type="text"
+			name="name"
+			value={ name }
+			placeholder={ placeholder }
+			aria-label={ label }
+			maxlength="100"
+			autocomplete="off"
+			class={ InputClassFor(message), "flex-1 basis-56" }
+		/>
+		<button type="submit" class={ ButtonPrimaryClass }>
+			@Icon(view.IconPlus, "size-4")
+			<span>Добавить</span>
+		</button>
+		@FieldError(message)
+	</form>
+}

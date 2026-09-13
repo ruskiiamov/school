@@ -19,6 +19,9 @@ const (
 	IconClock     Icon = "clock"
 	IconMegaphone Icon = "megaphone"
 	IconAlert     Icon = "alert"
+	IconPlus      Icon = "plus"
+	IconUp        Icon = "up"
+	IconDown      Icon = "down"
 )
 
 type User struct {
@@ -61,4 +64,38 @@ type HomePage struct {
 type StubPage struct {
 	Shell   Shell
 	Heading string
+}
+
+type SubjectRow struct {
+	ID      int64
+	Name    string
+	Active  bool
+	Editing bool
+	Error   string
+}
+
+type SubjectsPage struct {
+	Shell        Shell
+	Subjects     []SubjectRow
+	ShowInactive bool
+	NewName      string
+	NewError     string
+}
+
+type WorkTypeRow struct {
+	ID      int64
+	Name    string
+	Active  bool
+	Editing bool
+	CanUp   bool
+	CanDown bool
+	Error   string
+}
+
+type WorkTypesPage struct {
+	Shell        Shell
+	WorkTypes    []WorkTypeRow
+	ShowInactive bool
+	NewName      string
+	NewError     string
 }

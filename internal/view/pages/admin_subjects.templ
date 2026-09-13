@@ -1,0 +1,64 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+const (
+	subjectsBase   = "/admin/subjects"
+	subjectsTarget = "#subjects"
+)
+
+templ Subjects(page view.SubjectsPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader("Предметы") {
+				@components.InactiveToggle(subjectsBase, page.ShowInactive)
+			}
+			@SubjectsList(page)
+		</div>
+	}
+}
+
+templ SubjectsList(page view.SubjectsPage) {
+	<div id="subjects" class="flex flex-col gap-4 lg:gap-6">
+		@components.CreateForm(catalogURL(subjectsBase, 0, "", page.ShowInactive),
+			"Новый предмет", "Название нового предмета", page.NewName, page.NewError, subjectsTarget)
+		<div class={ components.CardClass }>
+			if len(page.Subjects) == 0 {
+				@components.EmptyState("Пока нет предметов")
+			} else {
+				<ul class="divide-y divide-slate-100">
+					for _, subject := range page.Subjects {
+						@subjectRow(subject, page.ShowInactive)
+					}
+				</ul>
+			}
+		</div>
+	</div>
+}
+
+templ subjectRow(row view.SubjectRow, showInactive bool) {
+	<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+		if row.Editing {
+			@components.EditForm(catalogURL(subjectsBase, row.ID, "", showInactive),
+				catalogURL(subjectsBase, 0, "", showInactive), row.Name, "Название предмета", row.Error, subjectsTarget)
+		} else {
+			if row.Active {
+				<span class="min-w-0 basis-full truncate text-sm font-medium text-slate-900 sm:flex-1 sm:basis-auto">{ row.Name }</span>
+			} else {
+				<span class="min-w-0 basis-full truncate text-sm text-slate-500 sm:flex-1 sm:basis-auto">{ row.Name }</span>
+				@components.InactiveBadge()
+			}
+			<span class="ml-auto flex flex-wrap items-center gap-2">
+				@components.EditLink(catalogEditURL(subjectsBase, row.ID, showInactive), subjectsTarget)
+				@components.ActiveForm(row.Active,
+					catalogURL(subjectsBase, row.ID, "/deactivate", showInactive),
+					catalogURL(subjectsBase, row.ID, "/activate", showInactive), subjectsTarget)
+			</span>
+			@components.FieldError(row.Error)
+		}
+	</li>
+}

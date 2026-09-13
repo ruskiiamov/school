@@ -52,7 +52,25 @@ func (s *Server) pages() http.Handler {
 	mux.Handle("GET /journal", s.requireAuth(requireRole(auth.RoleTeacher)(http.HandlerFunc(s.journalStub))))
 	mux.Handle("GET /diary", s.requireAuth(requireRole(auth.RoleStudent, auth.RoleParent)(http.HandlerFunc(s.diaryStub))))
 
+	mux.Handle("GET /admin/subjects", s.admin(s.subjectsList))
+	mux.Handle("POST /admin/subjects", s.admin(s.subjectCreate))
+	mux.Handle("POST /admin/subjects/{id}", s.admin(s.subjectUpdate))
+	mux.Handle("POST /admin/subjects/{id}/deactivate", s.admin(s.subjectDeactivate))
+	mux.Handle("POST /admin/subjects/{id}/activate", s.admin(s.subjectActivate))
+
+	mux.Handle("GET /admin/work-types", s.admin(s.workTypesList))
+	mux.Handle("POST /admin/work-types", s.admin(s.workTypeCreate))
+	mux.Handle("POST /admin/work-types/{id}", s.admin(s.workTypeUpdate))
+	mux.Handle("POST /admin/work-types/{id}/deactivate", s.admin(s.workTypeDeactivate))
+	mux.Handle("POST /admin/work-types/{id}/activate", s.admin(s.workTypeActivate))
+	mux.Handle("POST /admin/work-types/{id}/up", s.admin(s.workTypeUp))
+	mux.Handle("POST /admin/work-types/{id}/down", s.admin(s.workTypeDown))
+
 	return mux
+}
+
+func (s *Server) admin(h http.HandlerFunc) http.Handler {
+	return s.requireAuth(requireRole(auth.RoleAdmin)(h))
 }
 
 func staticHandler() http.Handler {
