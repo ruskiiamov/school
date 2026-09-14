@@ -76,30 +76,6 @@ func (s *Server) classSetActive(w http.ResponseWriter, r *http.Request, active b
 	s.classesDone(w, r)
 }
 
-func (s *Server) classShow(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(r)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-
-	class, err := s.school.ClassByID(r.Context(), id)
-	if err != nil {
-		s.handleServiceError(w, r, "load class", err)
-		return
-	}
-
-	page := view.ClassPage{
-		Shell:    s.shell(r, class.Name, classesPath),
-		ID:       class.ID,
-		Name:     class.Name,
-		YearName: school.YearName(class.Year),
-		Active:   class.Active,
-	}
-
-	s.render(w, r, pages.Class(page))
-}
-
 func (s *Server) classesDone(w http.ResponseWriter, r *http.Request) {
 	if isHTMX(r) {
 		s.renderClasses(w, r, "", "", rowEdit{})
@@ -148,7 +124,7 @@ func (s *Server) renderClasses(w http.ResponseWriter, r *http.Request, newName, 
 		row := view.ClassRow{
 			ID:     class.ID,
 			Name:   class.Name,
-			Href:   classesPath + "/" + strconv.FormatInt(class.ID, 10),
+			Href:   classPath(class.ID, ""),
 			Active: class.Active,
 		}
 		row.Editing = class.ID == editing

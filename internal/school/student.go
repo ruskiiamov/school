@@ -9,7 +9,10 @@ import (
 	"github.com/ruskiiamov/school/internal/validation"
 )
 
-const msgClassUnknown = "Такого класса нет в текущем году"
+const (
+	msgClassUnknown    = "Такого класса нет в текущем году"
+	msgStudentHasClass = "Ученик уже в классе "
+)
 
 func (s *Service) StudentClass(ctx context.Context, studentID int64) (Class, bool, error) {
 	stored, err := s.classStudents.ClassOfStudent(ctx, studentID, s.CurrentYear())
@@ -67,6 +70,44 @@ func (s *Service) SetStudentClass(ctx context.Context, studentID, classID int64)
 	}
 
 	s.log.InfoContext(ctx, "student class set", slog.Int64("student_id", studentID), slog.Int64("class_id", classID))
+
+	return nil
+}
+
+func (s *Service) AddClassStudent(ctx context.Context, classID, studentID int64) error {
+	if err := s.CheckStudentClass(ctx, classID); err != nil {
+		return err
+	}
+
+	current, err := s.classStudents.ClassOfStudent(ctx, studentID, s.CurrentYear())
+	if err != nil && !errors.Is(err, storage.ErrNotFound) {
+		return err
+	}
+	if err == nil {
+		return validation.Errors{"student": msgStudentHasClass + current.Name}
+	}
+
+	if err := s.classStudents.Add(ctx, classID, studentID); err != nil {
+		return err
+	}
+
+	s.log.InfoContext(ctx, "student added to class", slog.Int64("student_id", studentID), slog.Int64("class_id", classID))
+
+	return nil
+}
+
+func (s *Service) RemoveClassStudent(ctx context.Context, classID, studentID int64) error {
+	if err := s.CheckStudentClass(ctx, classID); err != nil {
+		return err
+	}
+
+	if err := s.classStudents.Remove(ctx, classID, studentID); errors.Is(err, storage.ErrNotFound) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+
+	s.log.InfoContext(ctx, "student removed from class", slog.Int64("student_id", studentID), slog.Int64("class_id", classID))
 
 	return nil
 }

@@ -76,7 +76,7 @@ func newTestEnvWithLogger(t *testing.T, log *slog.Logger) *testEnv {
 
 	schoolService := school.NewService(cfg.School.YearStartMonth, cfg.Location,
 		storage.NewSubjectRepo(db), storage.NewWorkTypeRepo(db), storage.NewClassRepo(db),
-		storage.NewClassStudentRepo(db), log)
+		storage.NewClassStudentRepo(db), storage.NewParentChildRepo(db), storage.NewAssignmentRepo(db), log)
 
 	return &testEnv{
 		handler: New(cfg, authService, schoolService, log).Handler(),

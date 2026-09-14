@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -13,7 +14,11 @@ import (
 )
 
 func pathID(r *http.Request) (int64, bool) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	return pathValue(r, "id")
+}
+
+func pathValue(r *http.Request, name string) (int64, bool) {
+	id, err := strconv.ParseInt(r.PathValue(name), 10, 64)
 	if err != nil || id <= 0 {
 		return 0, false
 	}
@@ -55,4 +60,17 @@ func formErrors(err error) (validation.Errors, bool) {
 	}
 
 	return nil, false
+}
+
+func (s *Server) activeUser(ctx context.Context, id int64, role auth.Role) (auth.User, error) {
+	user, err := s.auth.UserByID(ctx, id)
+	if err != nil {
+		return auth.User{}, err
+	}
+
+	if user.Role != role || !user.Active {
+		return auth.User{}, auth.ErrNotFound
+	}
+
+	return user, nil
 }

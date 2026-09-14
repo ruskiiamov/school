@@ -6,6 +6,11 @@ import (
 	"github.com/ruskiiamov/school/internal/view/layout"
 )
 
+const (
+	classStudentsTarget    = "#class-students"
+	classAssignmentsTarget = "#class-assignments"
+)
+
 templ Class(page view.ClassPage) {
 	@layout.App(page.Shell) {
 		<div class="flex flex-col gap-4 lg:gap-6">
@@ -14,23 +19,133 @@ templ Class(page view.ClassPage) {
 					@components.InactiveBadge()
 				}
 			}
-			<div class="grid gap-4 lg:grid-cols-2 lg:gap-6">
-				@classPanel("Ученики") {
-					@components.EmptyState("Пока нет учеников")
-				}
-				@classPanel("Предметы и учителя") {
-					@components.EmptyState("Предметы пока не назначены")
-				}
+			<div class="grid items-start gap-4 lg:grid-cols-2 lg:gap-6">
+				@ClassStudents(page.Students)
+				@ClassAssignments(page.Assignments)
 			</div>
 		</div>
 	}
 }
 
-templ classPanel(title string) {
-	<section class={ components.CardClass }>
-		<div class="border-b border-slate-100 px-4 py-3 lg:px-5">
-			<h2 class="text-sm font-semibold text-slate-900">{ title }</h2>
-		</div>
-		{ children... }
+templ ClassStudents(block view.ClassStudentsBlock) {
+	<section id="class-students" class={ components.CardClass }>
+		@classPanelTitle("Ученики")
+		if len(block.Students) == 0 {
+			@components.EmptyState("Пока нет учеников")
+		} else {
+			<ul class="divide-y divide-slate-100">
+				for _, student := range block.Students {
+					<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+						@memberName(student)
+						if block.CanEdit {
+							@removeForm(student.RemoveAction, classStudentsTarget)
+						}
+					</li>
+				}
+			</ul>
+		}
+		if block.CanEdit {
+			<form
+				method="post"
+				action={ templ.SafeURL(block.AddAction) }
+				hx-post={ block.AddAction }
+				hx-target={ classStudentsTarget }
+				hx-swap="outerHTML"
+				class="flex flex-wrap items-start gap-2 border-t border-slate-100 p-3 sm:p-4"
+			>
+				if len(block.Candidates) == 0 {
+					<span class="text-sm text-slate-500">Нет учеников без класса</span>
+				} else {
+					@components.RowSelect("student_id", "Ученик", block.Candidates, "", "flex-1 basis-56")
+					<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>
+						@components.Icon(view.IconPlus, "size-4")
+						<span>Добавить</span>
+					</button>
+				}
+			</form>
+		}
+		@blockError(block.Error)
 	</section>
+}
+
+templ ClassAssignments(block view.ClassAssignmentsBlock) {
+	<section id="class-assignments" class={ components.CardClass }>
+		@classPanelTitle("Предметы и учителя")
+		if len(block.Assignments) == 0 {
+			@components.EmptyState("Предметы пока не назначены")
+		} else {
+			<ul class="divide-y divide-slate-100">
+				for _, assignment := range block.Assignments {
+					<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+						<span class="flex min-w-0 basis-full flex-wrap items-center gap-x-2 gap-y-1 sm:flex-1 sm:basis-auto">
+							<span class="text-sm font-medium text-slate-900">{ assignment.Subject }</span>
+							if !assignment.SubjectActive {
+								@components.InactiveBadge()
+							}
+							<span class="text-sm text-slate-600">{ assignment.Teacher }</span>
+							if !assignment.TeacherActive {
+								@components.InactiveBadge()
+							}
+						</span>
+						if block.CanEdit {
+							@removeForm(assignment.RemoveAction, classAssignmentsTarget)
+						}
+					</li>
+				}
+			</ul>
+		}
+		if block.CanEdit {
+			<form
+				method="post"
+				action={ templ.SafeURL(block.AddAction) }
+				hx-post={ block.AddAction }
+				hx-target={ classAssignmentsTarget }
+				hx-swap="outerHTML"
+				class="flex flex-wrap items-start gap-2 border-t border-slate-100 p-3 sm:p-4"
+			>
+				if len(block.Subjects) == 0 || len(block.Teachers) == 0 {
+					<span class="text-sm text-slate-500">Нужны активные предметы и учителя</span>
+				} else {
+					@components.RowSelect("subject_id", "Предмет", block.Subjects, block.Errors["subject"], "flex-1 basis-44")
+					@components.RowSelect("teacher_id", "Учитель", block.Teachers, block.Errors["teacher"], "flex-1 basis-44")
+					<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Назначить</button>
+				}
+			</form>
+		}
+		@blockError(block.Errors["class"])
+	</section>
+}
+
+templ classPanelTitle(title string) {
+	<div class="border-b border-slate-100 px-4 py-3 lg:px-5">
+		<h2 class="text-sm font-semibold text-slate-900">{ title }</h2>
+	</div>
+}
+
+templ memberName(member view.MemberRow) {
+	<span class="flex min-w-0 basis-full items-center gap-2 sm:flex-1 sm:basis-auto">
+		if member.Active {
+			<span class="truncate text-sm font-medium text-slate-900">{ member.FullName }</span>
+		} else {
+			<span class="truncate text-sm text-slate-500">{ member.FullName }</span>
+			@components.InactiveBadge()
+		}
+		if member.ClassName != "" {
+			<span class="shrink-0 text-sm text-slate-600">{ member.ClassName }</span>
+		}
+	</span>
+}
+
+templ removeForm(action, target string) {
+	<form method="post" action={ templ.SafeURL(action) } hx-post={ action } hx-target={ target } hx-swap="outerHTML" class="ml-auto">
+		<button type="submit" class={ components.ButtonDangerClass }>Убрать</button>
+	</form>
+}
+
+templ blockError(message string) {
+	if message != "" {
+		<div class="flex border-t border-slate-100 px-4 py-3">
+			@components.FieldError(message)
+		</div>
+	}
 }

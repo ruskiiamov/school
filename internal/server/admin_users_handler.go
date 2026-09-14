@@ -40,10 +40,12 @@ var userSections = []userSection{
 		role: auth.RoleStudent, path: "/admin/students", title: "Ученики",
 		created: "Ученик создан", recipient: "ученику", empty: "Пока нет учеников", more: "Ещё ученика",
 	},
-	{
-		role: auth.RoleParent, path: "/admin/parents", title: "Родители",
-		created: "Родитель создан", recipient: "родителю", empty: "Пока нет родителей", more: "Ещё родителя",
-	},
+	parentsSection,
+}
+
+var parentsSection = userSection{
+	role: auth.RoleParent, path: "/admin/parents", title: "Родители",
+	created: "Родитель создан", recipient: "родителю", empty: "Пока нет родителей", more: "Ещё родителя",
 }
 
 func (sec userSection) hasClass() bool {
@@ -308,7 +310,18 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, sec userSec
 	var (
 		classes        []school.Class
 		studentClasses map[int64]school.Class
+		children       childrenData
 	)
+
+	if sec.role == auth.RoleParent {
+		children, err = s.loadChildren(r)
+		if err != nil {
+			s.serverError(w, r, "list children", err)
+			return
+		}
+
+		page.ShowChildren = true
+	}
 
 	if sec.hasClass() {
 		classes, err = s.school.Classes(r.Context(), s.school.CurrentYear(), false)
@@ -344,6 +357,10 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, sec userSec
 			Editing:   user.ID == editing,
 		}
 
+		if page.ShowChildren {
+			row.ChildNames = children.names(user.ID)
+		}
+
 		if row.Editing {
 			form := userForm{fullName: user.FullName, login: user.Login, classID: class.ID}
 			if edit.entered {
@@ -353,6 +370,14 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, sec userSec
 			row.Fields = view.UserFields{FullName: form.fullName, Login: form.login, Errors: edit.errs}
 			if sec.hasClass() {
 				row.Fields.Classes = classOptions(classes, form.classID, noClassOption)
+			}
+
+			if page.ShowChildren {
+				row.Children, err = s.childrenBlock(r, children, user.ID, edit.errs["child"])
+				if err != nil {
+					s.serverError(w, r, "search children", err)
+					return
+				}
 			}
 		}
 
@@ -392,6 +417,10 @@ func queryInt64(r *http.Request, name string) int64 {
 }
 
 func listQuery(query string, classID int64, inactive bool) string {
+	return encodeQuery(listValues(query, classID, inactive))
+}
+
+func listValues(query string, classID int64, inactive bool) url.Values {
 	values := url.Values{}
 	if query != "" {
 		values.Set("q", query)
@@ -405,6 +434,10 @@ func listQuery(query string, classID int64, inactive bool) string {
 		values.Set("inactive", "1")
 	}
 
+	return values
+}
+
+func encodeQuery(values url.Values) string {
 	if len(values) == 0 {
 		return ""
 	}

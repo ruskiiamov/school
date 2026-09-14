@@ -1,6 +1,8 @@
 package pages
 
 import (
+	"strconv"
+
 	"github.com/ruskiiamov/school/internal/view"
 	"github.com/ruskiiamov/school/internal/view/components"
 	"github.com/ruskiiamov/school/internal/view/layout"
@@ -107,6 +109,9 @@ templ userRow(page view.UsersPage, row view.UserRow) {
 				</span>
 			</form>
 			<form id={ passwordFormID(row.ID) } method="post" action={ templ.SafeURL(userURL(page.Path, row.ID, "/password", page.ListQuery)) } hx-post={ userURL(page.Path, row.ID, "/password", page.ListQuery) }></form>
+			if row.Children != nil {
+				@childrenBlock(*row.Children)
+			}
 		} else {
 			<span class="flex min-w-0 basis-full items-center gap-2 sm:flex-1 sm:basis-auto">
 				if row.Active {
@@ -125,6 +130,15 @@ templ userRow(page view.UsersPage, row view.UserRow) {
 					}
 				</span>
 			}
+			if page.ShowChildren {
+				<span class="min-w-0 basis-full truncate text-sm text-slate-600 sm:flex-1 sm:basis-auto">
+					if row.ChildNames != "" {
+						{ row.ChildNames }
+					} else {
+						<span class="text-slate-400">нет детей</span>
+					}
+				</span>
+			}
 			<span class="font-mono text-sm text-slate-600 sm:w-44 sm:truncate">{ row.Login }</span>
 			<span class="ml-auto flex flex-wrap items-center gap-2">
 				@components.EditLink(userEditURL(page.Path, page.ListQuery, row.ID), usersTarget)
@@ -134,4 +148,66 @@ templ userRow(page view.UsersPage, row view.UserRow) {
 			</span>
 		}
 	</li>
+}
+
+templ childrenBlock(block view.ChildrenBlock) {
+	<div class="flex basis-full flex-col gap-3 border-t border-slate-100 pt-3">
+		<h3 class="text-sm font-semibold text-slate-900">Дети</h3>
+		if len(block.Children) == 0 {
+			<p class="text-sm text-slate-500">Пока нет детей</p>
+		} else {
+			<ul class="flex flex-col gap-2">
+				for _, child := range block.Children {
+					<li class="flex flex-wrap items-center gap-2">
+						@memberName(child)
+						@removeForm(child.RemoveAction, usersTarget)
+					</li>
+				}
+			</ul>
+		}
+		<form
+			method="get"
+			action={ templ.SafeURL(block.SearchAction) }
+			hx-get={ block.SearchAction }
+			hx-target={ usersTarget }
+			hx-swap="outerHTML"
+			hx-trigger="submit, input changed delay:300ms, change"
+			hx-push-url="true"
+			class="flex flex-wrap items-center gap-2"
+		>
+			for name, value := range block.Hidden {
+				<input type="hidden" name={ name } value={ value }/>
+			}
+			<input
+				type="search"
+				id="child-search"
+				hx-preserve
+				name="child"
+				value={ block.Query }
+				placeholder="Найти ученика по ФИО"
+				aria-label="Найти ученика по ФИО"
+				autocomplete="off"
+				class={ components.InputClass, "flex-1 basis-56" }
+			/>
+			<button type="submit" class={ components.ButtonSecondaryClass }>Найти</button>
+		</form>
+		if block.Searched {
+			if len(block.Results) == 0 {
+				<p class="text-sm text-slate-500">Ничего не найдено</p>
+			} else {
+				<ul class="flex flex-col gap-2">
+					for _, student := range block.Results {
+						<li class="flex flex-wrap items-center gap-2">
+							@memberName(student)
+							<form method="post" action={ templ.SafeURL(block.AddAction) } hx-post={ block.AddAction } hx-target={ usersTarget } hx-swap="outerHTML" class="ml-auto">
+								<input type="hidden" name="student_id" value={ strconv.FormatInt(student.ID, 10) }/>
+								<button type="submit" class={ components.ButtonSecondaryClass }>Добавить</button>
+							</form>
+						</li>
+					}
+				</ul>
+			}
+		}
+		@components.FieldError(block.Error)
+	</div>
 }

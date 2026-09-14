@@ -60,6 +60,10 @@ func (s *Server) pages() http.Handler {
 	mux.Handle("POST /admin/classes/{id}", s.admin(s.classUpdate))
 	mux.Handle("POST /admin/classes/{id}/deactivate", s.admin(s.classDeactivate))
 	mux.Handle("POST /admin/classes/{id}/activate", s.admin(s.classActivate))
+	mux.Handle("POST /admin/classes/{id}/students", s.admin(s.classStudentAdd))
+	mux.Handle("POST /admin/classes/{id}/students/{sid}/remove", s.admin(s.classStudentRemove))
+	mux.Handle("POST /admin/classes/{id}/assignments", s.admin(s.classAssign))
+	mux.Handle("POST /admin/classes/{id}/assignments/{aid}/remove", s.admin(s.classAssignmentRemove))
 
 	for _, section := range userSections {
 		mux.Handle("GET "+section.path, s.admin(s.usersList(section)))
@@ -70,6 +74,9 @@ func (s *Server) pages() http.Handler {
 		mux.Handle("POST "+section.path+"/{id}/deactivate", s.admin(s.userSetActive(section, false)))
 		mux.Handle("POST "+section.path+"/{id}/activate", s.admin(s.userSetActive(section, true)))
 	}
+
+	mux.Handle("POST "+parentsSection.path+"/{id}/children", s.admin(s.parentChildAdd))
+	mux.Handle("POST "+parentsSection.path+"/{id}/children/{sid}/remove", s.admin(s.parentChildRemove))
 
 	mux.Handle("GET /admin/subjects", s.admin(s.subjectsList))
 	mux.Handle("POST /admin/subjects", s.admin(s.subjectCreate))

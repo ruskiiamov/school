@@ -19,6 +19,8 @@ type Service struct {
 	workTypes      *storage.WorkTypeRepo
 	classes        *storage.ClassRepo
 	classStudents  *storage.ClassStudentRepo
+	parentChildren *storage.ParentChildRepo
+	assignments    *storage.AssignmentRepo
 	log            *slog.Logger
 }
 
@@ -29,6 +31,8 @@ func NewService(
 	workTypes *storage.WorkTypeRepo,
 	classes *storage.ClassRepo,
 	classStudents *storage.ClassStudentRepo,
+	parentChildren *storage.ParentChildRepo,
+	assignments *storage.AssignmentRepo,
 	log *slog.Logger,
 ) *Service {
 	return &Service{
@@ -38,6 +42,8 @@ func NewService(
 		workTypes:      workTypes,
 		classes:        classes,
 		classStudents:  classStudents,
+		parentChildren: parentChildren,
+		assignments:    assignments,
 		log:            log,
 	}
 }
