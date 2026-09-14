@@ -137,6 +137,17 @@ func (r *ClassRepo) SetActive(ctx context.Context, id int64, active bool) error 
 	return requireAffected(result, "set class active")
 }
 
+func (r *ClassRepo) CountActiveByYear(ctx context.Context, year int) (int, error) {
+	const query = "SELECT COUNT(*) FROM classes WHERE year = ? AND active = 1"
+
+	var count int
+	if err := r.db.QueryRowContext(ctx, query, year).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count classes: %w", err)
+	}
+
+	return count, nil
+}
+
 func (r *ClassRepo) NameExists(ctx context.Context, year int, name string, excludeID int64) (bool, error) {
 	const query = "SELECT EXISTS (SELECT 1 FROM classes WHERE year = ? AND name = ? AND id != ?)"
 

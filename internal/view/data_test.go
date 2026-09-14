@@ -15,9 +15,9 @@ func TestNavItemsDependOnRole(t *testing.T) {
 		titles []string
 	}{
 		{"admin", []string{"Дашборд", "Классы", "Предметы", "Учителя", "Ученики", "Родители", "Типы работ"}},
-		{"teacher", []string{"Дашборд", "Журнал"}},
-		{"student", []string{"Дашборд", "Дневник"}},
-		{"parent", []string{"Дашборд", "Дневник"}},
+		{"teacher", []string{"Дашборд", "Журнал", "Сменить пароль"}},
+		{"student", []string{"Дашборд", "Дневник", "Сменить пароль"}},
+		{"parent", []string{"Дашборд", "Дневник", "Сменить пароль"}},
 	}
 
 	for _, tt := range tests {

@@ -49,6 +49,32 @@ func (r *ClassStudentRepo) ListByYear(ctx context.Context, year int) ([]ClassStu
 	return members, nil
 }
 
+func (r *ClassStudentRepo) CountActiveByYear(ctx context.Context, year int) (int, error) {
+	const query = `SELECT COUNT(DISTINCT cs.student_id)
+		FROM class_students cs
+		JOIN classes c ON c.id = cs.class_id
+		JOIN users u ON u.id = cs.student_id
+		WHERE c.year = ? AND c.active = 1 AND u.active = 1`
+
+	var count int
+	if err := r.db.QueryRowContext(ctx, query, year).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count class students: %w", err)
+	}
+
+	return count, nil
+}
+
+func (r *ClassStudentRepo) CountByClass(ctx context.Context, classID int64) (int, error) {
+	const query = "SELECT COUNT(*) FROM class_students WHERE class_id = ?"
+
+	var count int
+	if err := r.db.QueryRowContext(ctx, query, classID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count class members: %w", err)
+	}
+
+	return count, nil
+}
+
 func (r *ClassStudentRepo) ClassOfStudent(ctx context.Context, studentID int64, year int) (Class, error) {
 	const query = `SELECT c.id, c.year, c.name, c.active, c.created_at, c.updated_at
 		FROM class_students cs JOIN classes c ON c.id = cs.class_id

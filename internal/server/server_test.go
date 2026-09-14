@@ -53,6 +53,8 @@ func TestLoginPageRenders(t *testing.T) {
 	assert.Contains(t, body, "Электронный журнал")
 	assert.Contains(t, body, "Школа №1")
 	assert.Contains(t, body, `autocomplete="current-password"`)
+	assert.Contains(t, body, `data-toggle-password`)
+	assert.Contains(t, body, `aria-label="Показать пароль"`)
 	assert.Contains(t, body, `method="post"`)
 	assert.Contains(t, body, `action="/login"`)
 }

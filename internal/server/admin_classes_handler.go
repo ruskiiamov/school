@@ -68,7 +68,12 @@ func (s *Server) classSetActive(w http.ResponseWriter, r *http.Request, active b
 		return
 	}
 
-	if err := s.school.SetClassActive(r.Context(), id, active); err != nil {
+	err := s.school.SetClassActive(r.Context(), id, active)
+	if errs, ok := formErrors(err); ok {
+		s.renderClasses(w, r, "", "", rowEdit{id: id, message: errs["name"]})
+		return
+	}
+	if err != nil {
 		s.handleServiceError(w, r, "set class active", err)
 		return
 	}

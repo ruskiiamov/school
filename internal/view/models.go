@@ -16,12 +16,14 @@ const (
 	IconWorkTypes Icon = "work-types"
 	IconMarks     Icon = "marks"
 	IconDiary     Icon = "diary"
-	IconClock     Icon = "clock"
-	IconMegaphone Icon = "megaphone"
 	IconAlert     Icon = "alert"
 	IconPlus      Icon = "plus"
 	IconUp        Icon = "up"
 	IconDown      Icon = "down"
+	IconKey       Icon = "key"
+	IconCheck     Icon = "check"
+	IconEye       Icon = "eye"
+	IconEyeOff    Icon = "eye-off"
 )
 
 type User struct {
@@ -47,6 +49,7 @@ type Stat struct {
 	Label string
 	Value string
 	Icon  Icon
+	Href  string
 }
 
 type LoginPage struct {
@@ -56,9 +59,19 @@ type LoginPage struct {
 }
 
 type HomePage struct {
-	Shell Shell
-	Stats []Stat
-	Today string
+	Shell     Shell
+	Today     string
+	YearName  string
+	NoClasses bool
+	Stats     []Stat
+	Section   NavItem
+}
+
+type PasswordPage struct {
+	Shell  Shell
+	Values map[string]string
+	Errors map[string]string
+	Done   bool
 }
 
 type StubPage struct {

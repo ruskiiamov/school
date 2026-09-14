@@ -108,7 +108,14 @@ templ userRow(page view.UsersPage, row view.UserRow) {
 					<button type="submit" form={ passwordFormID(row.ID) } class={ components.ButtonSecondaryClass }>Сменить пароль</button>
 				</span>
 			</form>
-			<form id={ passwordFormID(row.ID) } method="post" action={ templ.SafeURL(userURL(page.Path, row.ID, "/password", page.ListQuery)) } hx-post={ userURL(page.Path, row.ID, "/password", page.ListQuery) }></form>
+			<form
+				id={ passwordFormID(row.ID) }
+				method="post"
+				action={ templ.SafeURL(userURL(page.Path, row.ID, "/password", page.ListQuery)) }
+				hx-post={ userURL(page.Path, row.ID, "/password", page.ListQuery) }
+				hx-confirm="Вы уверены, что хотите сменить пароль?"
+				data-confirm-ok="Сменить пароль"
+			></form>
 			if row.Children != nil {
 				@childrenBlock(*row.Children)
 			}

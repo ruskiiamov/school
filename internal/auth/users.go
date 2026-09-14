@@ -196,6 +196,10 @@ func (s *Service) Users(ctx context.Context, filter UserFilter) ([]User, error) 
 	return users, nil
 }
 
+func (s *Service) CountActiveUsers(ctx context.Context, role Role) (int, error) {
+	return s.users.CountActiveByRole(ctx, string(role))
+}
+
 func (s *Service) freeLogin(ctx context.Context, base string) (string, error) {
 	taken, err := s.users.LoginsWithPrefix(ctx, base)
 	if err != nil {

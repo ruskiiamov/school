@@ -109,6 +109,17 @@ func (r *SubjectRepo) SetActive(ctx context.Context, id int64, active bool) erro
 	return requireAffected(result, "set subject active")
 }
 
+func (r *SubjectRepo) CountActive(ctx context.Context) (int, error) {
+	const query = "SELECT COUNT(*) FROM subjects WHERE active = 1"
+
+	var count int
+	if err := r.db.QueryRowContext(ctx, query).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count subjects: %w", err)
+	}
+
+	return count, nil
+}
+
 func (r *SubjectRepo) ActiveNameExists(ctx context.Context, name string, excludeID int64) (bool, error) {
 	const query = "SELECT EXISTS (SELECT 1 FROM subjects WHERE active = 1 AND name = ? AND id != ?)"
 

@@ -22,6 +22,7 @@ type userRepo interface {
 	ByLogin(ctx context.Context, login string) (storage.User, error)
 	ByID(ctx context.Context, id int64) (storage.User, error)
 	ListByRole(ctx context.Context, role string, includeInactive bool) ([]storage.User, error)
+	CountActiveByRole(ctx context.Context, role string) (int, error)
 	Create(ctx context.Context, user storage.User) (int64, error)
 	Update(ctx context.Context, id int64, login, fullName string) error
 	UpdatePasswordHash(ctx context.Context, id int64, hash string) error
@@ -35,6 +36,7 @@ type sessionRepo interface {
 	ByID(ctx context.Context, id string) (storage.Session, storage.User, error)
 	Delete(ctx context.Context, id string) error
 	DeleteByUser(ctx context.Context, userID int64) error
+	DeleteByUserExcept(ctx context.Context, userID int64, keepID string) error
 	DeleteExpired(ctx context.Context, now time.Time) (int64, error)
 	DeleteOrphaned(ctx context.Context) (int64, error)
 }

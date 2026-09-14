@@ -11,7 +11,10 @@ import (
 	"github.com/ruskiiamov/school/internal/validation"
 )
 
-const msgClassNameTaken = "Такой класс в этом году уже есть"
+const (
+	msgClassNameTaken   = "Такой класс в этом году уже есть"
+	msgClassHasStudents = "Сначала уберите учеников из класса"
+)
 
 type Class struct {
 	ID     int64
@@ -115,6 +118,17 @@ func (s *Service) UpdateClass(ctx context.Context, id int64, name string) error 
 }
 
 func (s *Service) SetClassActive(ctx context.Context, id int64, active bool) error {
+	if !active {
+		members, err := s.classStudents.CountByClass(ctx, id)
+		if err != nil {
+			return err
+		}
+
+		if members > 0 {
+			return validation.Errors{"name": msgClassHasStudents}
+		}
+	}
+
 	if err := s.classes.SetActive(ctx, id, active); errors.Is(err, storage.ErrNotFound) {
 		return ErrNotFound
 	} else if err != nil {
