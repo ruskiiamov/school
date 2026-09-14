@@ -129,12 +129,48 @@ type ClassesPage struct {
 	NewError     string
 }
 
+type MemberRow struct {
+	ID           int64
+	FullName     string
+	ClassName    string
+	Active       bool
+	RemoveAction string
+}
+
+type ClassStudentsBlock struct {
+	CanEdit    bool
+	Students   []MemberRow
+	Candidates []Option
+	AddAction  string
+	Error      string
+}
+
+type AssignmentRow struct {
+	ID            int64
+	Subject       string
+	Teacher       string
+	SubjectActive bool
+	TeacherActive bool
+	RemoveAction  string
+}
+
+type ClassAssignmentsBlock struct {
+	CanEdit     bool
+	Assignments []AssignmentRow
+	Subjects    []Option
+	Teachers    []Option
+	AddAction   string
+	Errors      map[string]string
+}
+
 type ClassPage struct {
-	Shell    Shell
-	ID       int64
-	Name     string
-	YearName string
-	Active   bool
+	Shell       Shell
+	ID          int64
+	Name        string
+	YearName    string
+	Active      bool
+	Students    ClassStudentsBlock
+	Assignments ClassAssignmentsBlock
 }
 
 type Option struct {
@@ -150,14 +186,27 @@ type UserFields struct {
 	Errors   map[string]string
 }
 
+type ChildrenBlock struct {
+	Query        string
+	Children     []MemberRow
+	Results      []MemberRow
+	Searched     bool
+	SearchAction string
+	Hidden       map[string]string
+	AddAction    string
+	Error        string
+}
+
 type UserRow struct {
-	ID        int64
-	FullName  string
-	Login     string
-	ClassName string
-	Active    bool
-	Editing   bool
-	Fields    UserFields
+	ID         int64
+	FullName   string
+	Login      string
+	ClassName  string
+	ChildNames string
+	Active     bool
+	Editing    bool
+	Fields     UserFields
+	Children   *ChildrenBlock
 }
 
 type UsersPage struct {
@@ -168,6 +217,7 @@ type UsersPage struct {
 	Query        string
 	ClassFilter  []Option
 	ShowClass    bool
+	ShowChildren bool
 	ShowInactive bool
 	ToggleHref   string
 	New          UserFields

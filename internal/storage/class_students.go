@@ -90,3 +90,24 @@ func (r *ClassStudentRepo) SetForYear(ctx context.Context, studentID int64, year
 
 	return nil
 }
+
+func (r *ClassStudentRepo) Add(ctx context.Context, classID, studentID int64) error {
+	const query = "INSERT INTO class_students (class_id, student_id) VALUES (?, ?)"
+
+	if _, err := r.db.ExecContext(ctx, query, classID, studentID); err != nil {
+		return fmt.Errorf("add student to class: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ClassStudentRepo) Remove(ctx context.Context, classID, studentID int64) error {
+	const query = "DELETE FROM class_students WHERE class_id = ? AND student_id = ?"
+
+	result, err := r.db.ExecContext(ctx, query, classID, studentID)
+	if err != nil {
+		return fmt.Errorf("remove student from class: %w", err)
+	}
+
+	return requireAffected(result, "remove student from class")
+}

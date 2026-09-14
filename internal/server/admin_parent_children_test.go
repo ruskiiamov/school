@@ -1,0 +1,175 @@
+package server
+
+import (
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ruskiiamov/school/internal/auth"
+)
+
+func parentsURL(parentID int64, child string) string {
+	values := url.Values{"edit": {strconv.FormatInt(parentID, 10)}}
+	if child != "" {
+		values.Set("child", child)
+	}
+
+	return "/admin/parents?" + values.Encode()
+}
+
+func childrenPath(parentID int64, suffix, child string) string {
+	return userPathFor("/admin/parents", parentID, "/children"+suffix) + strings.TrimPrefix(parentsURL(parentID, child), "/admin/parents")
+}
+
+func attr(href string) string {
+	return strings.ReplaceAll(href, "&", "&amp;")
+}
+
+func TestParentChildrenInEditRow(t *testing.T) {
+	t.Parallel()
+
+	env := newTestEnv(t)
+	admin := login(t, env.handler)
+	current := env.school.CurrentYear()
+
+	class := createClass(t, env, admin, current, "7А")
+	parent, _ := createUserVia(t, env, admin, "/admin/parents", url.Values{"full_name": {"Иванова Мария"}})
+	other, _ := createUserVia(t, env, admin, "/admin/parents", url.Values{"full_name": {"Иванов Сергей"}})
+	petr, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Иванов Пётр"}, "class": {strconv.FormatInt(class, 10)}})
+	anna, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Иванова Анна"}})
+	createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Петров Иван"}})
+	teacher, _ := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Сидорова Анна"}})
+
+	list := get(t, env.handler, "/admin/parents", admin).Body.String()
+	assert.Contains(t, list, "нет детей")
+	assert.NotContains(t, list, "Дети</h3>")
+
+	edit := get(t, env.handler, parentsURL(parent, ""), admin).Body.String()
+	assert.Contains(t, edit, "Дети</h3>")
+	assert.Contains(t, edit, "Пока нет детей")
+	assert.Contains(t, edit, `id="child-search" hx-preserve`)
+	assert.Contains(t, edit, `name="edit" value="`+strconv.FormatInt(parent, 10)+`"`)
+	assert.Contains(t, edit, `action="/admin/parents" hx-get="/admin/parents"`)
+	assert.Contains(t, edit, `value="Иванова Мария"`)
+	assert.NotContains(t, edit, "Ничего не найдено")
+	assert.Equal(t, 1, strings.Count(edit, "Дети</h3>"))
+
+	const query = "иванов"
+
+	search := get(t, env.handler, parentsURL(parent, query), admin).Body.String()
+	assert.Contains(t, search, "Иванов Пётр")
+	assert.Contains(t, search, "Иванова Анна")
+	assert.Contains(t, search, ">7А</span>")
+	assert.Contains(t, search, `name="student_id" value="`+strconv.FormatInt(petr, 10)+`"`)
+	assert.Contains(t, search, `action="`+attr(childrenPath(parent, "", query))+`"`)
+	assert.NotContains(t, search, "Петров Иван")
+	assert.NotContains(t, search, "Сидорова Анна")
+
+	nothing := get(t, env.handler, parentsURL(parent, "zzz"), admin).Body.String()
+	assert.Contains(t, nothing, "Ничего не найдено")
+
+	assertRedirect(t, postForm(t, env.handler, childrenPath(parent, "", query), studentForm(petr), []*http.Cookie{admin}, nil), parentsURL(parent, query))
+
+	after := get(t, env.handler, parentsURL(parent, query), admin).Body.String()
+	assert.Contains(t, after, `action="`+attr(childrenPath(parent, "/"+strconv.FormatInt(petr, 10)+"/remove", query))+`"`)
+	assert.Contains(t, after, `name="student_id" value="`+strconv.FormatInt(anna, 10)+`"`)
+	assert.NotContains(t, after, `name="student_id" value="`+strconv.FormatInt(petr, 10)+`"`)
+	assert.NotContains(t, after, "Пока нет детей")
+
+	assertRedirect(t, postForm(t, env.handler, childrenPath(parent, "", ""), studentForm(anna), []*http.Cookie{admin}, nil), parentsURL(parent, ""))
+	assertRedirect(t, postForm(t, env.handler, childrenPath(parent, "", ""), studentForm(anna), []*http.Cookie{admin}, nil), parentsURL(parent, ""))
+	assertRedirect(t, postForm(t, env.handler, childrenPath(other, "", ""), studentForm(petr), []*http.Cookie{admin}, nil), parentsURL(other, ""))
+
+	children, err := env.school.Children(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, []int64{petr, anna}, children[parent])
+	assert.Equal(t, []int64{petr}, children[other])
+
+	list = get(t, env.handler, "/admin/parents", admin).Body.String()
+	assert.Contains(t, list, "Иванов Пётр, Иванова Анна")
+	assert.NotContains(t, list, "нет детей")
+
+	for name, form := range map[string]url.Values{
+		"teacher": studentForm(teacher),
+		"garbage": {"student_id": {"abc"}},
+		"unknown": studentForm(999),
+	} {
+		rejected := postForm(t, env.handler, childrenPath(parent, "", ""), form, []*http.Cookie{admin}, nil)
+		assert.Equal(t, http.StatusOK, rejected.Code, name)
+		assert.Contains(t, rejected.Body.String(), "<html", name)
+		assert.Contains(t, rejected.Body.String(), "Такого ученика нет", name)
+		assert.Contains(t, rejected.Body.String(), `value="Иванова Мария"`, name)
+	}
+
+	remove := childrenPath(parent, "/"+strconv.FormatInt(petr, 10)+"/remove", "")
+	assertRedirect(t, postForm(t, env.handler, remove, nil, []*http.Cookie{admin}, nil), parentsURL(parent, ""))
+	assert.Equal(t, http.StatusNotFound, postForm(t, env.handler, remove, nil, []*http.Cookie{admin}, nil).Code)
+	assert.Equal(t, http.StatusNotFound, postForm(t, env.handler, childrenPath(parent, "/abc/remove", ""), nil, []*http.Cookie{admin}, nil).Code)
+
+	children, err = env.school.Children(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, []int64{anna}, children[parent])
+	assert.Equal(t, []int64{petr}, children[other])
+}
+
+func TestParentChildrenHtmxFragment(t *testing.T) {
+	t.Parallel()
+
+	env := newTestEnv(t)
+	admin := login(t, env.handler)
+	htmx := map[string]string{"HX-Request": "true"}
+
+	parent, _ := createUserVia(t, env, admin, "/admin/parents", url.Values{"full_name": {"Иванова Мария"}})
+	petr, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Иванов Пётр"}})
+
+	added := postForm(t, env.handler, childrenPath(parent, "", ""), studentForm(petr), []*http.Cookie{admin}, htmx)
+	assert.Equal(t, http.StatusOK, added.Code)
+	assert.NotContains(t, added.Body.String(), "<html")
+	assert.Contains(t, added.Body.String(), `id="users"`)
+	assert.Contains(t, added.Body.String(), "Дети</h3>")
+	assert.Contains(t, added.Body.String(), "Иванов Пётр")
+
+	rejected := postForm(t, env.handler, childrenPath(parent, "", ""), studentForm(999), []*http.Cookie{admin}, htmx)
+	assert.Equal(t, http.StatusOK, rejected.Code)
+	assert.NotContains(t, rejected.Body.String(), "<html")
+	assert.Contains(t, rejected.Body.String(), "Такого ученика нет")
+
+	removed := postForm(t, env.handler, childrenPath(parent, "/"+strconv.FormatInt(petr, 10)+"/remove", ""), nil, []*http.Cookie{admin}, htmx)
+	assert.Equal(t, http.StatusOK, removed.Code)
+	assert.NotContains(t, removed.Body.String(), "<html")
+	assert.Contains(t, removed.Body.String(), "Пока нет детей")
+}
+
+func TestParentChildrenRejectForeignSectionsAndRoles(t *testing.T) {
+	t.Parallel()
+
+	env := newTestEnv(t)
+	admin := login(t, env.handler)
+	env.createUser(t, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
+	teacher := env.loginAs(t, "teacher")
+
+	parent, _ := createUserVia(t, env, admin, "/admin/parents", url.Values{"full_name": {"Иванова Мария"}})
+	petr, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Иванов Пётр"}})
+
+	for _, path := range []string{
+		userPathFor("/admin/teachers", parent, "/children"),
+		userPathFor("/admin/students", petr, "/children"),
+		userPathFor("/admin/parents", petr, "/children"),
+		userPathFor("/admin/parents", 999, "/children"),
+		userPathFor("/admin/parents", petr, "/children/"+strconv.FormatInt(petr, 10)+"/remove"),
+	} {
+		assert.Equal(t, http.StatusNotFound, postForm(t, env.handler, path, studentForm(petr), []*http.Cookie{admin}, nil).Code, path)
+	}
+
+	assertRedirect(t, postForm(t, env.handler, childrenPath(parent, "", ""), studentForm(petr), nil, nil), "/login")
+	assert.Equal(t, http.StatusNotFound, postForm(t, env.handler, childrenPath(parent, "", ""), studentForm(petr), []*http.Cookie{teacher}, nil).Code)
+
+	children, err := env.school.Children(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, children)
+}

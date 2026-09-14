@@ -23,10 +23,10 @@ POST /admin/subjects, /{id}, /{id}/deactivate, /{id}/activate
 GET  /admin/work-types?inactive=1      то же, плюс POST /{id}/up, /{id}/down — порядок стрелками
 GET  /admin/classes?year=2026&inactive=1&edit={id}   список по году как у предметов (D-043, D-044): вкладки-ссылки лет (годы существующих классов и текущий), строка добавления только в текущем году, `edit` — одна строка формой
 POST /admin/classes?year=2026, /{id}?year=…, /{id}/deactivate?year=…, /{id}/activate?year=…   класс создаётся в текущем году; `year` в адресе — для списка и редиректа
-GET  /admin/classes/{id}               карточка класса
-POST /admin/classes/{id}/students      добавить ученика (student_id)
+GET  /admin/classes/{id}               карточка класса: блоки #class-students и #class-assignments, формы только у активного класса текущего года (D-049)
+POST /admin/classes/{id}/students      добавить ученика (student_id); HTMX — фрагмент блока, иначе редирект на карточку
 POST /admin/classes/{id}/students/{sid}/remove
-POST /admin/classes/{id}/assignments   назначить (subject_id, teacher_id)
+POST /admin/classes/{id}/assignments   назначить (subject_id, teacher_id); занятый предмет — замена учителя
 POST /admin/classes/{id}/assignments/{aid}/remove
 
 GET  /admin/teachers?q=&inactive=1&edit={id}   одна страница: строка добавления, строки текстом, `edit` — одна строка формой (D-047); аналогично /students (+class={id}), /parents; с HTMX форма поиска подменяет `#users` вместе с шапкой
@@ -34,14 +34,16 @@ POST /admin/{teachers|students|parents}?q=&class=&inactive=1   создать �
 POST /admin/{teachers|students|parents}/{id}, /{id}/deactivate, /{id}/activate   → список (HTMX — фрагмент)
 POST /admin/{teachers|students|parents}/{id}/password   сгенерировать пароль → /{id}/created с заголовком «Пароль изменён»
 GET  /admin/{teachers|students|parents}/{id}/created   логин и пароль один раз (данные — из одноразовой записи под сессией админа, не из URL); повторно — редирект к списку
-POST /admin/parents/{id}/children, /admin/parents/{id}/children/{sid}/remove
+GET  /admin/parents?edit={id}&child=…   строка правки родителя с блоком «Дети»; `child` — живой поиск ученика по ФИО (D-049)
+POST /admin/parents/{id}/children?edit={id}&child=…   добавить (student_id); /children/{sid}/remove — убрать; HTMX — фрагмент #users, иначе редирект на список с теми же edit и child
 
 GET  /account/password, POST /account/password
 ```
 
 Действия, меняющие состояние, — только POST; «удалить/убрать» — кнопки в
-форме, не ссылки. Ответы на HTMX-запросы для блоков состава, нагрузки и
-детей — фрагмент блока; без `HX-Request` — редирект на карточку.
+форме, не ссылки. Ответы на HTMX-запросы для блоков состава и нагрузки —
+фрагмент блока, для детей — контейнер `#users`; без `HX-Request` —
+редирект на карточку или список.
 
 ## Макеты
 
@@ -63,6 +65,17 @@ GET  /account/password, POST /account/password
 │ [Иванова Мария Петровна] [ivanova.m] [7А ▾]  [Сохранить] [Отмена] [Сменить пароль] │
 ```
 
+У родителя под полями — блок «Дети» (D-049); в обычной строке вместо
+класса — имена детей через запятую или «нет детей»:
+
+```
+│ [Иванова Мария Петровна] [ivanova.m]  [Сохранить] [Отмена] [Сменить пароль] │
+│ Дети                                                                        │
+│ Иванов Пётр  7А                                                    [Убрать] │
+│ [Найти ученика по ФИО…            ] [Найти]                                 │
+│ Иванова Анна  7Б                                                 [Добавить] │
+```
+
 На телефоне поля и кнопки переносятся на несколько строк.
 
 Карточка класса:
@@ -79,6 +92,9 @@ GET  /account/password, POST /account/password
 ```
 
 На телефоне колонки идут одна под другой: сначала ученики, потом предметы.
+Формы «Добавить»/«Назначить» и кнопки «Убрать» есть только у активного
+класса текущего года; деактивированные ученик, учитель или предмет
+остаются в списке с пометкой «удалён».
 Список классов: под заголовком ряд вкладок-ссылок «2025/2026 · 2026/2027»,
 ниже (только в текущем году) строка «название + Добавить» и строки с
 «Изменить» и «Удалить», как у предметов; имя класса — ссылка на карточку,
