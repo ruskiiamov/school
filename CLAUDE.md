@@ -9,8 +9,8 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 (standalone-бинарник, без npm), данные — SQLite через `modernc.org/sqlite`.
 
 Интерфейс полностью на русском; вёрстка должна быть одинаково пригодна на телефоне
-и на десктопе. Готова итерация 1 (вход, дашборд); итерация 2 (справочники админа)
-идёт по нумерованным срезам (готовы 0–7) — что дальше, см. `docs/roadmap.md`. Меню строится по роли в
+и на десктопе. Готовы итерации 1 (вход, дашборд) и 2 (справочники админа);
+следующая — 3, журнал учителя, см. `docs/roadmap.md`. Меню строится по роли в
 `view.NavItems(role, active)`; пункты «Журнал» и «Дневник» пока заглушки
 (`stub_handler.go`).
 
@@ -91,11 +91,14 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
   (`users.active = 0`) не входит и теряет сессию при следующем запросе.
 - `internal/school` — справочники: предметы (`subject.go`), типы работ
   (`work_type.go`), классы (`class.go`), состав класса (`student.go`),
-  нагрузка (`assignment.go`), дети родителя (`parent.go`). Держит конкретные `*storage.*Repo`. Учебный год — не сущность (D-042):
-  `Service.CurrentYear()` считает его по «сегодня» в `Location` и месяцу
-  `year_start_month`, имя даёт `school.YearName`. «Не найдено» —
+  нагрузка (`assignment.go`), дети родителя (`parent.go`), счётчики
+  дашборда (`stats.go`), общая проверка названий (`name.go`). Держит
+  конкретные `*storage.*Repo`. Учебный год — не сущность (D-042):
+  `Service.CurrentYear()` (`year.go`) считает его по «сегодня» в `Location`
+  и месяцу `year_start_month`, имя даёт `school.YearName`. «Не найдено» —
   `school.ErrNotFound`; ошибки ввода — `validation.Errors` (D-041), тексты
-  сообщений живут в `school`.
+  сообщений — константы `msg*` рядом с проверкой (в `school`, в `auth`, а
+  для роли и активности пользователя из формы — в `server`).
 - `internal/validation` — `Errors map[string]string` (реализует `error`) и
   `NormalizeSpaces`, общие для `auth` и `school`.
 - `internal/storage` — репозитории на `database/sql`, `ErrNotFound` вместо
