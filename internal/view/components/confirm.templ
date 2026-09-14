@@ -1,0 +1,16 @@
+package components
+
+templ ConfirmDialog() {
+	<dialog
+		id="confirm"
+		class="m-auto w-[calc(100%-2rem)] max-w-sm rounded-xl bg-white p-5 shadow-lg ring-1 ring-slate-200 backdrop:bg-slate-900/50"
+	>
+		<form method="dialog" class="flex flex-col gap-4">
+			<p id="confirm-message" class="text-base text-slate-900"></p>
+			<div class="flex flex-wrap justify-end gap-2">
+				<button type="submit" value="cancel" class={ ButtonSecondaryClass }>Отмена</button>
+				<button type="submit" value="ok" id="confirm-ok" class={ ButtonPrimaryClass }>Да</button>
+			</div>
+		</form>
+	</dialog>
+}

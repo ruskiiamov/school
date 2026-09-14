@@ -46,14 +46,7 @@ templ Login(page view.LoginPage) {
 						</label>
 						<label class="flex flex-col gap-1.5">
 							<span class="text-sm font-medium text-slate-700">Пароль</span>
-							<input
-								type="password"
-								name="password"
-								required
-								autocomplete="current-password"
-								enterkeyhint="go"
-								class="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-base text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
-							/>
+							@components.PasswordInput("password", "", "Пароль", "current-password", "")
 						</label>
 						<button
 							type="submit"

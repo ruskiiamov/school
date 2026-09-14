@@ -90,6 +90,16 @@ func (r *SessionRepo) DeleteByUser(ctx context.Context, userID int64) error {
 	return nil
 }
 
+func (r *SessionRepo) DeleteByUserExcept(ctx context.Context, userID int64, keepID string) error {
+	const query = "DELETE FROM sessions WHERE user_id = ? AND id != ?"
+
+	if _, err := r.db.ExecContext(ctx, query, userID, keepID); err != nil {
+		return fmt.Errorf("delete other user sessions: %w", err)
+	}
+
+	return nil
+}
+
 func (r *SessionRepo) DeleteExpired(ctx context.Context, now time.Time) (int64, error) {
 	const query = "DELETE FROM sessions WHERE expires_at <= ?"
 

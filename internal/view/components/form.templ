@@ -8,6 +8,17 @@ templ FieldError(message string) {
 	}
 }
 
+templ FieldErrorSlot(id, message string, oob bool) {
+	<span
+		id={ id }
+		data-error
+		if oob {
+			hx-swap-oob="true"
+		}
+		class="text-sm text-rose-600"
+	>{ message }</span>
+}
+
 templ InactiveBadge() {
 	<span class="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">удалён</span>
 }

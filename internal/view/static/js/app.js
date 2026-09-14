@@ -1,6 +1,58 @@
 (function () {
   "use strict";
 
+  document.addEventListener("click", function (event) {
+    var button = event.target.closest("button[data-toggle-password]");
+
+    if (!button) {
+      return;
+    }
+
+    var input = button.parentElement.querySelector("input");
+    var show = input.type === "password";
+
+    input.type = show ? "text" : "password";
+    button.setAttribute("aria-pressed", String(show));
+    button.setAttribute("aria-label", show ? "Скрыть пароль" : "Показать пароль");
+    button.querySelector("[data-eye]").hidden = show;
+    button.querySelector("[data-eye-off]").hidden = !show;
+    input.focus();
+  });
+})();
+
+(function () {
+  "use strict";
+
+  document.addEventListener("htmx:confirm", function (event) {
+    var dialog = document.getElementById("confirm");
+
+    if (!event.detail.question || !dialog) {
+      return;
+    }
+
+    event.preventDefault();
+
+    document.getElementById("confirm-message").textContent = event.detail.question;
+    document.getElementById("confirm-ok").textContent = event.detail.elt.dataset.confirmOk || "Да";
+    dialog.returnValue = "";
+
+    dialog.addEventListener(
+      "close",
+      function () {
+        if (dialog.returnValue === "ok") {
+          event.detail.issueRequest(true);
+        }
+      },
+      { once: true }
+    );
+
+    dialog.showModal();
+  });
+})();
+
+(function () {
+  "use strict";
+
   var toggle = document.getElementById("nav-toggle");
   var sidebar = document.getElementById("sidebar");
   var overlay = document.getElementById("nav-overlay");

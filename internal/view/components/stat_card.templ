@@ -3,11 +3,14 @@ package components
 import "github.com/ruskiiamov/school/internal/view"
 
 templ StatCard(stat view.Stat) {
-	<article class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 lg:p-5">
-		<div class="flex items-center gap-2 text-slate-500">
+	<a
+		href={ templ.SafeURL(stat.Href) }
+		class="block rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 hover:ring-indigo-300 active:bg-slate-50 lg:p-5"
+	>
+		<span class="flex items-center gap-2 text-slate-500">
 			@Icon(stat.Icon, "size-4 shrink-0")
 			<span class="truncate text-xs font-medium sm:text-sm">{ stat.Label }</span>
-		</div>
-		<p class="mt-2 text-2xl font-semibold tabular-nums text-slate-900 lg:text-3xl">{ stat.Value }</p>
-	</article>
+		</span>
+		<span class="mt-2 block text-2xl font-semibold tabular-nums text-slate-900 lg:text-3xl">{ stat.Value }</span>
+	</a>
 }

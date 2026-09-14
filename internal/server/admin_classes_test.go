@@ -352,3 +352,36 @@ func TestClassesHiddenFromOtherRoles(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, classes)
 }
+
+func TestClassWithStudentsCannotBeDeactivated(t *testing.T) {
+	t.Parallel()
+
+	env := newTestEnv(t)
+	admin := login(t, env.handler)
+	current := env.school.CurrentYear()
+	year := strconv.Itoa(current)
+
+	id := createClass(t, env, admin, current, "7А")
+
+	student, err := env.auth.CreateUser(t.Context(), auth.NewUser{Role: auth.RoleStudent, FullName: "Козлов Пётр Ильич"})
+	require.NoError(t, err)
+	require.NoError(t, env.school.SetStudentClass(t.Context(), student.User.ID, id))
+
+	refused := postForm(t, env.handler, classPathFor(id, "/deactivate?year="+year), nil, []*http.Cookie{admin}, nil)
+	require.Equal(t, http.StatusOK, refused.Code)
+	assert.Contains(t, refused.Body.String(), "Сначала уберите учеников из класса")
+	assert.Contains(t, refused.Body.String(), "<html")
+
+	class, err := env.school.ClassByID(t.Context(), id)
+	require.NoError(t, err)
+	assert.True(t, class.Active)
+
+	fragment := postForm(t, env.handler, classPathFor(id, "/deactivate?year="+year), nil, []*http.Cookie{admin},
+		map[string]string{"HX-Request": "true"})
+	require.Equal(t, http.StatusOK, fragment.Code)
+	assert.Contains(t, fragment.Body.String(), "Сначала уберите учеников из класса")
+	assert.NotContains(t, fragment.Body.String(), "<html")
+
+	require.NoError(t, env.school.RemoveClassStudent(t.Context(), id, student.User.ID))
+	assertRedirect(t, postForm(t, env.handler, classPathFor(id, "/deactivate?year="+year), nil, []*http.Cookie{admin}, nil), classesURL(current, ""))
+}

@@ -135,6 +135,17 @@ func (r *UserRepo) SetActive(ctx context.Context, id int64, active bool) error {
 	return requireAffected(result, "set user active")
 }
 
+func (r *UserRepo) CountActiveByRole(ctx context.Context, role string) (int, error) {
+	const query = "SELECT COUNT(*) FROM users WHERE role = ? AND active = 1"
+
+	var count int
+	if err := r.db.QueryRowContext(ctx, query, role).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count users: %w", err)
+	}
+
+	return count, nil
+}
+
 func (r *UserRepo) LoginExists(ctx context.Context, login string, excludeID int64) (bool, error) {
 	const query = "SELECT EXISTS (SELECT 1 FROM users WHERE login = ? AND id != ?)"
 

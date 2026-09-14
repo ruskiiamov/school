@@ -28,3 +28,9 @@
     background-size: 1rem 1rem;
   }
 }
+
+@layer utilities {
+  [data-field]:has([data-error]:not(:empty)) input {
+    @apply border-rose-400 focus:border-rose-500 focus:ring-rose-200;
+  }
+}

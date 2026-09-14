@@ -51,6 +51,10 @@ func (s *Server) pages() http.Handler {
 	mux.HandleFunc("POST /logout", s.logout)
 	mux.Handle("GET /{$}", s.requireAuth(http.HandlerFunc(s.home)))
 
+	account := requireRole(auth.RoleTeacher, auth.RoleStudent, auth.RoleParent)
+	mux.Handle("GET "+accountPasswordPath, s.requireAuth(account(http.HandlerFunc(s.passwordPage))))
+	mux.Handle("POST "+accountPasswordPath, s.requireAuth(account(http.HandlerFunc(s.passwordSubmit))))
+
 	mux.Handle("GET /journal", s.requireAuth(requireRole(auth.RoleTeacher)(http.HandlerFunc(s.journalStub))))
 	mux.Handle("GET /diary", s.requireAuth(requireRole(auth.RoleStudent, auth.RoleParent)(http.HandlerFunc(s.diaryStub))))
 

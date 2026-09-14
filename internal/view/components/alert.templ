@@ -11,3 +11,13 @@ templ Alert(message string) {
 		<span>{ message }</span>
 	</div>
 }
+
+templ Success(message string) {
+	<div
+		role="status"
+		class="flex items-start gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800 ring-1 ring-emerald-200"
+	>
+		@Icon(view.IconCheck, "mt-0.5 size-4 shrink-0")
+		<span>{ message }</span>
+	</div>
+}
