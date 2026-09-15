@@ -43,14 +43,14 @@ func (c *credentialsStore) put(sessionID string, entry credentialsEntry) {
 	c.entries[sessionID] = entry
 }
 
-func (c *credentialsStore) take(sessionID string, userID int64) (credentialsEntry, bool) {
+func (c *credentialsStore) take(sessionID string, userID int64, kind credentialsKind) (credentialsEntry, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.purge(time.Now())
 
 	entry, ok := c.entries[sessionID]
-	if !ok || entry.userID != userID {
+	if !ok || entry.userID != userID || entry.kind != kind {
 		return credentialsEntry{}, false
 	}
 

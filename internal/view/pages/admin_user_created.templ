@@ -20,7 +20,7 @@ templ UserCreated(page view.UserCreatedPage) {
 				</dl>
 				<p class="text-sm text-slate-500">{ page.Note }</p>
 				<div class="flex flex-wrap justify-end gap-2 pt-2">
-					<a href={ templ.SafeURL(page.ListHref) } class={ components.ButtonSecondaryClass }>К списку</a>
+					<a href={ templ.SafeURL(page.ListHref) } class={ components.ButtonSecondaryClass }>{ page.ListTitle }</a>
 					if page.NewHref != "" {
 						<a href={ templ.SafeURL(page.NewHref) } class={ components.ButtonPrimaryClass }>{ page.NewTitle }</a>
 					}

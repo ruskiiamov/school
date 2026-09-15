@@ -74,13 +74,16 @@ func (s *Server) pages() http.Handler {
 		mux.Handle("POST "+section.path, s.admin(s.userCreate(section)))
 		mux.Handle("GET "+section.path+"/{id}/created", s.admin(s.userCreated(section)))
 		mux.Handle("POST "+section.path+"/{id}", s.admin(s.userUpdate(section)))
-		mux.Handle("POST "+section.path+"/{id}/password", s.admin(s.userSetPassword(section)))
 		mux.Handle("POST "+section.path+"/{id}/deactivate", s.admin(s.userSetActive(section, false)))
 		mux.Handle("POST "+section.path+"/{id}/activate", s.admin(s.userSetActive(section, true)))
 	}
 
 	mux.Handle("POST "+parentsSection.path+"/{id}/children", s.admin(s.parentChildAdd))
 	mux.Handle("POST "+parentsSection.path+"/{id}/children/{sid}/remove", s.admin(s.parentChildRemove))
+
+	mux.Handle("GET "+passwordResetPath, s.admin(s.passwordResetList))
+	mux.Handle("POST "+passwordResetPath+"/{id}", s.admin(s.passwordReset))
+	mux.Handle("GET "+passwordResetPath+"/{id}/created", s.admin(s.passwordResetCreated))
 
 	mux.Handle("GET /admin/subjects", s.admin(s.subjectsList))
 	mux.Handle("POST /admin/subjects", s.admin(s.subjectCreate))

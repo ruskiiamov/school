@@ -18,7 +18,6 @@ const (
 	allClassesOption = "Все классы"
 	noClassOption    = "Без класса"
 	nothingFound     = "Ничего не найдено"
-	changedTitle     = "Пароль изменён"
 )
 
 type userSection struct {
@@ -134,30 +133,24 @@ func (s *Server) userCreated(sec userSection) http.HandlerFunc {
 			return
 		}
 
-		entry, ok := s.created.take(s.sessionID(r), user.ID)
+		entry, ok := s.created.take(s.sessionID(r), user.ID, credentialsCreated)
 		if !ok {
 			s.redirect(w, r, sec.path)
 			return
 		}
 
 		page := view.UserCreatedPage{
-			Title:    sec.created,
-			FullName: user.FullName,
-			Login:    entry.login,
-			Password: entry.password,
-			Note:     "Пароль показан один раз. Передайте данные " + sec.recipient + ".",
-			ListHref: sec.path,
-			NewHref:  sec.path,
-			NewTitle: sec.more,
+			Shell:     s.shell(r, sec.created, sec.path),
+			Title:     sec.created,
+			FullName:  user.FullName,
+			Login:     entry.login,
+			Password:  entry.password,
+			Note:      "Пароль показан один раз. Передайте данные " + sec.recipient + ".",
+			ListHref:  sec.path,
+			ListTitle: "К списку",
+			NewHref:   sec.path,
+			NewTitle:  sec.more,
 		}
-
-		if entry.kind == credentialsPasswordChanged {
-			page.Title = changedTitle
-			page.Note = "Сессии пользователя сброшены. Новый пароль показан один раз, передайте его " + sec.recipient + "."
-			page.NewHref = ""
-		}
-
-		page.Shell = s.shell(r, page.Title, sec.path)
 
 		s.render(w, r, pages.UserCreated(page))
 	}
@@ -207,30 +200,6 @@ func (s *Server) userUpdate(sec userSection) http.HandlerFunc {
 		}
 
 		s.usersDone(w, r, sec)
-	}
-}
-
-func (s *Server) userSetPassword(sec userSection) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user, ok := s.sectionUser(w, r, sec)
-		if !ok {
-			return
-		}
-
-		password, err := s.auth.ResetPassword(r.Context(), user.ID)
-		if err != nil {
-			s.handleServiceError(w, r, "reset user password", err)
-			return
-		}
-
-		s.created.put(s.sessionID(r), credentialsEntry{
-			userID:   user.ID,
-			kind:     credentialsPasswordChanged,
-			login:    user.Login,
-			password: password,
-		})
-
-		s.redirect(w, r, sec.userPath(user.ID, "/created"))
 	}
 }
 
