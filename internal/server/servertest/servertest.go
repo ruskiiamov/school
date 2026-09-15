@@ -76,7 +76,8 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 		storage.NewClassStudentRepo(db), storage.NewParentChildRepo(db), storage.NewAssignmentRepo(db),
 		storage.NewSubstitutionRepo(db), log)
 
-	journalService := journal.NewService(cfg.Location, log)
+	journalService := journal.NewService(storage.NewLessonRepo(db), storage.NewAssignmentRepo(db),
+		storage.NewSubstitutionRepo(db), storage.NewClassRepo(db), storage.NewSubjectRepo(db), log)
 
 	return &Env{
 		Handler: server.New(cfg, authService, schoolService, journalService, log).Handler(),

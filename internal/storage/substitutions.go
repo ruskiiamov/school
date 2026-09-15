@@ -185,3 +185,17 @@ func scanSubstitution(row scanner) (Substitution, error) {
 
 	return substitution, nil
 }
+
+func (r *SubstitutionRepo) CoversDate(ctx context.Context, classID, subjectID, teacherID int64, date time.Time) (bool, error) {
+	const query = `SELECT EXISTS (SELECT 1 FROM substitutions
+		WHERE class_id = ? AND subject_id = ? AND teacher_id = ? AND start_date <= ? AND COALESCE(end_date, ?) >= ?)`
+
+	var covers bool
+
+	err := r.db.QueryRowContext(ctx, query, classID, subjectID, teacherID, toDate(date), openEndDate, toDate(date)).Scan(&covers)
+	if err != nil {
+		return false, fmt.Errorf("check substitution date: %w", err)
+	}
+
+	return covers, nil
+}
