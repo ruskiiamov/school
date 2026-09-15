@@ -71,7 +71,8 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		log,
 	)
 
-	journalService := journal.NewService(cfg.Location, log)
+	journalService := journal.NewService(storage.NewLessonRepo(db), storage.NewAssignmentRepo(db),
+		storage.NewSubstitutionRepo(db), storage.NewClassRepo(db), storage.NewSubjectRepo(db), log)
 
 	return &App{
 		log:  log,

@@ -1,0 +1,60 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+const lessonTopicTarget = "#lesson-topic"
+
+templ Lesson(page view.LessonPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader(page.Title) {
+				if page.CanDelete {
+					<form
+						method="post"
+						action={ templ.SafeURL(page.Path + "/delete") }
+						hx-post={ page.Path + "/delete" }
+						hx-confirm={ "Удалить урок " + page.Title + "?" }
+						data-confirm-ok="Удалить"
+					>
+						<button type="submit" class={ components.ButtonDangerClass }>Удалить урок</button>
+					</form>
+				}
+			}
+			if page.DeleteError != "" {
+				@components.Alert(page.DeleteError)
+			}
+			@LessonTopic(page)
+		</div>
+	}
+}
+
+templ LessonTopic(page view.LessonPage) {
+	<form
+		id="lesson-topic"
+		method="post"
+		action={ templ.SafeURL(page.Path + "/topic") }
+		hx-post={ page.Path + "/topic" }
+		hx-target={ lessonTopicTarget }
+		hx-swap="outerHTML"
+		class={ components.CardClass, "flex flex-wrap items-start gap-2 p-3 sm:p-4" }
+	>
+		<span class="flex min-w-0 flex-1 basis-56 flex-col gap-1">
+			<input
+				type="text"
+				name="topic"
+				value={ page.Topic }
+				placeholder="Тема урока"
+				aria-label="Тема урока"
+				maxlength="200"
+				autocomplete="off"
+				class={ components.InputClassFor(page.TopicError) }
+			/>
+			@components.FieldError(page.TopicError)
+		</span>
+		<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Сохранить</button>
+	</form>
+}

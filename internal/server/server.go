@@ -36,7 +36,7 @@ func New(cfg *config.Config, authService *auth.Service, schoolService *school.Se
 		school:   schoolService,
 		account:  account.New(base, authService, log),
 		admin:    admin.New(base, authService, schoolService),
-		journal:  journalpages.New(base, authService, journalService),
+		journal:  journalpages.New(base, authService, schoolService, journalService),
 		location: cfg.Location,
 		log:      log,
 	}

@@ -3,7 +3,8 @@ package journal
 import (
 	"errors"
 	"log/slog"
-	"time"
+
+	"github.com/ruskiiamov/school/internal/storage"
 )
 
 var (
@@ -12,10 +13,28 @@ var (
 )
 
 type Service struct {
-	location *time.Location
-	log      *slog.Logger
+	lessons       *storage.LessonRepo
+	assignments   *storage.AssignmentRepo
+	substitutions *storage.SubstitutionRepo
+	classes       *storage.ClassRepo
+	subjects      *storage.SubjectRepo
+	log           *slog.Logger
 }
 
-func NewService(location *time.Location, log *slog.Logger) *Service {
-	return &Service{location: location, log: log}
+func NewService(
+	lessons *storage.LessonRepo,
+	assignments *storage.AssignmentRepo,
+	substitutions *storage.SubstitutionRepo,
+	classes *storage.ClassRepo,
+	subjects *storage.SubjectRepo,
+	log *slog.Logger,
+) *Service {
+	return &Service{
+		lessons:       lessons,
+		assignments:   assignments,
+		substitutions: substitutions,
+		classes:       classes,
+		subjects:      subjects,
+		log:           log,
+	}
 }

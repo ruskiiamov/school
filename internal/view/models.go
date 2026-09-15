@@ -297,3 +297,35 @@ type SubstitutionsPage struct {
 	CanCreate     bool
 	New           SubstitutionFields
 }
+
+type PairOption struct {
+	Value    string
+	Name     string
+	Selected bool
+}
+
+type LessonRow struct {
+	Href    string
+	Date    string
+	Class   string
+	Subject string
+	Topic   string
+}
+
+type JournalPage struct {
+	Shell   Shell
+	Pairs   []PairOption
+	Date    string
+	Errors  map[string]string
+	Lessons []LessonRow
+}
+
+type LessonPage struct {
+	Shell       Shell
+	Title       string
+	Path        string
+	Topic       string
+	TopicError  string
+	CanDelete   bool
+	DeleteError string
+}

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/validation"
 )
@@ -53,7 +54,8 @@ func (b *Base) ServerError(w http.ResponseWriter, r *http.Request, message strin
 }
 
 func (b *Base) HandleServiceError(w http.ResponseWriter, r *http.Request, message string, err error) {
-	if errors.Is(err, school.ErrNotFound) || errors.Is(err, auth.ErrNotFound) {
+	if errors.Is(err, school.ErrNotFound) || errors.Is(err, auth.ErrNotFound) ||
+		errors.Is(err, journal.ErrNotFound) || errors.Is(err, journal.ErrForbidden) {
 		http.NotFound(w, r)
 		return
 	}
