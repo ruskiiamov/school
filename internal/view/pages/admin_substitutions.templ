@@ -37,11 +37,11 @@ templ SubstitutionsList(page view.SubstitutionsPage) {
 				hx-swap="outerHTML"
 				class={ components.CardClass, "flex flex-wrap items-start gap-2 p-3 sm:p-4" }
 			>
-				@components.RowSelect("class_id", "Класс", page.New.Classes, page.New.Errors["class"], "flex-1 basis-32")
-				@components.RowSelect("subject_id", "Предмет", page.New.Subjects, page.New.Errors["subject"], "flex-1 basis-44")
+				@components.RowSelect("class_id", "Класс", page.New.Classes, page.New.Errors["class"], "flex-1 basis-44")
+				@components.RowSelect("subject_id", "Предмет", page.New.Subjects, page.New.Errors["subject"], "flex-1 basis-52")
 				@components.RowSelect("teacher_id", "Учитель", page.New.Teachers, page.New.Errors["teacher"], "flex-1 basis-56")
-				@components.RowDate("start_date", page.New.StartDate, "Дата начала", page.New.Errors["start_date"], "flex-1 basis-40")
-				@components.RowDate("end_date", page.New.EndDate, "Дата окончания", page.New.Errors["end_date"], "flex-1 basis-40")
+				@components.RowDate("start_date", page.New.StartDate, "Дата начала", page.New.Errors["start_date"], "flex-1 basis-40 sm:max-w-56")
+				@components.RowDate("end_date", page.New.EndDate, "Дата окончания", page.New.Errors["end_date"], "flex-1 basis-40 sm:max-w-56")
 				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>
 					@components.Icon(view.IconPlus, "size-4")
 					<span>Добавить</span>
