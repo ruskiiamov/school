@@ -126,7 +126,7 @@ func readMarkInput(r *http.Request) journal.MarkInput {
 	}
 }
 
-func (h *Handler) lessonBlock(r *http.Request, lesson journal.Lesson, form markForm) (view.LessonBlock, error) {
+func (h *Handler) lessonBlock(r *http.Request, lesson journal.Lesson, form markForm, record recordForm) (view.LessonBlock, error) {
 	ctx := r.Context()
 
 	entries, err := h.journal.LessonStudents(ctx, lesson)
@@ -177,7 +177,7 @@ func (h *Handler) lessonBlock(r *http.Request, lesson journal.Lesson, form markF
 		})
 	}
 
-	panel, err := h.studentPanel(r, lesson, selected, names[selected.ID], form)
+	panel, err := h.studentPanel(r, lesson, selected, names[selected.ID], form, record)
 	if err != nil {
 		return view.LessonBlock{}, err
 	}
@@ -187,7 +187,7 @@ func (h *Handler) lessonBlock(r *http.Request, lesson journal.Lesson, form markF
 	return block, nil
 }
 
-func (h *Handler) studentPanel(r *http.Request, lesson journal.Lesson, entry journal.StudentEntry, user auth.User, form markForm) (view.LessonStudentPanel, error) {
+func (h *Handler) studentPanel(r *http.Request, lesson journal.Lesson, entry journal.StudentEntry, user auth.User, form markForm, record recordForm) (view.LessonStudentPanel, error) {
 	workTypes, err := h.journal.ActiveWorkTypes(r.Context())
 	if err != nil {
 		return view.LessonStudentPanel{}, err
@@ -205,6 +205,18 @@ func (h *Handler) studentPanel(r *http.Request, lesson journal.Lesson, entry jou
 		InClass:   entry.InClass,
 		AddAction: lessonPath(lesson.ID, "/marks") + studentQuery(entry.ID, 0),
 		Error:     form.errs["student"],
+		Record: view.RecordFields{
+			Action:  lessonPath(lesson.ID, "/students/"+strconv.FormatInt(entry.ID, 10)) + studentQuery(entry.ID, 0),
+			Absent:  entry.Absent,
+			Comment: entry.Comment,
+		},
+	}
+
+	if record.entered {
+		panel.Record.Absent = record.input.Absent
+		panel.Record.Comment = record.input.Comment
+		panel.Record.Error = record.errs["comment"]
+		panel.Error = record.errs["student"]
 	}
 
 	for _, mark := range entry.Marks {
@@ -268,7 +280,16 @@ func markSummary(entry journal.StudentEntry) string {
 		values = append(values, strconv.Itoa(mark.Value))
 	}
 
-	return strings.Join(values, ", ")
+	summary := strings.Join(values, ", ")
+
+	switch {
+	case entry.Absent && summary != "":
+		return summary + " · Н"
+	case entry.Absent:
+		return "Н"
+	default:
+		return summary
+	}
 }
 
 func studentQuery(studentID, markID int64) string {

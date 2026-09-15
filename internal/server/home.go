@@ -21,6 +21,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 
 	if user.Role != auth.RoleAdmin {
 		page.Section = view.SectionItem(string(user.Role))
+		page.SectionNote = sectionNote(user.Role)
 		s.base.Render(w, r, pages.Home(page))
 
 		return
@@ -43,4 +44,12 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	page.Stats = view.AdminStats(stats.Classes, stats.Students, teachers, stats.Subjects)
 
 	s.base.Render(w, r, pages.Home(page))
+}
+
+func sectionNote(role auth.Role) string {
+	if role == auth.RoleTeacher {
+		return "Уроки, оценки, отсутствие и комментарии ученикам"
+	}
+
+	return "Раздел в разработке и появится в одной из следующих итераций"
 }

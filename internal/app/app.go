@@ -20,13 +20,15 @@ import (
 )
 
 type App struct {
-	log  *slog.Logger
-	db   *sql.DB
-	auth *auth.Service
-	http *http.Server
+	log     *slog.Logger
+	db      *sql.DB
+	auth    *auth.Service
+	journal *journal.Service
+	http    *http.Server
 
-	cleanupInterval time.Duration
-	shutdownTimeout time.Duration
+	cleanupInterval        time.Duration
+	journalCleanupInterval time.Duration
+	shutdownTimeout        time.Duration
 }
 
 func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error) {
@@ -71,14 +73,15 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		log,
 	)
 
-	journalService := journal.NewService(storage.NewLessonRepo(db), storage.NewMarkRepo(db), storage.NewAssignmentRepo(db),
+	journalService := journal.NewService(storage.NewLessonRepo(db), storage.NewMarkRepo(db), storage.NewLessonStudentRepo(db), storage.NewAssignmentRepo(db),
 		storage.NewSubstitutionRepo(db), storage.NewClassRepo(db), storage.NewClassStudentRepo(db),
 		storage.NewSubjectRepo(db), storage.NewWorkTypeRepo(db), log)
 
 	return &App{
-		log:  log,
-		db:   db,
-		auth: authService,
+		log:     log,
+		db:      db,
+		auth:    authService,
+		journal: journalService,
 		http: &http.Server{
 			Addr:         cfg.HTTP.Addr,
 			Handler:      server.New(cfg, authService, schoolService, journalService, log).Handler(),
@@ -86,8 +89,9 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 			WriteTimeout: cfg.HTTP.WriteTimeout,
 			IdleTimeout:  cfg.HTTP.IdleTimeout,
 		},
-		cleanupInterval: cfg.Session.CleanupInterval,
-		shutdownTimeout: cfg.HTTP.ShutdownTimeout,
+		cleanupInterval:        cfg.Session.CleanupInterval,
+		journalCleanupInterval: cfg.Journal.CleanupInterval,
+		shutdownTimeout:        cfg.HTTP.ShutdownTimeout,
 	}, nil
 }
 
@@ -106,6 +110,12 @@ func (a *App) Run(ctx context.Context) error {
 
 	group.Go(func() error {
 		a.auth.RunSessionCleanup(groupCtx, a.cleanupInterval)
+
+		return nil
+	})
+
+	group.Go(func() error {
+		a.journal.RunCleanup(groupCtx, a.journalCleanupInterval)
 
 		return nil
 	})

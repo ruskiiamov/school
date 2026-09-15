@@ -144,6 +144,31 @@ templ lessonStudentPanel(panel view.LessonStudentPanel) {
 				@markFields(panel.New)
 				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Поставить</button>
 			</form>
+			<form
+				method="post"
+				action={ templ.SafeURL(panel.Record.Action) }
+				hx-post={ panel.Record.Action }
+				hx-target={ lessonTarget }
+				hx-swap="outerHTML"
+				class="flex flex-col gap-3 border-t border-slate-100 p-3 sm:p-4"
+			>
+				<label class="flex min-h-11 items-center gap-3 text-sm text-slate-900">
+					<input type="checkbox" name="absent" value="1" checked?={ panel.Record.Absent } class="size-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-200"/>
+					<span>Отсутствовал</span>
+				</label>
+				<span class="flex min-w-0 flex-col gap-1">
+					<textarea
+						name="comment"
+						rows="3"
+						placeholder="Комментарий ученику"
+						aria-label="Комментарий ученику"
+						maxlength="500"
+						class={ components.InputClassFor(panel.Record.Error), "py-2" }
+					>{ panel.Record.Comment }</textarea>
+					@components.FieldError(panel.Record.Error)
+				</span>
+				<button type="submit" class={ components.ButtonPrimaryClass, "self-start" }>Сохранить</button>
+			</form>
 		}
 		if panel.Error != "" {
 			<div class="flex border-t border-slate-100 px-4 py-3">

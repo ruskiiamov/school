@@ -19,6 +19,7 @@ type Config struct {
 	DB       DB      `yaml:"db"`
 	Log      Log     `yaml:"log"`
 	Session  Session `yaml:"session"`
+	Journal  Journal `yaml:"journal"`
 	Admin    Admin   `yaml:"admin"`
 
 	Location *time.Location `yaml:"-"`
@@ -55,6 +56,10 @@ type Session struct {
 	CookieName      string        `yaml:"cookie_name"`
 	TTL             time.Duration `yaml:"ttl"`
 	Secure          bool          `yaml:"secure"`
+	CleanupInterval time.Duration `yaml:"cleanup_interval"`
+}
+
+type Journal struct {
 	CleanupInterval time.Duration `yaml:"cleanup_interval"`
 }
 
@@ -98,6 +103,7 @@ func Load(path string) (*Config, error) {
 		HTTP:     HTTP{Addr: ":8080", ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: time.Minute, ShutdownTimeout: 10 * time.Second},
 		Log:      Log{Level: Level(slog.LevelInfo), MaxSizeMB: 10, MaxBackups: 5, MaxAgeDays: 30},
 		Session:  Session{CookieName: "sid", TTL: 12 * time.Hour, CleanupInterval: time.Hour},
+		Journal:  Journal{CleanupInterval: 24 * time.Hour},
 	}
 
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -142,6 +148,7 @@ func (c *Config) validate() error {
 	require(c.Session.CookieName != "", "session.cookie_name is empty")
 	require(c.Session.TTL > 0, "session.ttl must be positive")
 	require(c.Session.CleanupInterval > 0, "session.cleanup_interval must be positive")
+	require(c.Journal.CleanupInterval > 0, "journal.cleanup_interval must be positive")
 	require(c.Admin.Login != "", "admin.login is empty")
 	require(c.Admin.Password != "", "admin.password is empty")
 	require(c.Admin.FullName != "", "admin.full_name is empty")

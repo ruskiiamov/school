@@ -43,6 +43,8 @@ type WorkType struct {
 type StudentEntry struct {
 	ID      int64
 	InClass bool
+	Absent  bool
+	Comment string
 	Marks   []Mark
 }
 
@@ -57,23 +59,38 @@ func (s *Service) LessonStudents(ctx context.Context, lesson Lesson) ([]StudentE
 		return nil, err
 	}
 
+	records, err := s.lessonStudents.ListByLesson(ctx, lesson.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	index := make(map[int64]int, len(members))
 	entries := make([]StudentEntry, 0, len(members))
 
+	position := func(studentID int64) int {
+		if at, ok := index[studentID]; ok {
+			return at
+		}
+
+		index[studentID] = len(entries)
+		entries = append(entries, StudentEntry{ID: studentID})
+
+		return index[studentID]
+	}
+
 	for _, id := range members {
-		index[id] = len(entries)
-		entries = append(entries, StudentEntry{ID: id, InClass: true})
+		entries[position(id)].InClass = true
 	}
 
 	for _, mark := range marks {
-		position, ok := index[mark.StudentID]
-		if !ok {
-			position = len(entries)
-			index[mark.StudentID] = position
-			entries = append(entries, StudentEntry{ID: mark.StudentID})
-		}
+		at := position(mark.StudentID)
+		entries[at].Marks = append(entries[at].Marks, mark)
+	}
 
-		entries[position].Marks = append(entries[position].Marks, mark)
+	for _, record := range records {
+		at := position(record.StudentID)
+		entries[at].Absent = record.Absent
+		entries[at].Comment = record.Comment
 	}
 
 	return entries, nil
