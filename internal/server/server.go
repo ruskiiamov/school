@@ -7,9 +7,11 @@ import (
 
 	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/config"
+	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/account"
 	"github.com/ruskiiamov/school/internal/server/admin"
+	journalpages "github.com/ruskiiamov/school/internal/server/journal"
 	"github.com/ruskiiamov/school/internal/server/web"
 	"github.com/ruskiiamov/school/internal/view/static"
 )
@@ -20,11 +22,12 @@ type Server struct {
 	school   *school.Service
 	account  *account.Handler
 	admin    *admin.Handler
+	journal  *journalpages.Handler
 	location *time.Location
 	log      *slog.Logger
 }
 
-func New(cfg *config.Config, authService *auth.Service, schoolService *school.Service, log *slog.Logger) *Server {
+func New(cfg *config.Config, authService *auth.Service, schoolService *school.Service, journalService *journal.Service, log *slog.Logger) *Server {
 	base := web.New(cfg, authService, log)
 
 	return &Server{
@@ -33,6 +36,7 @@ func New(cfg *config.Config, authService *auth.Service, schoolService *school.Se
 		school:   schoolService,
 		account:  account.New(base, authService, log),
 		admin:    admin.New(base, authService, schoolService),
+		journal:  journalpages.New(base, authService, journalService),
 		location: cfg.Location,
 		log:      log,
 	}
@@ -52,11 +56,11 @@ func (s *Server) pages() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.Handle("GET /{$}", s.base.RequireAuth(http.HandlerFunc(s.home)))
-	mux.Handle("GET /journal", s.base.RequireAuth(web.RequireRole(auth.RoleTeacher)(http.HandlerFunc(s.journalStub))))
 	mux.Handle("GET /diary", s.base.RequireAuth(web.RequireRole(auth.RoleStudent, auth.RoleParent)(http.HandlerFunc(s.diaryStub))))
 
 	s.account.Routes(mux)
 	s.admin.Routes(mux)
+	s.journal.Routes(mux)
 
 	return mux
 }

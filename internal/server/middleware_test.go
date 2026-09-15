@@ -21,7 +21,7 @@ func TestPanicInPageIsLoggedAsRequest(t *testing.T) {
 
 	buf := &bytes.Buffer{}
 	log := slog.New(logger.NewContextHandler(slog.NewJSONHandler(buf, nil)))
-	s := New(&config.Config{}, nil, nil, log)
+	s := New(&config.Config{}, nil, nil, nil, log)
 
 	handler := chain(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		panic("boom")

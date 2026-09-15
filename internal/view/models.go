@@ -21,6 +21,7 @@ const (
 	IconUp        Icon = "up"
 	IconDown      Icon = "down"
 	IconKey       Icon = "key"
+	IconSwap      Icon = "swap"
 	IconCheck     Icon = "check"
 	IconEye       Icon = "eye"
 	IconEyeOff    Icon = "eye-off"
@@ -265,4 +266,34 @@ type PasswordResetPage struct {
 	Path  string
 	Query string
 	Users []PasswordResetRow
+}
+
+type SubstitutionFields struct {
+	Classes   []Option
+	Subjects  []Option
+	Teachers  []Option
+	StartDate string
+	EndDate   string
+	Errors    map[string]string
+}
+
+type SubstitutionRow struct {
+	ID            int64
+	Class         string
+	Subject       string
+	Teacher       string
+	SubjectActive bool
+	TeacherActive bool
+	Period        string
+	Ended         bool
+	Editing       bool
+	Fields        SubstitutionFields
+}
+
+type SubstitutionsPage struct {
+	Shell         Shell
+	Substitutions []SubstitutionRow
+	ShowEnded     bool
+	CanCreate     bool
+	New           SubstitutionFields
 }

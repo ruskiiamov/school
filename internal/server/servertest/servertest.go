@@ -18,6 +18,7 @@ import (
 
 	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/config"
+	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/logger"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server"
@@ -34,6 +35,7 @@ type Env struct {
 	DB      *sql.DB
 	Auth    *auth.Service
 	School  *school.Service
+	Journal *journal.Service
 }
 
 func New(t *testing.T) *Env {
@@ -71,13 +73,17 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 
 	schoolService := school.NewService(cfg.School.YearStartMonth, cfg.Location,
 		storage.NewSubjectRepo(db), storage.NewWorkTypeRepo(db), storage.NewClassRepo(db),
-		storage.NewClassStudentRepo(db), storage.NewParentChildRepo(db), storage.NewAssignmentRepo(db), log)
+		storage.NewClassStudentRepo(db), storage.NewParentChildRepo(db), storage.NewAssignmentRepo(db),
+		storage.NewSubstitutionRepo(db), log)
+
+	journalService := journal.NewService(cfg.Location, log)
 
 	return &Env{
-		Handler: server.New(cfg, authService, schoolService, log).Handler(),
+		Handler: server.New(cfg, authService, schoolService, journalService, log).Handler(),
 		DB:      db,
 		Auth:    authService,
 		School:  schoolService,
+		Journal: journalService,
 	}
 }
 

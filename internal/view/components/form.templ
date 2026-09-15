@@ -143,3 +143,16 @@ templ RowSelect(name, label string, options []view.Option, message, class string
 		@FieldError(message)
 	</span>
 }
+
+templ RowDate(name, value, label, message, class string) {
+	<span class={ "flex min-w-0 flex-col gap-1", class }>
+		<input
+			type="date"
+			name={ name }
+			value={ value }
+			aria-label={ label }
+			class={ InputClassFor(message) }
+		/>
+		@FieldError(message)
+	</span>
+}
