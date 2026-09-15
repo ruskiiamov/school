@@ -6,7 +6,10 @@ import (
 	"github.com/ruskiiamov/school/internal/view/layout"
 )
 
-const lessonTopicTarget = "#lesson-topic"
+const (
+	lessonTopicTarget = "#lesson-topic"
+	lessonTarget      = "#lesson"
+)
 
 templ Lesson(page view.LessonPage) {
 	@layout.App(page.Shell) {
@@ -28,6 +31,7 @@ templ Lesson(page view.LessonPage) {
 				@components.Alert(page.DeleteError)
 			}
 			@LessonTopic(page)
+			@LessonBlock(page.Block)
 		</div>
 	}
 }
@@ -57,4 +61,143 @@ templ LessonTopic(page view.LessonPage) {
 		</span>
 		<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Сохранить</button>
 	</form>
+}
+
+templ LessonBlock(block view.LessonBlock) {
+	<div id="lesson" class="grid items-start gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-6">
+		<nav aria-label="Ученики" class={ components.CardClass, "p-2 lg:p-0" }>
+			if len(block.Students) == 0 {
+				@components.EmptyState("В классе пока нет учеников")
+			} else {
+				<ul class="flex flex-wrap gap-2 lg:flex-col lg:gap-0 lg:divide-y lg:divide-slate-100">
+					for _, student := range block.Students {
+						@lessonStudentItem(student)
+					}
+				</ul>
+			}
+		</nav>
+		if block.Selected != nil {
+			@lessonStudentPanel(*block.Selected)
+		}
+	</div>
+}
+
+templ lessonStudentItem(student view.LessonStudentItem) {
+	<li class="lg:flex">
+		<a
+			href={ templ.SafeURL(student.Href) }
+			hx-get={ student.Href }
+			hx-target={ lessonTarget }
+			hx-swap="outerHTML"
+			hx-push-url="true"
+			if student.Selected {
+				aria-current="true"
+				class="flex min-h-11 items-center gap-2 rounded-lg bg-indigo-50 px-3 text-sm font-medium text-indigo-700 lg:w-full lg:rounded-none lg:px-4"
+			} else {
+				class="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 lg:w-full lg:rounded-none lg:ring-0 lg:px-4"
+			}
+		>
+			<span class="truncate lg:hidden">{ student.ShortName }</span>
+			<span class="hidden min-w-0 flex-1 truncate lg:inline">{ student.FullName }</span>
+			if !student.Active {
+				@components.InactiveBadge()
+			}
+			if !student.InClass {
+				<span class="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">не в классе</span>
+			}
+			if student.Summary != "" {
+				<span class="shrink-0 text-xs font-semibold text-slate-500">{ student.Summary }</span>
+			}
+		</a>
+	</li>
+}
+
+templ lessonStudentPanel(panel view.LessonStudentPanel) {
+	<section class={ components.CardClass }>
+		<div class="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 lg:px-5">
+			<h2 class="text-sm font-semibold text-slate-900">{ panel.FullName }</h2>
+			if !panel.Active {
+				@components.InactiveBadge()
+			}
+			if !panel.InClass {
+				<span class="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">не в классе</span>
+			}
+		</div>
+		if len(panel.Marks) == 0 {
+			@components.EmptyState("Оценок пока нет")
+		} else {
+			<ul class="divide-y divide-slate-100">
+				for _, mark := range panel.Marks {
+					@markRow(mark)
+				}
+			</ul>
+		}
+		if panel.InClass {
+			<form
+				method="post"
+				action={ templ.SafeURL(panel.AddAction) }
+				hx-post={ panel.AddAction }
+				hx-target={ lessonTarget }
+				hx-swap="outerHTML"
+				class="flex flex-wrap items-start gap-2 border-t border-slate-100 p-3 sm:p-4"
+			>
+				@markFields(panel.New)
+				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Поставить</button>
+			</form>
+		}
+		if panel.Error != "" {
+			<div class="flex border-t border-slate-100 px-4 py-3">
+				@components.FieldError(panel.Error)
+			</div>
+		}
+	</section>
+}
+
+templ markFields(fields view.MarkFields) {
+	@components.RowSelect("work_type_id", "Тип работы", fields.WorkTypes, fields.Errors["work_type"], "flex-1 basis-52")
+	@components.RowSelect("value", "Оценка", fields.Values, fields.Errors["value"], "w-28")
+	@components.RowInput("label", fields.Label, "За что", "За что", fields.Errors["label"], "flex-1 basis-40")
+}
+
+templ markRow(mark view.MarkRow) {
+	<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+		if mark.Editing {
+			<form
+				method="post"
+				action={ templ.SafeURL(mark.Action) }
+				hx-post={ mark.Action }
+				hx-target={ lessonTarget }
+				hx-swap="outerHTML"
+				class="flex flex-1 flex-wrap items-start gap-2"
+			>
+				@markFields(mark.Fields)
+				<span class="ml-auto flex flex-wrap items-center gap-2">
+					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
+					<a href={ templ.SafeURL(mark.CancelHref) } hx-get={ mark.CancelHref } hx-target={ lessonTarget } hx-swap="outerHTML" class={ components.ButtonSecondaryClass }>Отмена</a>
+				</span>
+			</form>
+		} else {
+			<span class="flex min-w-0 basis-full flex-wrap items-center gap-x-3 gap-y-1 sm:flex-1 sm:basis-auto">
+				<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-base font-semibold text-indigo-700">{ mark.Value }</span>
+				<span class="text-sm font-medium text-slate-900">{ mark.WorkType }</span>
+				if mark.Label != "" {
+					<span class="text-sm text-slate-600">{ mark.Label }</span>
+				}
+			</span>
+			<span class="ml-auto flex flex-wrap items-center gap-2">
+				@components.EditLink(mark.EditHref, lessonTarget)
+				<form
+					method="post"
+					action={ templ.SafeURL(mark.DeleteAction) }
+					hx-post={ mark.DeleteAction }
+					hx-target={ lessonTarget }
+					hx-swap="outerHTML"
+					hx-confirm={ "Удалить оценку " + mark.Value + " (" + mark.WorkType + ")?" }
+					data-confirm-ok="Удалить"
+				>
+					<button type="submit" class={ components.ButtonDangerClass }>Удалить</button>
+				</form>
+			</span>
+		}
+	</li>
 }

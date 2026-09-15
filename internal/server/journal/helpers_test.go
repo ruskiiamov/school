@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/servertest"
 	"github.com/ruskiiamov/school/internal/validation"
@@ -87,4 +88,8 @@ func openLesson(t *testing.T, env *servertest.Env, cookie *http.Cookie, classID,
 	require.NoError(t, err)
 
 	return id
+}
+
+func journalMarkInput(workTypeID int64, value int) journal.MarkInput {
+	return journal.MarkInput{WorkTypeID: workTypeID, Value: value}
 }

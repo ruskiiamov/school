@@ -2,7 +2,9 @@ package view
 
 import (
 	"fmt"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var (
@@ -43,6 +45,17 @@ func FormatPeriod(start, end time.Time) string {
 	}
 
 	return FormatShortDate(start) + " — " + FormatShortDate(end)
+}
+
+func ShortName(fullName string) string {
+	parts := strings.Fields(fullName)
+	if len(parts) < 2 {
+		return fullName
+	}
+
+	initial, _ := utf8.DecodeRuneInString(parts[1])
+
+	return parts[0] + " " + string(initial) + "."
 }
 
 func RoleTitle(role string) string {
