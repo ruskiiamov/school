@@ -13,6 +13,7 @@ func NavItems(role, active string) []NavItem {
 			NavItem{Title: "Ученики", Href: "/admin/students", Icon: IconStudents},
 			NavItem{Title: "Родители", Href: "/admin/parents", Icon: IconParents},
 			NavItem{Title: "Типы работ", Href: "/admin/work-types", Icon: IconWorkTypes},
+			NavItem{Title: "Сброс пароля", Href: "/admin/password-reset", Icon: IconKey},
 		)
 	} else {
 		items = append(items, SectionItem(role), NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey})

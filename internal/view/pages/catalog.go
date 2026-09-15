@@ -66,7 +66,3 @@ func userEditURL(path, query string, id int64) string {
 
 	return path + query + "&" + edit
 }
-
-func passwordFormID(id int64) string {
-	return "password-" + strconv.FormatInt(id, 10)
-}

@@ -239,13 +239,30 @@ type UsersPage struct {
 }
 
 type UserCreatedPage struct {
-	Shell    Shell
-	Title    string
-	FullName string
-	Login    string
-	Password string
-	Note     string
-	ListHref string
-	NewHref  string
-	NewTitle string
+	Shell     Shell
+	Title     string
+	FullName  string
+	Login     string
+	Password  string
+	Note      string
+	ListHref  string
+	ListTitle string
+	NewHref   string
+	NewTitle  string
+}
+
+type PasswordResetRow struct {
+	ID        int64
+	FullName  string
+	Role      string
+	ClassName string
+	Login     string
+	Action    string
+}
+
+type PasswordResetPage struct {
+	Shell Shell
+	Path  string
+	Query string
+	Users []PasswordResetRow
 }

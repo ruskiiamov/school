@@ -229,11 +229,10 @@ func TestStudentClassInFormListAndFilter(t *testing.T) {
 	assert.Contains(t, edit, `value="`+a+`" selected>7А<`)
 	assert.Contains(t, edit, `value="Смирнова Мария"`)
 	assert.Contains(t, edit, `action="`+userPathFor("/admin/students", inA, "")+`"`)
-	assert.Contains(t, edit, `action="`+userPathFor("/admin/students", inA, "/password")+`"`)
-	assert.Contains(t, edit, ">Сменить пароль<")
-	assert.Contains(t, edit, `hx-confirm="Вы уверены, что хотите сменить пароль?"`)
-	assert.Contains(t, edit, `data-confirm-ok="Сменить пароль"`)
-	assert.Contains(t, edit, `<dialog id="confirm"`)
+	assert.NotContains(t, edit, "Сменить пароль")
+	row := edit[strings.Index(edit, `action="`+userPathFor("/admin/students", inA, "")+`"`):]
+	assert.Less(t, strings.Index(row, `name="full_name"`), strings.Index(row, `name="class"`))
+	assert.Less(t, strings.Index(row, `name="class"`), strings.Index(row, `name="login"`))
 	assert.Contains(t, edit, ">Отмена</a>")
 	assert.NotContains(t, edit, `value="Петров Иван"`)
 	assert.Equal(t, 1, strings.Count(edit, "ФИО нового пользователя"))
@@ -326,43 +325,6 @@ func TestUserDeactivateAndActivate(t *testing.T) {
 	loginWith(t, env.handler, "smirnova.m", password)
 }
 
-func TestUserSetPasswordShowsItOnce(t *testing.T) {
-	t.Parallel()
-
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
-
-	id, createdPath := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Смирнова Мария"}})
-	_, initial := takeCredentials(t, env, admin, createdPath)
-	teacher := loginWith(t, env.handler, "smirnova.m", initial)
-
-	assertRedirect(t, postForm(t, env.handler, userPathFor("/admin/teachers", id, "/password?q=x"), nil, []*http.Cookie{admin}, nil), createdPath)
-
-	changed := get(t, env.handler, createdPath, admin).Body.String()
-	assert.Contains(t, changed, "Пароль изменён")
-	assert.Contains(t, changed, ">smirnova.m<")
-	assert.Contains(t, changed, "Сессии пользователя сброшены")
-	assert.NotContains(t, changed, "Ещё учителя")
-
-	values := credentialValue.FindAllStringSubmatch(changed, -1)
-	require.Len(t, values, 2, changed)
-	assert.Regexp(t, "^[A-Za-z0-9]{10}$", values[1][1])
-	assert.NotEqual(t, initial, values[1][1])
-
-	assertRedirect(t, get(t, env.handler, createdPath, admin), "/admin/teachers")
-
-	assertRedirect(t, get(t, env.handler, "/journal", teacher), "/login")
-
-	_, err := env.auth.Login(t.Context(), "smirnova.m", initial)
-	assert.ErrorIs(t, err, auth.ErrInvalidCredentials)
-
-	loginWith(t, env.handler, "smirnova.m", values[1][1])
-
-	htmx := postForm(t, env.handler, userPathFor("/admin/teachers", id, "/password"), nil, []*http.Cookie{admin}, map[string]string{"HX-Request": "true"})
-	assert.Equal(t, http.StatusNoContent, htmx.Code)
-	assert.Equal(t, createdPath, htmx.Header().Get("HX-Redirect"))
-}
-
 func TestUserUpdateValidationAndRename(t *testing.T) {
 	t.Parallel()
 
@@ -417,10 +379,8 @@ func TestUserSectionRejectsForeignRoleAndUnknownID(t *testing.T) {
 	for _, path := range []string{
 		userPathFor("/admin/teachers", student, "/deactivate"),
 		userPathFor("/admin/students", adminID, "/deactivate"),
-		userPathFor("/admin/students", adminID, "/password"),
 		userPathFor("/admin/teachers", adminID, ""),
 		"/admin/teachers/999",
-		"/admin/teachers/999/password",
 	} {
 		assert.Equal(t, http.StatusNotFound, postForm(t, env.handler, path, url.Values{"full_name": {"X"}, "login": {"x"}}, []*http.Cookie{admin}, nil).Code, path)
 	}

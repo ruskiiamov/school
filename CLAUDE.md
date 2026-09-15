@@ -155,13 +155,14 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 (`CanCreate`), карточка `/admin/classes/{id}` — отдельная страница;
 образец — `admin_classes_handler.go`.
 
-**Пользователи (D-045…D-048).** Три раздела
+**Пользователи (D-045…D-048, D-056).** Три раздела
 `/admin/{teachers|students|parents}` обслуживает один набор обработчиков в
 `admin_users_handler.go`, параметризованный `userSection` (роль, путь,
 русские подписи); маршруты регистрируются циклом по `userSections` в
 `pages()`. Тот же строчный паттерн, что у предметов: строка добавления
-сверху (`userFields`), `?edit={id}` рендерит одну строку формой с кнопкой
-«Сменить пароль»; query списка (`q`, `class`, `inactive`) — `page.ListQuery`
+сверху (`userFields`), `?edit={id}` рендерит одну строку формой (поля в
+том же порядке, что в обычной строке: ФИО, класс, логин); query списка
+(`q`, `class`, `inactive`) — `page.ListQuery`
 в шаблоне и `rawListQuery` в редиректах. HTMX-фрагмент — `pages.UsersPage`,
 контейнер `#users` включает шапку с переключателем «Показать удалённые»,
 поле поиска помечено `hx-preserve`, иначе подмена теряет фокус и ввод.
@@ -169,10 +170,15 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 в `input.css`, ширина как у кнопок).
 Все `{id}`-маршруты идут через `sectionUser`: чужая роль и админ получают
 404 — так «себя деактивировать нельзя» держится без отдельного кода. Логин
-и пароль всегда генерирует `auth.CreateUser`, сброс — `ResetPassword`;
-одноразовые логин и пароль живут в `credentialsStore`
-(`created.go`) под ID сессии админа, 10 минут, `kind` меняет заголовок
-страницы `/{id}/created`. Класс ученика — `school.SetStudentClass`,
+и пароль всегда генерирует `auth.CreateUser`, сброс — `ResetPassword` со
+страницы «Сброс пароля» `/admin/password-reset`
+(`admin_password_reset_handler.go`, D-056): поиск по ФИО по всем трём
+`userSections`, `resettableUser` даёт 404 админу и неизвестному ID,
+подтверждение — `hx-confirm` с ФИО в вопросе. Одноразовые логин и пароль
+живут в `credentialsStore` (`created.go`) под ID сессии админа, 10 минут;
+`take` требует свой `kind`, так что страница `/{id}/created` раздела
+показывает только созданного, а `/admin/password-reset/{id}/created` —
+только сброс. Класс ученика — `school.SetStudentClass`,
 проверка `CheckStudentClass` до создания пользователя.
 
 **Состав класса, нагрузка, дети родителя (D-049).** Карточка класса

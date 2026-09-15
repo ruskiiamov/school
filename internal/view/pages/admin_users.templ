@@ -83,10 +83,12 @@ templ userFields(fields view.UserFields, isNew bool) {
 		@components.RowInput("full_name", fields.FullName, "ФИО нового пользователя", "ФИО", fields.Errors["full_name"], "flex-1 basis-56")
 	} else {
 		@components.RowInput("full_name", fields.FullName, "ФИО", "ФИО", fields.Errors["full_name"], "flex-1 basis-52")
-		@components.RowInput("login", fields.Login, "Логин", "Логин", fields.Errors["login"], "flex-1 basis-44")
 	}
 	if len(fields.Classes) > 0 {
 		@components.RowSelect("class", "Класс", fields.Classes, fields.Errors["class"], "basis-36 shrink-0")
+	}
+	if !isNew {
+		@components.RowInput("login", fields.Login, "Логин", "Логин", fields.Errors["login"], "flex-1 basis-44")
 	}
 }
 
@@ -105,17 +107,8 @@ templ userRow(page view.UsersPage, row view.UserRow) {
 				<span class="ml-auto flex flex-wrap items-center gap-2">
 					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
 					<a href={ templ.SafeURL(page.Path + page.ListQuery) } hx-get={ page.Path + page.ListQuery } hx-target={ usersTarget } hx-swap="outerHTML" class={ components.ButtonSecondaryClass }>Отмена</a>
-					<button type="submit" form={ passwordFormID(row.ID) } class={ components.ButtonSecondaryClass }>Сменить пароль</button>
 				</span>
 			</form>
-			<form
-				id={ passwordFormID(row.ID) }
-				method="post"
-				action={ templ.SafeURL(userURL(page.Path, row.ID, "/password", page.ListQuery)) }
-				hx-post={ userURL(page.Path, row.ID, "/password", page.ListQuery) }
-				hx-confirm="Вы уверены, что хотите сменить пароль?"
-				data-confirm-ok="Сменить пароль"
-			></form>
 			if row.Children != nil {
 				@childrenBlock(*row.Children)
 			}
