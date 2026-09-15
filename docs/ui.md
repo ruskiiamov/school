@@ -176,13 +176,16 @@ POST /journal/lessons/{id}/delete      только пустой урок → р
 POST /journal/lessons/{id}/marks?student={sid}          поставить (work_type_id, value, label)
 POST /journal/lessons/{id}/marks/{mid}?student={sid}    править
 POST /journal/lessons/{id}/marks/{mid}/delete?student={sid}
-POST /journal/lessons/{id}/students/{sid}               отсутствие + комментарий (absent, comment)
+POST /journal/lessons/{id}/students/{sid}?student={sid}  отсутствие + комментарий (absent=1, comment)
 ```
 
 Ответы на HTMX-запросы страницы урока — фрагмент `#lesson` (обе колонки:
-отметки слева меняются вместе с оценками), без `HX-Request` — редирект на
-`/journal/lessons/{id}?student={sid}`. Ошибка формы — тот же фрагмент или
-вся страница со статусом 200 и введёнными значениями.
+отметки слева меняются вместе с оценками), тема — фрагмент `#lesson-topic`;
+без `HX-Request` — редирект на `/journal/lessons/{id}?student={sid}`.
+Ошибка формы — тот же фрагмент или вся страница со статусом 200 и
+введёнными значениями; ошибка удаления непустого урока — красный блок над
+темой. Переход между учениками — `hx-get` с `hx-push-url`, адрес в строке
+браузера меняется.
 
 ## Макеты итерации 3
 
