@@ -60,12 +60,13 @@ type LoginPage struct {
 }
 
 type HomePage struct {
-	Shell     Shell
-	Today     string
-	YearName  string
-	NoClasses bool
-	Stats     []Stat
-	Section   NavItem
+	Shell       Shell
+	Today       string
+	YearName    string
+	NoClasses   bool
+	Stats       []Stat
+	Section     NavItem
+	SectionNote string
 }
 
 type PasswordPage struct {
@@ -371,6 +372,14 @@ type LessonStudentPanel struct {
 	AddAction string
 	New       MarkFields
 	Error     string
+	Record    RecordFields
+}
+
+type RecordFields struct {
+	Action  string
+	Absent  bool
+	Comment string
+	Error   string
 }
 
 type LessonBlock struct {

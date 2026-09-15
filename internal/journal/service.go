@@ -13,20 +13,22 @@ var (
 )
 
 type Service struct {
-	lessons       *storage.LessonRepo
-	marks         *storage.MarkRepo
-	assignments   *storage.AssignmentRepo
-	substitutions *storage.SubstitutionRepo
-	classes       *storage.ClassRepo
-	classStudents *storage.ClassStudentRepo
-	subjects      *storage.SubjectRepo
-	workTypes     *storage.WorkTypeRepo
-	log           *slog.Logger
+	lessons        *storage.LessonRepo
+	marks          *storage.MarkRepo
+	lessonStudents *storage.LessonStudentRepo
+	assignments    *storage.AssignmentRepo
+	substitutions  *storage.SubstitutionRepo
+	classes        *storage.ClassRepo
+	classStudents  *storage.ClassStudentRepo
+	subjects       *storage.SubjectRepo
+	workTypes      *storage.WorkTypeRepo
+	log            *slog.Logger
 }
 
 func NewService(
 	lessons *storage.LessonRepo,
 	marks *storage.MarkRepo,
+	lessonStudents *storage.LessonStudentRepo,
 	assignments *storage.AssignmentRepo,
 	substitutions *storage.SubstitutionRepo,
 	classes *storage.ClassRepo,
@@ -36,14 +38,15 @@ func NewService(
 	log *slog.Logger,
 ) *Service {
 	return &Service{
-		lessons:       lessons,
-		marks:         marks,
-		assignments:   assignments,
-		substitutions: substitutions,
-		classes:       classes,
-		classStudents: classStudents,
-		subjects:      subjects,
-		workTypes:     workTypes,
-		log:           log,
+		lessons:        lessons,
+		marks:          marks,
+		lessonStudents: lessonStudents,
+		assignments:    assignments,
+		substitutions:  substitutions,
+		classes:        classes,
+		classStudents:  classStudents,
+		subjects:       subjects,
+		workTypes:      workTypes,
+		log:            log,
 	}
 }

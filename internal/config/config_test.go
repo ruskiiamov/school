@@ -30,6 +30,7 @@ func TestLoadExample(t *testing.T) {
 	assert.Equal(t, 5*time.Second, cfg.HTTP.ReadTimeout)
 	assert.Equal(t, 12*time.Hour, cfg.Session.TTL)
 	assert.Equal(t, time.Hour, cfg.Session.CleanupInterval)
+	assert.Equal(t, 24*time.Hour, cfg.Journal.CleanupInterval)
 	assert.Equal(t, slog.LevelInfo, cfg.Log.Level.Slog())
 	assert.True(t, cfg.Log.Stdout)
 	assert.Equal(t, "admin", cfg.Admin.Login)

@@ -29,6 +29,9 @@ session:
   secure: false
   cleanup_interval: 1h
 
+journal:
+  cleanup_interval: 24h
+
 admin:
   login: admin
   password: change-me

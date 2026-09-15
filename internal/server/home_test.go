@@ -101,10 +101,11 @@ func TestHomeShowsSectionLinkForOtherRoles(t *testing.T) {
 		login string
 		href  string
 		title string
+		note  string
 	}{
-		{"teacher", "/journal", "Журнал"},
-		{"student", "/diary", "Дневник"},
-		{"parent", "/diary", "Дневник"},
+		{"teacher", "/journal", "Журнал", "Уроки, оценки, отсутствие и комментарии ученикам"},
+		{"student", "/diary", "Дневник", "Раздел в разработке"},
+		{"parent", "/diary", "Дневник", "Раздел в разработке"},
 	}
 
 	for _, tt := range tests {
@@ -118,7 +119,7 @@ func TestHomeShowsSectionLinkForOtherRoles(t *testing.T) {
 			assert.Contains(t, body, "Здравствуйте, ")
 			assert.Contains(t, body, `href="`+tt.href+`"`)
 			assert.Contains(t, body, tt.title)
-			assert.Contains(t, body, "Раздел в разработке")
+			assert.Contains(t, body, tt.note)
 			assert.NotContains(t, body, "Учебный год")
 			assert.NotContains(t, body, `href="/admin/classes"`)
 			assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/admin/classes", cookie).Code)

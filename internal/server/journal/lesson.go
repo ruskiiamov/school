@@ -23,6 +23,7 @@ type lessonState struct {
 	topicError  string
 	deleteError string
 	mark        markForm
+	record      recordForm
 }
 
 func (h *Handler) lessonShow(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +129,7 @@ func (h *Handler) renderLesson(w http.ResponseWriter, r *http.Request, lesson jo
 		return
 	}
 
-	block, err := h.lessonBlock(r, lesson, state.mark)
+	block, err := h.lessonBlock(r, lesson, state.mark, state.record)
 	if err != nil {
 		h.base.ServerError(w, r, "load lesson students", err)
 		return
