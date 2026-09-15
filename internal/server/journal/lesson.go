@@ -2,6 +2,7 @@ package journal
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/server/web"
@@ -9,9 +10,19 @@ import (
 	"github.com/ruskiiamov/school/internal/view/pages"
 )
 
-type lessonErrors struct {
-	topic  string
-	delete string
+type renderMode int
+
+const (
+	renderPage renderMode = iota
+	renderTopic
+	renderBlock
+)
+
+type lessonState struct {
+	topic       string
+	topicError  string
+	deleteError string
+	mark        markForm
 }
 
 func (h *Handler) lessonShow(w http.ResponseWriter, r *http.Request) {
@@ -20,7 +31,12 @@ func (h *Handler) lessonShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderLesson(w, r, lesson, lesson.Topic, lessonErrors{})
+	mode := renderPage
+	if web.IsHTMX(r) {
+		mode = renderBlock
+	}
+
+	h.renderLesson(w, r, lesson, lessonState{topic: lesson.Topic}, mode)
 }
 
 func (h *Handler) lessonTopic(w http.ResponseWriter, r *http.Request) {
@@ -32,9 +48,14 @@ func (h *Handler) lessonTopic(w http.ResponseWriter, r *http.Request) {
 	user, _ := web.UserFromContext(r.Context())
 	topic := web.FormValue(r, "topic")
 
+	mode := renderPage
+	if web.IsHTMX(r) {
+		mode = renderTopic
+	}
+
 	err := h.journal.UpdateTopic(r.Context(), user.ID, lesson.ID, topic)
 	if errs, ok := web.FormErrors(err); ok {
-		h.renderLesson(w, r, lesson, topic, lessonErrors{topic: errs["topic"]})
+		h.renderLesson(w, r, lesson, lessonState{topic: topic, topicError: errs["topic"]}, mode)
 		return
 	}
 	if err != nil {
@@ -42,13 +63,13 @@ func (h *Handler) lessonTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !web.IsHTMX(r) {
+	if mode == renderPage {
 		web.Redirect(w, r, lessonPath(lesson.ID, ""))
 		return
 	}
 
 	lesson.Topic = topic
-	h.renderLesson(w, r, lesson, lesson.Topic, lessonErrors{})
+	h.renderLesson(w, r, lesson, lessonState{topic: topic}, mode)
 }
 
 func (h *Handler) lessonDelete(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +82,7 @@ func (h *Handler) lessonDelete(w http.ResponseWriter, r *http.Request) {
 
 	err := h.journal.DeleteLesson(r.Context(), user.ID, lesson.ID)
 	if errs, ok := web.FormErrors(err); ok {
-		h.renderLesson(w, r, lesson, lesson.Topic, lessonErrors{delete: errs["lesson"]})
+		h.renderLesson(w, r, lesson, lessonState{topic: lesson.Topic, deleteError: errs["lesson"]}, renderPage)
 		return
 	}
 	if err != nil {
@@ -90,29 +111,52 @@ func (h *Handler) pathLesson(w http.ResponseWriter, r *http.Request) (journal.Le
 	return lesson, true
 }
 
-func (h *Handler) renderLesson(w http.ResponseWriter, r *http.Request, lesson journal.Lesson, topic string, errs lessonErrors) {
-	canDelete, err := h.journal.CanDeleteLesson(r.Context(), lesson.ID)
-	if err != nil {
-		h.base.ServerError(w, r, "check lesson records", err)
-		return
-	}
-
+func (h *Handler) renderLesson(w http.ResponseWriter, r *http.Request, lesson journal.Lesson, state lessonState, mode renderMode) {
 	title := lesson.ClassName + " · " + lesson.SubjectName + " · " + view.FormatShortDate(lesson.Date)
 
 	page := view.LessonPage{
 		Shell:       h.base.Shell(r, title, journalPath),
 		Title:       title,
 		Path:        lessonPath(lesson.ID, ""),
-		Topic:       topic,
-		TopicError:  errs.topic,
-		CanDelete:   canDelete,
-		DeleteError: errs.delete,
+		Topic:       state.topic,
+		TopicError:  state.topicError,
+		DeleteError: state.deleteError,
 	}
 
-	if web.IsHTMX(r) && errs.delete == "" {
+	if mode == renderTopic {
 		h.base.Render(w, r, pages.LessonTopic(page))
 		return
 	}
 
+	block, err := h.lessonBlock(r, lesson, state.mark)
+	if err != nil {
+		h.base.ServerError(w, r, "load lesson students", err)
+		return
+	}
+
+	page.Block = block
+
+	if mode == renderBlock {
+		h.base.Render(w, r, pages.LessonBlock(block))
+		return
+	}
+
+	canDelete, err := h.journal.CanDeleteLesson(r.Context(), lesson.ID)
+	if err != nil {
+		h.base.ServerError(w, r, "check lesson records", err)
+		return
+	}
+
+	page.CanDelete = canDelete
+
 	h.base.Render(w, r, pages.Lesson(page))
+}
+
+func queryID(r *http.Request, name string) int64 {
+	id, err := strconv.ParseInt(r.URL.Query().Get(name), 10, 64)
+	if err != nil || id <= 0 {
+		return 0
+	}
+
+	return id
 }

@@ -328,4 +328,52 @@ type LessonPage struct {
 	TopicError  string
 	CanDelete   bool
 	DeleteError string
+	Block       LessonBlock
+}
+
+type LessonStudentItem struct {
+	ID        int64
+	Href      string
+	FullName  string
+	ShortName string
+	Summary   string
+	Active    bool
+	InClass   bool
+	Selected  bool
+}
+
+type MarkFields struct {
+	WorkTypes []Option
+	Values    []Option
+	Label     string
+	Errors    map[string]string
+}
+
+type MarkRow struct {
+	ID           int64
+	WorkType     string
+	Value        string
+	Label        string
+	Editing      bool
+	Fields       MarkFields
+	Action       string
+	EditHref     string
+	CancelHref   string
+	DeleteAction string
+}
+
+type LessonStudentPanel struct {
+	ID        int64
+	FullName  string
+	Active    bool
+	InClass   bool
+	Marks     []MarkRow
+	AddAction string
+	New       MarkFields
+	Error     string
+}
+
+type LessonBlock struct {
+	Students []LessonStudentItem
+	Selected *LessonStudentPanel
 }

@@ -137,3 +137,41 @@ func (r *ClassStudentRepo) Remove(ctx context.Context, classID, studentID int64)
 
 	return requireAffected(result, "remove student from class")
 }
+
+func (r *ClassStudentRepo) StudentIDs(ctx context.Context, classID int64) ([]int64, error) {
+	const query = "SELECT student_id FROM class_students WHERE class_id = ? ORDER BY student_id"
+
+	rows, err := r.db.QueryContext(ctx, query, classID)
+	if err != nil {
+		return nil, fmt.Errorf("select class student ids: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var ids []int64
+
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan class student id: %w", err)
+		}
+
+		ids = append(ids, id)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate class student ids: %w", err)
+	}
+
+	return ids, nil
+}
+
+func (r *ClassStudentRepo) IsMember(ctx context.Context, classID, studentID int64) (bool, error) {
+	const query = "SELECT EXISTS (SELECT 1 FROM class_students WHERE class_id = ? AND student_id = ?)"
+
+	var member bool
+	if err := r.db.QueryRowContext(ctx, query, classID, studentID).Scan(&member); err != nil {
+		return false, fmt.Errorf("check class membership: %w", err)
+	}
+
+	return member, nil
+}

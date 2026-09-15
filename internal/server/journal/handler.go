@@ -36,6 +36,9 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET "+lessonsPath+"/{id}", h.teacher(h.lessonShow))
 	mux.Handle("POST "+lessonsPath+"/{id}/topic", h.teacher(h.lessonTopic))
 	mux.Handle("POST "+lessonsPath+"/{id}/delete", h.teacher(h.lessonDelete))
+	mux.Handle("POST "+lessonsPath+"/{id}/marks", h.teacher(h.markAdd))
+	mux.Handle("POST "+lessonsPath+"/{id}/marks/{mid}", h.teacher(h.markUpdate))
+	mux.Handle("POST "+lessonsPath+"/{id}/marks/{mid}/delete", h.teacher(h.markDelete))
 }
 
 func (h *Handler) teacher(fn http.HandlerFunc) http.Handler {
