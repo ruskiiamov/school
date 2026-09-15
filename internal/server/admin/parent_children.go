@@ -1,4 +1,4 @@
-package server
+package admin
 
 import (
 	"errors"
@@ -9,31 +9,32 @@ import (
 
 	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/school"
+	"github.com/ruskiiamov/school/internal/server/web"
 	"github.com/ruskiiamov/school/internal/validation"
 	"github.com/ruskiiamov/school/internal/view"
 )
 
-func (s *Server) parentChildAdd(w http.ResponseWriter, r *http.Request) {
-	parent, ok := s.sectionUser(w, r, parentsSection)
+func (h *Handler) parentChildAdd(w http.ResponseWriter, r *http.Request) {
+	parent, ok := h.sectionUser(w, r, parentsSection)
 	if !ok {
 		return
 	}
 
-	err := s.addChild(r, parent.ID, formInt64(r, "student_id"))
-	if errs, ok := formErrors(err); ok {
-		s.renderChildrenError(w, r, parent, errs)
+	err := h.addChild(r, parent.ID, web.FormInt64(r, "student_id"))
+	if errs, ok := web.FormErrors(err); ok {
+		h.renderChildrenError(w, r, parent, errs)
 		return
 	}
 	if err != nil {
-		s.handleServiceError(w, r, "add child", err)
+		h.base.HandleServiceError(w, r, "add child", err)
 		return
 	}
 
-	s.childrenDone(w, r, parent.ID)
+	h.childrenDone(w, r, parent.ID)
 }
 
-func (s *Server) addChild(r *http.Request, parentID, studentID int64) error {
-	_, err := s.activeUser(r.Context(), studentID, auth.RoleStudent)
+func (h *Handler) addChild(r *http.Request, parentID, studentID int64) error {
+	_, err := h.activeUser(r.Context(), studentID, auth.RoleStudent)
 	if errors.Is(err, auth.ErrNotFound) {
 		return validation.Errors{"child": msgStudentUnknown}
 	}
@@ -41,39 +42,39 @@ func (s *Server) addChild(r *http.Request, parentID, studentID int64) error {
 		return err
 	}
 
-	return s.school.AddChild(r.Context(), parentID, studentID)
+	return h.school.AddChild(r.Context(), parentID, studentID)
 }
 
-func (s *Server) parentChildRemove(w http.ResponseWriter, r *http.Request) {
-	parent, ok := s.sectionUser(w, r, parentsSection)
+func (h *Handler) parentChildRemove(w http.ResponseWriter, r *http.Request) {
+	parent, ok := h.sectionUser(w, r, parentsSection)
 	if !ok {
 		return
 	}
 
-	studentID, ok := pathValue(r, "sid")
+	studentID, ok := web.PathValue(r, "sid")
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
 
-	if err := s.school.RemoveChild(r.Context(), parent.ID, studentID); err != nil {
-		s.handleServiceError(w, r, "remove child", err)
+	if err := h.school.RemoveChild(r.Context(), parent.ID, studentID); err != nil {
+		h.base.HandleServiceError(w, r, "remove child", err)
 		return
 	}
 
-	s.childrenDone(w, r, parent.ID)
+	h.childrenDone(w, r, parent.ID)
 }
 
-func (s *Server) childrenDone(w http.ResponseWriter, r *http.Request, parentID int64) {
-	if isHTMX(r) {
-		s.renderUsers(w, r, parentsSection, userForm{}, nil, userEdit{})
+func (h *Handler) childrenDone(w http.ResponseWriter, r *http.Request, parentID int64) {
+	if web.IsHTMX(r) {
+		h.renderUsers(w, r, parentsSection, userForm{}, nil, userEdit{})
 		return
 	}
 
-	s.redirect(w, r, parentsSection.path+encodeQuery(childrenValues(r, parentID)))
+	web.Redirect(w, r, parentsSection.path+encodeQuery(childrenValues(r, parentID)))
 }
 
-func (s *Server) renderChildrenError(w http.ResponseWriter, r *http.Request, parent auth.User, errs validation.Errors) {
+func (h *Handler) renderChildrenError(w http.ResponseWriter, r *http.Request, parent auth.User, errs validation.Errors) {
 	edit := userEdit{
 		id:      parent.ID,
 		form:    userForm{fullName: parent.FullName, login: parent.Login},
@@ -81,7 +82,7 @@ func (s *Server) renderChildrenError(w http.ResponseWriter, r *http.Request, par
 		errs:    errs,
 	}
 
-	s.renderUsers(w, r, parentsSection, userForm{}, nil, edit)
+	h.renderUsers(w, r, parentsSection, userForm{}, nil, edit)
 }
 
 func childQuery(r *http.Request) string {
@@ -105,20 +106,20 @@ type childrenData struct {
 	classes  map[int64]school.Class
 }
 
-func (s *Server) loadChildren(r *http.Request) (childrenData, error) {
+func (h *Handler) loadChildren(r *http.Request) (childrenData, error) {
 	ctx := r.Context()
 
-	byParent, err := s.school.Children(ctx)
+	byParent, err := h.school.Children(ctx)
 	if err != nil {
 		return childrenData{}, err
 	}
 
-	students, err := s.auth.Users(ctx, auth.UserFilter{Role: auth.RoleStudent, IncludeInactive: true})
+	students, err := h.auth.Users(ctx, auth.UserFilter{Role: auth.RoleStudent, IncludeInactive: true})
 	if err != nil {
 		return childrenData{}, err
 	}
 
-	classes, err := s.school.StudentClasses(ctx, s.school.CurrentYear())
+	classes, err := h.school.StudentClasses(ctx, h.school.CurrentYear())
 	if err != nil {
 		return childrenData{}, err
 	}
@@ -163,7 +164,7 @@ func (d childrenData) member(student auth.User, removeAction string) view.Member
 	}
 }
 
-func (s *Server) childrenBlock(r *http.Request, data childrenData, parentID int64, message string) (*view.ChildrenBlock, error) {
+func (h *Handler) childrenBlock(r *http.Request, data childrenData, parentID int64, message string) (*view.ChildrenBlock, error) {
 	values := childrenValues(r, parentID)
 	query := encodeQuery(values)
 	child := childQuery(r)
@@ -196,7 +197,7 @@ func (s *Server) childrenBlock(r *http.Request, data childrenData, parentID int6
 		return block, nil
 	}
 
-	found, err := s.auth.Users(r.Context(), auth.UserFilter{Role: auth.RoleStudent, Query: child})
+	found, err := h.auth.Users(r.Context(), auth.UserFilter{Role: auth.RoleStudent, Query: child})
 	if err != nil {
 		return nil, err
 	}

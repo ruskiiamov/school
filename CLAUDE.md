@@ -12,7 +12,7 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 и на десктопе. Готовы итерации 1 (вход, дашборд) и 2 (справочники админа);
 следующая — 3, журнал учителя, см. `docs/roadmap.md`. Меню строится по роли в
 `view.NavItems(role, active)`; пункты «Журнал» и «Дневник» пока заглушки
-(`stub_handler.go`).
+(`server/stub.go`).
 
 ## Проектные документы
 
@@ -53,7 +53,8 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 ## Архитектура
 
 Зависимости идут строго в одну сторону: `cmd/server` → `internal/app` →
-`internal/server` → {`internal/auth`, `internal/school`} → `internal/storage`.
+`internal/server` → {`server/admin`, `server/account`} → `server/web` →
+{`internal/auth`, `internal/school`} → `internal/storage`.
 `auth` и `school` друг о друге не знают; `internal/view` не знает ни о `server`,
 ни о сервисах; `storage` не знает о HTTP.
 
@@ -69,18 +70,40 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
   `timezone` проверяется через `time.LoadLocation` и отдаётся как `Config.Location`;
   `cmd/server` импортирует `time/tzdata`, чтобы статический бинарник не зависел
   от системных zoneinfo. `school.year_start_month` — номер месяца (1–12), год начинается с его первого числа.
-- `internal/server` — `Handler()` собирает два `http.ServeMux`: внешний со служебными
-  маршрутами (статика, `/healthz`) и внутренний `pages()` с маршрутами приложения
-  (`"GET /login"`, точное совпадение корня — `"GET /{$}"`), смонтированный под `"/"`
+- `internal/server` — корень HTTP (D-057): `Server` держит `*web.Base`, сервисы и
+  обработчики подпакетов. `Handler()` собирает два `http.ServeMux`: внешний со
+  служебными маршрутами (статика, `/healthz`) и внутренний `pages()` с маршрутами
+  приложения (точное совпадение корня — `"GET /{$}"`), смонтированный под `"/"`
   как `chain(s.pages(), s.logRequests, s.recoverPanic)`. Внешний обёрнут
   `chain(mux, requestID, secureHeaders, s.crossOriginProtection)`. Порядок значим:
   `requestID` снаружи всего, потому что логгер — `contextHandler`, который достаёт
   `request_id` из контекста; `recoverPanic` внутри `logRequests`, чтобы паника попала
-  в лог запроса. Новые страницы регистрировать в `pages()` — так они логируются
-  автоматически; служебные маршруты без access-лога — на внешнем mux.
-  Маршруты для одной роли — `s.requireAuth(requireRole(role...)(h))`: аноним
-  уходит на `/login`, чужая роль получает 404 (не 403) — образец `/journal` и
-  `/diary` в `pages()`.
+  в лог запроса. В корне остались middleware (`middleware.go`), дашборд (`home.go`)
+  и заглушки «Журнал»/«Дневник» (`stub.go`); `pages()` регистрирует их и зовёт
+  `Routes(mux)` подпакетов — так все страницы логируются автоматически;
+  служебные маршруты без access-лога — на внешнем mux.
+  - `server/web` — общий инструментарий страниц, единственное место, где HTTP
+    знает про сессии и оболочку: `Base` (сервис `auth`, имя школы, cookie,
+    логгер) с методами `Render`, `Shell`, `ServerError`, `HandleServiceError`
+    (`ErrNotFound` → 404), `Authenticate`, `SessionID`, `SetSessionCookie`,
+    `ClearSessionCookie`, `RequireAuth`; свободные `Redirect`, `IsHTMX`,
+    `RequireRole`, `PathID`, `PathValue`, `FormValue`, `FormInt64`,
+    `FormErrors`, `UserFromContext`. Обработчиков в `web` нет и не добавлять.
+  - `server/admin` — всё под `/admin`: `Handler` (`handler.go`: `New`,
+    `Routes`, обёртка `h.admin(fn)` = `RequireAuth` + `RequireRole(admin)`,
+    `activeUser`), по файлу на раздел (`classes.go`, `class_card.go`,
+    `subjects.go`, `work_types.go`, `users.go`, `parent_children.go`,
+    `password_reset.go`), общие для строчных списков `catalog.go` (`rowEdit`,
+    `editingID`, `catalogListURL`) и одноразовые пароли `created.go`.
+  - `server/account` — вход, выход и свой пароль (`login.go`, `password.go`);
+    `Routes` сам оборачивает `/account/password` в `RequireAuth` +
+    `RequireRole` трёх ролей.
+  - `server/servertest` — окружение для тестов (см. «Как добавить страницу»).
+  Маршруты для одной роли — `base.RequireAuth(web.RequireRole(role...)(h))`
+  на каждом маршруте внутри своего пакета: аноним уходит на `/login`, чужая
+  роль получает 404 (не 403) — образец `/journal` и `/diary` в `pages()`.
+  Журнал и дневник итераций 3–4 — свои подпакеты рядом с `admin` и
+  `account`, заглушки из корня тогда удаляются.
 - `internal/auth` — сервисный слой: логин/логаут/аутентификация, bcrypt, серверные
   сессии, роли, управление пользователями (`users.go`: создание с генерацией
   логина `login.go` и пароля `password.go`, правка, смена пароля и
@@ -113,7 +136,7 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 
 **Три отдельных типа пользователя.** `storage.User` (строка таблицы, с хешем пароля),
 `auth.User` (домен, с типизированной `Role`), `view.User` (только то, что рисуется).
-Конвертация на границах: `auth.toUser`, `server.toViewUser`. Не протаскивать
+Конвертация на границах: `auth.toUser`, `web.toViewUser` (внутри `Shell`). Не протаскивать
 `storage.User` в шаблоны и не добавлять в `view.*` поля, которых не должно быть в HTML.
 Русские подписи ролей — в `view.RoleTitle`, `auth.Role` знает только коды.
 
@@ -136,30 +159,30 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 **Формы справочников (D-041, D-043).** Простые справочники (предметы, типы
 работ) — одна страница: форма добавления и строки текстом, «Изменить» ведёт на
 тот же список с `?edit={id}` (`editingID`), и только эта строка рендерится
-формой; сложные формы — отдельные страницы (D-035). Обработчик читает поля через `formValue`
-(с `TrimSpace`), `id` из пути — через `pathID` (404 при мусоре), зовёт сервис
-и ветвится: `formErrors(err)` → перерисовать страницу с введённым значением и
-ошибкой у своей строки (`rowEdit`, строка остаётся в режиме правки), статус 200; иначе `s.handleServiceError`
-(`ErrNotFound` → 404, прочее → `s.serverError` с логом и 500); успех —
+формой; сложные формы — отдельные страницы (D-035). Обработчик читает поля через `web.FormValue`
+(с `TrimSpace`), `id` из пути — через `web.PathID` (404 при мусоре), зовёт сервис
+и ветвится: `web.FormErrors(err)` → перерисовать страницу с введённым значением и
+ошибкой у своей строки (`rowEdit`, строка остаётся в режиме правки), статус 200; иначе `h.base.HandleServiceError`
+(`ErrNotFound` → 404, прочее → `h.base.ServerError` с логом и 500); успех —
 `subjectsDone`: HTMX получает фрагмент списка (`pages.SubjectsList`), обычный
-запрос — `s.redirect` на список с сохранением `?inactive=1`
+запрос — `web.Redirect` на список с сохранением `?inactive=1`
 (`catalogListURL`). Каждое действие строки — своя форма POST (деактивация, стрелки порядка) или
 ссылка с `hx-get` («Изменить», «Отмена»); общие куски — `components.EditForm`,
-`CreateForm`, `ActiveForm`, `EditLink`. Маршруты админа регистрируются через
-`s.admin(h)`. Образец — `admin_subjects_handler.go` и
+`CreateForm`, `ActiveForm`, `EditLink`. Маршруты админа регистрируются в
+`admin.Routes` через `h.admin(fn)`. Образец — `admin/subjects.go` и
 `pages/admin_subjects.templ`; общие компоненты — `components/form.templ`,
 классы полей и кнопок — константы в `components/classes.go`. Классы (D-044)
 идут по тому же строчному паттерну поверх вкладок лет: список и редиректы
 берут год из `?year=` (`queryYear`, `classesListURL`), создание — всегда в
 `CurrentYear()`, форма добавления только на вкладке текущего года
 (`CanCreate`), карточка `/admin/classes/{id}` — отдельная страница;
-образец — `admin_classes_handler.go`.
+образец — `admin/classes.go`.
 
 **Пользователи (D-045…D-048, D-056).** Три раздела
 `/admin/{teachers|students|parents}` обслуживает один набор обработчиков в
-`admin_users_handler.go`, параметризованный `userSection` (роль, путь,
+`admin/users.go`, параметризованный `userSection` (роль, путь,
 русские подписи); маршруты регистрируются циклом по `userSections` в
-`pages()`. Тот же строчный паттерн, что у предметов: строка добавления
+`admin.Routes`. Тот же строчный паттерн, что у предметов: строка добавления
 сверху (`userFields`), `?edit={id}` рендерит одну строку формой (поля в
 том же порядке, что в обычной строке: ФИО, класс, логин); query списка
 (`q`, `class`, `inactive`) — `page.ListQuery`
@@ -172,17 +195,17 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 404 — так «себя деактивировать нельзя» держится без отдельного кода. Логин
 и пароль всегда генерирует `auth.CreateUser`, сброс — `ResetPassword` со
 страницы «Сброс пароля» `/admin/password-reset`
-(`admin_password_reset_handler.go`, D-056): поиск по ФИО по всем трём
+(`admin/password_reset.go`, D-056): поиск по ФИО по всем трём
 `userSections`, `resettableUser` даёт 404 админу и неизвестному ID,
 подтверждение — `hx-confirm` с ФИО в вопросе. Одноразовые логин и пароль
-живут в `credentialsStore` (`created.go`) под ID сессии админа, 10 минут;
+живут в `credentialsStore` (`admin/created.go`) под ID сессии админа, 10 минут;
 `take` требует свой `kind`, так что страница `/{id}/created` раздела
 показывает только созданного, а `/admin/password-reset/{id}/created` —
 только сброс. Класс ученика — `school.SetStudentClass`,
 проверка `CheckStudentClass` до создания пользователя.
 
 **Состав класса, нагрузка, дети родителя (D-049).** Карточка класса
-(`admin_class_card_handler.go`) — два самостоятельных HTMX-блока
+(`admin/class_card.go`) — два самостоятельных HTMX-блока
 `pages.ClassStudents` (`#class-students`) и `pages.ClassAssignments`
 (`#class-assignments`); успех — фрагмент блока или редирект на карточку,
 ошибка формы — блок (HTMX) или вся карточка со статусом 200. Формы
@@ -190,17 +213,17 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 сервис держит то же правило через `CheckStudentClass`. Имена учеников и
 учителей обработчик берёт из `auth.Users` и соединяет по ID в Go —
 `school` не знает `auth`; роль и активность пользователя из формы
-проверяет `activeUser` (`forms.go`) и превращает в `validation.Errors`,
+проверяет `activeUser` (`admin/handler.go`) и превращает в `validation.Errors`,
 класс и предмет проверяет `school`. Учитель на пару (класс, предмет) —
 `AssignmentRepo.Upsert`. Дети родителя — в строке правки раздела
-«Родители» (`admin_parent_children_handler.go`): `renderUsers` при роли
+«Родители» (`admin/parent_children.go`): `renderUsers` при роли
 `parent` грузит `childrenData` и для строки в `?edit=` собирает
 `view.ChildrenBlock` с живым поиском `?child=`; действия несут `edit` и
 `child` в query (`childrenValues`), чтобы строка не выходила из режима
 правки. Уборка осиротевших связей не нужна: ничего не удаляется.
 
 **Свой пароль и дашборд (D-050, D-051).** `/account/password`
-(`account_password_handler.go`) — для учителя, ученика и родителя, админу
+(`account/password.go`) — для учителя, ученика и родителя, админу
 404 (его пароль из конфига); пункт «Сменить пароль» — последний в
 `view.NavItems` этих ролей. `auth.ChangePassword` проверяет текущий пароль,
 длину нового (8 символов…72 байта) и повтор, затем
@@ -213,17 +236,17 @@ cookie). Ошибка: полная страница с введёнными з�
 `:has()` в слое utilities `input.css`. Успех — редирект на `?done=1`. Класс с учениками не деактивируется
 (D-052): `SetClassActive(false)` возвращает `validation.Errors`, обработчик
 рисует ошибку у строки.
-Дашборд (`home_handler.go`): админу `school.Stats` (классы, ученики в
+Дашборд (`server/home.go`): админу `school.Stats` (классы, ученики в
 классах, предметы текущего года через `COUNT` в репозиториях) плюс
 `auth.CountActiveUsers(RoleTeacher)` → `view.AdminStats` (карточки-ссылки)
 и баннер `NoClasses`; остальным — `view.SectionItem(role)` карточкой.
 Константы с «password» в имени ловит gosec G101 — называть по полю
 (`msgNewTooShort`).
 
-**HTMX и редиректы.** `s.redirect` сам отличает HTMX-запрос (`isHTMX`) и отвечает
+**HTMX и редиректы.** `web.Redirect` сам отличает HTMX-запрос (`web.IsHTMX`) и отвечает
 `HX-Redirect` + 204 вместо 303. Обработчики, отвечающие и фрагментом, и целой
-страницей, ветвятся по тому же `isHTMX` — образец `renderLoginError`. Рендер
-только через `s.render` (ставит Content-Type и логирует ошибку рендера).
+страницей, ветвятся по тому же `IsHTMX` — образец `renderLoginError` в `account`. Рендер
+только через `base.Render` (ставит Content-Type и логирует ошибку рендера).
 Формы с полями пароля при ошибке не пересоздают `<input>` (D-054).
 
 **Валидация форм — только серверная.** На полях не ставить `required`,
@@ -248,7 +271,7 @@ cookie). Ошибка: полная страница с введёнными з�
 чтобы работать без JS.
 
 **Логирование** — `slog` в JSON, всегда `*Context`-варианты везде, где есть `ctx`
-(и в `server`, и в `auth`), иначе потеряется `request_id`; ошибка как
+(и в `server` с подпакетами, и в `auth`), иначе потеряется `request_id`; ошибка как
 `slog.Any("error", err)`. `request_id` кладёт в контекст middleware `requestID` через
 `logger.WithRequestID`, а добавляет в записи `logger.NewContextHandler`, которым
 обёрнут корневой логгер в `logger.New`. Access-лог пишется только для маршрутов
@@ -263,18 +286,26 @@ cookie). Ошибка: полная страница с введёнными з�
 1. View-модель в `internal/view/models.go`, данные — в `data.go`.
 2. Шаблон в `internal/view/pages/<name>.templ` поверх `layout.App` (страницы вне
    оболочки — поверх `layout.Base`); страницы админа — `admin_<name>.templ`.
-3. Обработчик в `internal/server/<name>_handler.go`: `s.shell(r, title, active)`
-   собирает `view.Shell`, дальше собрать `view.*Page` и отдать через `s.render`.
-   Заголовок страницы — `components.PageHeader`, пустое состояние —
-   `components.EmptyState`, карточка — `components.CardClass`.
-4. Маршрут в `Server.pages()`: под `s.requireAuth`, при ограничении по роли —
-   ещё и `requireRole(...)`. Формы — по D-035 и D-041 (`docs/decisions.md`).
+3. Обработчик — метод `Handler` своего подпакета (`server/admin/<name>.go`,
+   `server/account/<name>.go`; новый раздел роли — новый подпакет с
+   `Handler`, `New`, `Routes` по образцу `account/handler.go`):
+   `h.base.Shell(r, title, active)` собирает `view.Shell`, дальше собрать
+   `view.*Page` и отдать через `h.base.Render`. Заголовок страницы —
+   `components.PageHeader`, пустое состояние — `components.EmptyState`,
+   карточка — `components.CardClass`.
+4. Маршрут в `Routes(mux)` подпакета: под `h.base.RequireAuth`, при
+   ограничении по роли — ещё и `web.RequireRole(...)` (в `admin` — обёртка
+   `h.admin`). Новый подпакет монтируется в `Server.pages()` вызовом
+   `Routes`. Формы — по D-035 и D-041 (`docs/decisions.md`).
 5. Пункт меню в `view.NavItems` для нужной роли (`Href` = `active`).
-6. Тест в `internal/server/<name>_test.go` через `newTestEnv` из
-   `testing_test.go` (реальная БД в `t.TempDir()`, миграции, админ из конфига,
-   доступ к `env.school`/`env.auth`/`env.db` — моков HTTP нет). Пользователей
-   других ролей создаёт `env.createUser`, вход — `env.loginAs`; редирект
-   проверяет `assertRedirect`. Негативный тест на чужую роль обязателен.
+6. Тест рядом с обработчиком, во внешнем пакете (`package admin_test`),
+   через `servertest.New(t)` (реальная БД в `t.TempDir()`, миграции, админ из
+   конфига, доступ к `env.School`/`env.Auth`/`env.DB` — моков HTTP нет; из
+   внутреннего теста `servertest` не импортировать — цикл через `server`).
+   Пользователей других ролей создаёт `env.CreateUser`, вход —
+   `env.LoginAs` и `servertest.Login`; запросы — `servertest.Get`/`PostForm`,
+   редирект проверяет `servertest.AssertRedirect`, cookie ответа —
+   `servertest.Cookies`. Негативный тест на чужую роль обязателен.
 
 ## Стиль Go
 

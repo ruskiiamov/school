@@ -1,4 +1,4 @@
-package server
+package admin
 
 import (
 	"errors"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/school"
+	"github.com/ruskiiamov/school/internal/server/web"
 	"github.com/ruskiiamov/school/internal/validation"
 	"github.com/ruskiiamov/school/internal/view"
 	"github.com/ruskiiamov/school/internal/view/pages"
@@ -70,77 +71,77 @@ type userEdit struct {
 
 func readUserForm(r *http.Request) userForm {
 	return userForm{
-		fullName: formValue(r, "full_name"),
-		login:    formValue(r, "login"),
-		classID:  formInt64(r, "class"),
+		fullName: web.FormValue(r, "full_name"),
+		login:    web.FormValue(r, "login"),
+		classID:  web.FormInt64(r, "class"),
 	}
 }
 
-func (s *Server) usersList(sec userSection) http.HandlerFunc {
+func (h *Handler) usersList(sec userSection) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		s.renderUsers(w, r, sec, userForm{}, nil, userEdit{})
+		h.renderUsers(w, r, sec, userForm{}, nil, userEdit{})
 	}
 }
 
-func (s *Server) userCreate(sec userSection) http.HandlerFunc {
+func (h *Handler) userCreate(sec userSection) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		form := readUserForm(r)
 
 		if sec.hasClass() {
-			err := s.school.CheckStudentClass(r.Context(), form.classID)
-			if errs, ok := formErrors(err); ok {
-				s.renderUsers(w, r, sec, form, errs, userEdit{})
+			err := h.school.CheckStudentClass(r.Context(), form.classID)
+			if errs, ok := web.FormErrors(err); ok {
+				h.renderUsers(w, r, sec, form, errs, userEdit{})
 				return
 			}
 			if err != nil {
-				s.serverError(w, r, "check student class", err)
+				h.base.ServerError(w, r, "check student class", err)
 				return
 			}
 		}
 
-		credentials, err := s.auth.CreateUser(r.Context(), auth.NewUser{Role: sec.role, FullName: form.fullName})
-		if errs, ok := formErrors(err); ok {
-			s.renderUsers(w, r, sec, form, errs, userEdit{})
+		credentials, err := h.auth.CreateUser(r.Context(), auth.NewUser{Role: sec.role, FullName: form.fullName})
+		if errs, ok := web.FormErrors(err); ok {
+			h.renderUsers(w, r, sec, form, errs, userEdit{})
 			return
 		}
 		if err != nil {
-			s.serverError(w, r, "create user", err)
+			h.base.ServerError(w, r, "create user", err)
 			return
 		}
 
 		if sec.hasClass() && form.classID != 0 {
-			if err := s.school.SetStudentClass(r.Context(), credentials.User.ID, form.classID); err != nil {
-				s.serverError(w, r, "set student class", err)
+			if err := h.school.SetStudentClass(r.Context(), credentials.User.ID, form.classID); err != nil {
+				h.base.ServerError(w, r, "set student class", err)
 				return
 			}
 		}
 
-		s.created.put(s.sessionID(r), credentialsEntry{
+		h.created.put(h.base.SessionID(r), credentialsEntry{
 			userID:   credentials.User.ID,
 			kind:     credentialsCreated,
 			login:    credentials.User.Login,
 			password: credentials.Password,
 		})
 
-		s.redirect(w, r, sec.userPath(credentials.User.ID, "/created"))
+		web.Redirect(w, r, sec.userPath(credentials.User.ID, "/created"))
 	}
 }
 
-func (s *Server) userCreated(sec userSection) http.HandlerFunc {
+func (h *Handler) userCreated(sec userSection) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, ok := s.sectionUser(w, r, sec)
+		user, ok := h.sectionUser(w, r, sec)
 		if !ok {
 			return
 		}
 
-		entry, ok := s.created.take(s.sessionID(r), user.ID, credentialsCreated)
+		entry, ok := h.created.take(h.base.SessionID(r), user.ID, credentialsCreated)
 		if !ok {
-			s.redirect(w, r, sec.path)
+			web.Redirect(w, r, sec.path)
 			return
 		}
 
 		page := view.UserCreatedPage{
-			Shell:     s.shell(r, sec.created, sec.path),
+			Shell:     h.base.Shell(r, sec.created, sec.path),
 			Title:     sec.created,
 			FullName:  user.FullName,
 			Login:     entry.login,
@@ -152,13 +153,13 @@ func (s *Server) userCreated(sec userSection) http.HandlerFunc {
 			NewTitle:  sec.more,
 		}
 
-		s.render(w, r, pages.UserCreated(page))
+		h.base.Render(w, r, pages.UserCreated(page))
 	}
 }
 
-func (s *Server) userUpdate(sec userSection) http.HandlerFunc {
+func (h *Handler) userUpdate(sec userSection) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, ok := s.sectionUser(w, r, sec)
+		user, ok := h.sectionUser(w, r, sec)
 		if !ok {
 			return
 		}
@@ -167,100 +168,100 @@ func (s *Server) userUpdate(sec userSection) http.HandlerFunc {
 		edit := userEdit{id: user.ID, form: form, entered: true}
 
 		if sec.hasClass() {
-			err := s.school.CheckStudentClass(r.Context(), form.classID)
-			if errs, ok := formErrors(err); ok {
+			err := h.school.CheckStudentClass(r.Context(), form.classID)
+			if errs, ok := web.FormErrors(err); ok {
 				edit.errs = errs
-				s.renderUsers(w, r, sec, userForm{}, nil, edit)
+				h.renderUsers(w, r, sec, userForm{}, nil, edit)
 
 				return
 			}
 			if err != nil {
-				s.serverError(w, r, "check student class", err)
+				h.base.ServerError(w, r, "check student class", err)
 				return
 			}
 		}
 
-		err := s.auth.UpdateUser(r.Context(), user.ID, auth.UserInput{FullName: form.fullName, Login: form.login})
-		if errs, ok := formErrors(err); ok {
+		err := h.auth.UpdateUser(r.Context(), user.ID, auth.UserInput{FullName: form.fullName, Login: form.login})
+		if errs, ok := web.FormErrors(err); ok {
 			edit.errs = errs
-			s.renderUsers(w, r, sec, userForm{}, nil, edit)
+			h.renderUsers(w, r, sec, userForm{}, nil, edit)
 
 			return
 		}
 		if err != nil {
-			s.handleServiceError(w, r, "update user", err)
+			h.base.HandleServiceError(w, r, "update user", err)
 			return
 		}
 
 		if sec.hasClass() {
-			if err := s.school.SetStudentClass(r.Context(), user.ID, form.classID); err != nil {
-				s.serverError(w, r, "set student class", err)
+			if err := h.school.SetStudentClass(r.Context(), user.ID, form.classID); err != nil {
+				h.base.ServerError(w, r, "set student class", err)
 				return
 			}
 		}
 
-		s.usersDone(w, r, sec)
+		h.usersDone(w, r, sec)
 	}
 }
 
-func (s *Server) userSetActive(sec userSection, active bool) http.HandlerFunc {
+func (h *Handler) userSetActive(sec userSection, active bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, ok := s.sectionUser(w, r, sec)
+		user, ok := h.sectionUser(w, r, sec)
 		if !ok {
 			return
 		}
 
-		if err := s.auth.SetUserActive(r.Context(), user.ID, active); err != nil {
-			s.handleServiceError(w, r, "set user active", err)
+		if err := h.auth.SetUserActive(r.Context(), user.ID, active); err != nil {
+			h.base.HandleServiceError(w, r, "set user active", err)
 			return
 		}
 
-		s.usersDone(w, r, sec)
+		h.usersDone(w, r, sec)
 	}
 }
 
-func (s *Server) usersDone(w http.ResponseWriter, r *http.Request, sec userSection) {
-	if isHTMX(r) {
-		s.renderUsers(w, r, sec, userForm{}, nil, userEdit{})
+func (h *Handler) usersDone(w http.ResponseWriter, r *http.Request, sec userSection) {
+	if web.IsHTMX(r) {
+		h.renderUsers(w, r, sec, userForm{}, nil, userEdit{})
 		return
 	}
 
-	s.redirect(w, r, sec.path+rawListQuery(r))
+	web.Redirect(w, r, sec.path+rawListQuery(r))
 }
 
-func (s *Server) sectionUser(w http.ResponseWriter, r *http.Request, sec userSection) (auth.User, bool) {
-	id, ok := pathID(r)
+func (h *Handler) sectionUser(w http.ResponseWriter, r *http.Request, sec userSection) (auth.User, bool) {
+	id, ok := web.PathID(r)
 	if !ok {
 		http.NotFound(w, r)
 		return auth.User{}, false
 	}
 
-	user, err := s.auth.UserByID(r.Context(), id)
+	user, err := h.auth.UserByID(r.Context(), id)
 	if errors.Is(err, auth.ErrNotFound) || (err == nil && user.Role != sec.role) {
 		http.NotFound(w, r)
 		return auth.User{}, false
 	}
 	if err != nil {
-		s.serverError(w, r, "load user", err)
+		h.base.ServerError(w, r, "load user", err)
 		return auth.User{}, false
 	}
 
 	return user, true
 }
 
-func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, sec userSection, newForm userForm, newErrs validation.Errors, edit userEdit) {
+func (h *Handler) renderUsers(w http.ResponseWriter, r *http.Request, sec userSection, newForm userForm, newErrs validation.Errors, edit userEdit) {
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	classID := queryInt64(r, "class")
 	inactive := showInactive(r)
 
-	users, err := s.auth.Users(r.Context(), auth.UserFilter{Role: sec.role, Query: query, IncludeInactive: inactive})
+	users, err := h.auth.Users(r.Context(), auth.UserFilter{Role: sec.role, Query: query, IncludeInactive: inactive})
 	if err != nil {
-		s.serverError(w, r, "list users", err)
+		h.base.ServerError(w, r, "list users", err)
 		return
 	}
 
 	page := view.UsersPage{
-		Shell:        s.shell(r, sec.title, sec.path),
+		Shell:        h.base.Shell(r, sec.title, sec.path),
 		Title:        sec.title,
 		Path:         sec.path,
 		ListQuery:    listQuery(query, classID, inactive),
@@ -283,9 +284,9 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, sec userSec
 	)
 
 	if sec.role == auth.RoleParent {
-		children, err = s.loadChildren(r)
+		children, err = h.loadChildren(r)
 		if err != nil {
-			s.serverError(w, r, "list children", err)
+			h.base.ServerError(w, r, "list children", err)
 			return
 		}
 
@@ -293,15 +294,15 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, sec userSec
 	}
 
 	if sec.hasClass() {
-		classes, err = s.school.Classes(r.Context(), s.school.CurrentYear(), false)
+		classes, err = h.school.Classes(r.Context(), h.school.CurrentYear(), false)
 		if err != nil {
-			s.serverError(w, r, "list classes", err)
+			h.base.ServerError(w, r, "list classes", err)
 			return
 		}
 
-		studentClasses, err = s.school.StudentClasses(r.Context(), s.school.CurrentYear())
+		studentClasses, err = h.school.StudentClasses(r.Context(), h.school.CurrentYear())
 		if err != nil {
-			s.serverError(w, r, "list student classes", err)
+			h.base.ServerError(w, r, "list student classes", err)
 			return
 		}
 
@@ -342,9 +343,9 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, sec userSec
 			}
 
 			if page.ShowChildren {
-				row.Children, err = s.childrenBlock(r, children, user.ID, edit.errs["child"])
+				row.Children, err = h.childrenBlock(r, children, user.ID, edit.errs["child"])
 				if err != nil {
-					s.serverError(w, r, "search children", err)
+					h.base.ServerError(w, r, "search children", err)
 					return
 				}
 			}
@@ -353,12 +354,12 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, sec userSec
 		page.Users = append(page.Users, row)
 	}
 
-	if isHTMX(r) {
-		s.render(w, r, pages.UsersPage(page))
+	if web.IsHTMX(r) {
+		h.base.Render(w, r, pages.UsersPage(page))
 		return
 	}
 
-	s.render(w, r, pages.Users(page))
+	h.base.Render(w, r, pages.Users(page))
 }
 
 func classOptions(classes []school.Class, selected int64, first string) []view.Option {

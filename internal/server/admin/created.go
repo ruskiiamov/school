@@ -1,7 +1,6 @@
-package server
+package admin
 
 import (
-	"net/http"
 	"sync"
 	"time"
 )
@@ -65,13 +64,4 @@ func (c *credentialsStore) purge(now time.Time) {
 			delete(c.entries, key)
 		}
 	}
-}
-
-func (s *Server) sessionID(r *http.Request) string {
-	cookie, err := r.Cookie(s.cookie.CookieName)
-	if err != nil {
-		return ""
-	}
-
-	return cookie.Value
 }

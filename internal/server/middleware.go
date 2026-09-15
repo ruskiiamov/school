@@ -6,11 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
-	"slices"
 	"time"
 
-	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/logger"
+	"github.com/ruskiiamov/school/internal/server/web"
 )
 
 type middleware func(http.Handler) http.Handler
@@ -75,9 +74,9 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
 		recorder := &recordingWriter{ResponseWriter: w}
-		info := &requestInfo{}
+		info := &web.RequestInfo{}
 
-		next.ServeHTTP(recorder, r.WithContext(withRequestInfo(r.Context(), info)))
+		next.ServeHTTP(recorder, r.WithContext(web.WithRequestInfo(r.Context(), info)))
 
 		attrs := []any{
 			slog.String("method", r.Method),
@@ -86,8 +85,8 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 			slog.String("duration", time.Since(started).Round(time.Microsecond).String()),
 		}
 
-		if info.userID != 0 {
-			attrs = append(attrs, slog.Int64("user_id", info.userID))
+		if info.UserID != 0 {
+			attrs = append(attrs, slog.Int64("user_id", info.UserID))
 		}
 
 		s.log.InfoContext(r.Context(), "request", attrs...)
@@ -125,34 +124,4 @@ func (s *Server) crossOriginProtection(next http.Handler) http.Handler {
 	}))
 
 	return protection.Handler(next)
-}
-
-func (s *Server) requireAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, ok := s.authenticate(r)
-		if !ok {
-			s.redirect(w, r, "/login")
-			return
-		}
-
-		if info, ok := requestInfoFromContext(r.Context()); ok {
-			info.userID = user.ID
-		}
-
-		next.ServeHTTP(w, r.WithContext(withUser(r.Context(), user)))
-	})
-}
-
-func requireRole(roles ...auth.Role) middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, ok := userFromContext(r.Context())
-			if !ok || !slices.Contains(roles, user.Role) {
-				http.NotFound(w, r)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	}
 }

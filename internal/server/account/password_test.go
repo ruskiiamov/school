@@ -1,4 +1,4 @@
-package server
+package account_test
 
 import (
 	"net/http"
@@ -10,20 +10,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/server/servertest"
 )
 
 func TestAccountPasswordPageAndSidebarLink(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	env.createUser(t, auth.RoleStudent, "student", "Козлов Пётр Ильич")
-	student := env.loginAs(t, "student")
+	env := servertest.New(t)
+	env.CreateUser(t, auth.RoleStudent, "student", "Козлов Пётр Ильич")
+	student := env.LoginAs(t, "student")
 
-	home := get(t, env.handler, "/", student).Body.String()
+	home := servertest.Get(t, env.Handler, "/", student).Body.String()
 	assert.Contains(t, home, `href="/account/password"`)
 	assert.Contains(t, home, "Сменить пароль")
 
-	page := get(t, env.handler, "/account/password", student)
+	page := servertest.Get(t, env.Handler, "/account/password", student)
 	assert.Equal(t, http.StatusOK, page.Code)
 	body := page.Body.String()
 	assert.Contains(t, body, "Смена пароля")
@@ -41,10 +42,10 @@ func TestAccountPasswordPageAndSidebarLink(t *testing.T) {
 func TestAccountPasswordChangeKeepsCurrentSession(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	env.createUser(t, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
-	current := env.loginAs(t, "teacher")
-	other := env.loginAs(t, "teacher")
+	env := servertest.New(t)
+	env.CreateUser(t, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
+	current := env.LoginAs(t, "teacher")
+	other := env.LoginAs(t, "teacher")
 
 	form := url.Values{
 		"current": {"teacher-password"},
@@ -52,25 +53,25 @@ func TestAccountPasswordChangeKeepsCurrentSession(t *testing.T) {
 		"repeat":  {"новый пароль"},
 	}
 
-	recorder := postForm(t, env.handler, "/account/password", form, []*http.Cookie{current}, nil)
-	assertRedirect(t, recorder, "/account/password?done=1")
+	recorder := servertest.PostForm(t, env.Handler, "/account/password", form, []*http.Cookie{current}, nil)
+	servertest.AssertRedirect(t, recorder, "/account/password?done=1")
 
-	done := get(t, env.handler, "/account/password?done=1", current)
+	done := servertest.Get(t, env.Handler, "/account/password?done=1", current)
 	require.Equal(t, http.StatusOK, done.Code)
 	assert.Contains(t, done.Body.String(), "Пароль изменён")
 
-	assertRedirect(t, get(t, env.handler, "/", other), "/login")
+	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/", other), "/login")
 
-	assert.Equal(t, http.StatusOK, get(t, env.handler, "/", current).Code)
-	loginWith(t, env.handler, "teacher", "новый пароль")
+	assert.Equal(t, http.StatusOK, servertest.Get(t, env.Handler, "/", current).Code)
+	servertest.LoginWith(t, env.Handler, "teacher", "новый пароль")
 }
 
 func TestAccountPasswordChangeViaHTMXRedirects(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	env.createUser(t, auth.RoleParent, "parent", "Петрова Ольга Николаевна")
-	parent := env.loginAs(t, "parent")
+	env := servertest.New(t)
+	env.CreateUser(t, auth.RoleParent, "parent", "Петрова Ольга Николаевна")
+	parent := env.LoginAs(t, "parent")
 
 	form := url.Values{
 		"current": {"parent-password"},
@@ -78,24 +79,24 @@ func TestAccountPasswordChangeViaHTMXRedirects(t *testing.T) {
 		"repeat":  {"long-enough"},
 	}
 
-	recorder := postForm(t, env.handler, "/account/password", form, []*http.Cookie{parent},
+	recorder := servertest.PostForm(t, env.Handler, "/account/password", form, []*http.Cookie{parent},
 		map[string]string{"HX-Request": "true"})
 
 	require.Equal(t, http.StatusNoContent, recorder.Code)
 	assert.Equal(t, "/account/password?done=1", recorder.Header().Get("HX-Redirect"))
-	loginWith(t, env.handler, "parent", "long-enough")
+	servertest.LoginWith(t, env.Handler, "parent", "long-enough")
 }
 
 func TestAccountPasswordErrorsViaHTMXKeepFields(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	env.createUser(t, auth.RoleParent, "parent", "Петрова Ольга Николаевна")
-	parent := env.loginAs(t, "parent")
+	env := servertest.New(t)
+	env.CreateUser(t, auth.RoleParent, "parent", "Петрова Ольга Николаевна")
+	parent := env.LoginAs(t, "parent")
 
 	form := url.Values{"current": {"wrong"}, "new": {"long-enough"}, "repeat": {"long-enough"}}
 
-	recorder := postForm(t, env.handler, "/account/password", form, []*http.Cookie{parent},
+	recorder := servertest.PostForm(t, env.Handler, "/account/password", form, []*http.Cookie{parent},
 		map[string]string{"HX-Request": "true"})
 	require.Equal(t, http.StatusOK, recorder.Code)
 
@@ -111,9 +112,9 @@ func TestAccountPasswordErrorsViaHTMXKeepFields(t *testing.T) {
 func TestAccountPasswordChangeShowsErrors(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	env.createUser(t, auth.RoleStudent, "student", "Козлов Пётр Ильич")
-	student := env.loginAs(t, "student")
+	env := servertest.New(t)
+	env.CreateUser(t, auth.RoleStudent, "student", "Козлов Пётр Ильич")
+	student := env.LoginAs(t, "student")
 
 	form := url.Values{
 		"current": {"wrong"},
@@ -121,7 +122,7 @@ func TestAccountPasswordChangeShowsErrors(t *testing.T) {
 		"repeat":  {"other"},
 	}
 
-	recorder := postForm(t, env.handler, "/account/password", form, []*http.Cookie{student}, nil)
+	recorder := servertest.PostForm(t, env.Handler, "/account/password", form, []*http.Cookie{student}, nil)
 	require.Equal(t, http.StatusOK, recorder.Code)
 
 	body := recorder.Body.String()
@@ -134,22 +135,22 @@ func TestAccountPasswordChangeShowsErrors(t *testing.T) {
 	assert.Contains(t, body, `name="new" value="short"`)
 	assert.Contains(t, body, `name="repeat" value="other"`)
 
-	assert.Equal(t, http.StatusOK, get(t, env.handler, "/", student).Code)
-	loginWith(t, env.handler, "student", "student-password")
+	assert.Equal(t, http.StatusOK, servertest.Get(t, env.Handler, "/", student).Code)
+	servertest.LoginWith(t, env.Handler, "student", "student-password")
 }
 
 func TestAccountPasswordIsHiddenFromAdminAndAnonymous(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
 
-	assertRedirect(t, get(t, env.handler, "/account/password"), "/login")
+	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/account/password"), "/login")
 
-	assert.Equal(t, http.StatusNotFound, get(t, env.handler, "/account/password", admin).Code)
-	assert.Equal(t, http.StatusNotFound, postForm(t, env.handler, "/account/password", nil, []*http.Cookie{admin}, nil).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/account/password", admin).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.PostForm(t, env.Handler, "/account/password", nil, []*http.Cookie{admin}, nil).Code)
 
-	home := get(t, env.handler, "/", admin).Body.String()
+	home := servertest.Get(t, env.Handler, "/", admin).Body.String()
 	assert.NotContains(t, home, `href="/account/password"`)
 	assert.Contains(t, home, "Иванова Мария Петровна")
 	assert.Contains(t, home, "Администратор")

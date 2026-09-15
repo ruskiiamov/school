@@ -1,4 +1,4 @@
-package server
+package servertest
 
 import (
 	"bytes"
@@ -20,49 +20,44 @@ import (
 	"github.com/ruskiiamov/school/internal/config"
 	"github.com/ruskiiamov/school/internal/logger"
 	"github.com/ruskiiamov/school/internal/school"
+	"github.com/ruskiiamov/school/internal/server"
 	"github.com/ruskiiamov/school/internal/storage"
 )
 
 const (
-	adminLogin    = "admin"
-	adminPassword = "secret"
+	AdminLogin    = "admin"
+	AdminPassword = "secret"
 )
 
-type testEnv struct {
-	handler http.Handler
-	db      *sql.DB
-	auth    *auth.Service
-	school  *school.Service
+type Env struct {
+	Handler http.Handler
+	DB      *sql.DB
+	Auth    *auth.Service
+	School  *school.Service
 }
 
-func newTestEnv(t *testing.T) *testEnv {
+func New(t *testing.T) *Env {
 	t.Helper()
 
-	return newTestEnvWithLogger(t, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return NewWithLogger(t, slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
 
-func newTestServer(t *testing.T) http.Handler {
-	t.Helper()
-
-	return newTestEnv(t).handler
-}
-
-func newTestServerWithLog(t *testing.T) (http.Handler, *bytes.Buffer) {
+func NewWithLog(t *testing.T) (http.Handler, *bytes.Buffer) {
 	t.Helper()
 
 	buf := &bytes.Buffer{}
-	env := newTestEnvWithLogger(t, slog.New(logger.NewContextHandler(slog.NewJSONHandler(buf, nil))))
+	env := NewWithLogger(t, slog.New(logger.NewContextHandler(slog.NewJSONHandler(buf, nil))))
 
-	return env.handler, buf
+	return env.Handler, buf
 }
 
-func newTestEnvWithLogger(t *testing.T, log *slog.Logger) *testEnv {
+func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 	t.Helper()
 
 	cfg := &config.Config{
 		School:   config.School{Name: "Школа №1", YearStartMonth: time.August},
 		Session:  config.Session{CookieName: "sid", TTL: time.Hour},
-		Admin:    config.Admin{Login: adminLogin, Password: adminPassword, FullName: "Иванова Мария Петровна"},
+		Admin:    config.Admin{Login: AdminLogin, Password: AdminPassword, FullName: "Иванова Мария Петровна"},
 		Location: time.UTC,
 	}
 
@@ -78,21 +73,21 @@ func newTestEnvWithLogger(t *testing.T, log *slog.Logger) *testEnv {
 		storage.NewSubjectRepo(db), storage.NewWorkTypeRepo(db), storage.NewClassRepo(db),
 		storage.NewClassStudentRepo(db), storage.NewParentChildRepo(db), storage.NewAssignmentRepo(db), log)
 
-	return &testEnv{
-		handler: New(cfg, authService, schoolService, log).Handler(),
-		db:      db,
-		auth:    authService,
-		school:  schoolService,
+	return &Env{
+		Handler: server.New(cfg, authService, schoolService, log).Handler(),
+		DB:      db,
+		Auth:    authService,
+		School:  schoolService,
 	}
 }
 
-func (env *testEnv) createUser(t *testing.T, role auth.Role, login, fullName string) {
+func (env *Env) CreateUser(t *testing.T, role auth.Role, login, fullName string) {
 	t.Helper()
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(login+"-password"), bcrypt.MinCost)
 	require.NoError(t, err)
 
-	_, err = storage.NewUserRepo(env.db).Create(t.Context(), storage.User{
+	_, err = storage.NewUserRepo(env.DB).Create(t.Context(), storage.User{
 		Login:        login,
 		PasswordHash: string(hash),
 		FullName:     fullName,
@@ -102,35 +97,35 @@ func (env *testEnv) createUser(t *testing.T, role auth.Role, login, fullName str
 	require.NoError(t, err)
 }
 
-func (env *testEnv) loginAs(t *testing.T, login string) *http.Cookie {
+func (env *Env) LoginAs(t *testing.T, login string) *http.Cookie {
 	t.Helper()
 
-	return loginWith(t, env.handler, login, login+"-password")
+	return LoginWith(t, env.Handler, login, login+"-password")
 }
 
-func login(t *testing.T, handler http.Handler) *http.Cookie {
+func Login(t *testing.T, handler http.Handler) *http.Cookie {
 	t.Helper()
 
-	return loginWith(t, handler, adminLogin, adminPassword)
+	return LoginWith(t, handler, AdminLogin, AdminPassword)
 }
 
-func loginWith(t *testing.T, handler http.Handler, login, password string) *http.Cookie {
+func LoginWith(t *testing.T, handler http.Handler, login, password string) *http.Cookie {
 	t.Helper()
 
-	recorder := postForm(t, handler, "/login",
+	recorder := PostForm(t, handler, "/login",
 		url.Values{"login": {login}, "password": {password}},
 		nil, map[string]string{"HX-Request": "true"})
 
 	require.Equal(t, http.StatusNoContent, recorder.Code)
 	require.Equal(t, "/", recorder.Header().Get("HX-Redirect"))
 
-	cookies := recorder.Result().Cookies()
+	cookies := Cookies(t, recorder)
 	require.Len(t, cookies, 1)
 
 	return cookies[0]
 }
 
-func postForm(t *testing.T, handler http.Handler, path string, form url.Values, cookies []*http.Cookie, headers map[string]string) *httptest.ResponseRecorder {
+func PostForm(t *testing.T, handler http.Handler, path string, form url.Values, cookies []*http.Cookie, headers map[string]string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form.Encode()))
@@ -150,7 +145,7 @@ func postForm(t *testing.T, handler http.Handler, path string, form url.Values, 
 	return recorder
 }
 
-func get(t *testing.T, handler http.Handler, path string, options ...any) *httptest.ResponseRecorder {
+func Get(t *testing.T, handler http.Handler, path string, options ...any) *httptest.ResponseRecorder {
 	t.Helper()
 
 	req := httptest.NewRequest(http.MethodGet, path, nil)
@@ -174,9 +169,18 @@ func get(t *testing.T, handler http.Handler, path string, options ...any) *httpt
 	return recorder
 }
 
-func assertRedirect(t *testing.T, recorder *httptest.ResponseRecorder, target string) {
+func AssertRedirect(t *testing.T, recorder *httptest.ResponseRecorder, target string) {
 	t.Helper()
 
 	require.Equal(t, http.StatusSeeOther, recorder.Code, recorder.Body.String())
 	require.Equal(t, target, recorder.Header().Get("Location"))
+}
+
+func Cookies(t *testing.T, recorder *httptest.ResponseRecorder) []*http.Cookie {
+	t.Helper()
+
+	response := recorder.Result()
+	t.Cleanup(func() { require.NoError(t, response.Body.Close()) })
+
+	return response.Cookies()
 }

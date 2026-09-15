@@ -1,4 +1,4 @@
-package server
+package admin
 
 import (
 	"errors"
@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/server/web"
 	"github.com/ruskiiamov/school/internal/view"
 	"github.com/ruskiiamov/school/internal/view/pages"
 )
@@ -20,38 +21,38 @@ const (
 	backToSearch      = "К поиску"
 )
 
-func (s *Server) passwordResetList(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) passwordResetList(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 
 	page := view.PasswordResetPage{
-		Shell: s.shell(r, resetPageTitle, passwordResetPath),
+		Shell: h.base.Shell(r, resetPageTitle, passwordResetPath),
 		Path:  passwordResetPath,
 		Query: query,
 	}
 
 	if query != "" {
-		users, err := s.findUsers(r, query)
+		users, err := h.findUsers(r, query)
 		if err != nil {
-			s.serverError(w, r, "search users", err)
+			h.base.ServerError(w, r, "search users", err)
 			return
 		}
 
 		page.Users = users
 	}
 
-	if isHTMX(r) {
-		s.render(w, r, pages.PasswordResetPage(page))
+	if web.IsHTMX(r) {
+		h.base.Render(w, r, pages.PasswordResetPage(page))
 		return
 	}
 
-	s.render(w, r, pages.PasswordReset(page))
+	h.base.Render(w, r, pages.PasswordReset(page))
 }
 
-func (s *Server) findUsers(r *http.Request, query string) ([]view.PasswordResetRow, error) {
+func (h *Handler) findUsers(r *http.Request, query string) ([]view.PasswordResetRow, error) {
 	var users []auth.User
 
 	for _, sec := range userSections {
-		found, err := s.auth.Users(r.Context(), auth.UserFilter{Role: sec.role, Query: query})
+		found, err := h.auth.Users(r.Context(), auth.UserFilter{Role: sec.role, Query: query})
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +64,7 @@ func (s *Server) findUsers(r *http.Request, query string) ([]view.PasswordResetR
 		return users[i].FullName < users[j].FullName
 	})
 
-	classes, err := s.school.StudentClasses(r.Context(), s.school.CurrentYear())
+	classes, err := h.school.StudentClasses(r.Context(), h.school.CurrentYear())
 	if err != nil {
 		return nil, err
 	}
@@ -85,44 +86,44 @@ func (s *Server) findUsers(r *http.Request, query string) ([]view.PasswordResetR
 	return rows, nil
 }
 
-func (s *Server) passwordReset(w http.ResponseWriter, r *http.Request) {
-	user, ok := s.resettableUser(w, r)
+func (h *Handler) passwordReset(w http.ResponseWriter, r *http.Request) {
+	user, ok := h.resettableUser(w, r)
 	if !ok {
 		return
 	}
 
-	password, err := s.auth.ResetPassword(r.Context(), user.ID)
+	password, err := h.auth.ResetPassword(r.Context(), user.ID)
 	if err != nil {
-		s.handleServiceError(w, r, "reset user password", err)
+		h.base.HandleServiceError(w, r, "reset user password", err)
 		return
 	}
 
-	s.created.put(s.sessionID(r), credentialsEntry{
+	h.created.put(h.base.SessionID(r), credentialsEntry{
 		userID:   user.ID,
 		kind:     credentialsPasswordChanged,
 		login:    user.Login,
 		password: password,
 	})
 
-	s.redirect(w, r, passwordResetURL(user.ID, "/created")+searchQuery(r))
+	web.Redirect(w, r, passwordResetURL(user.ID, "/created")+searchQuery(r))
 }
 
-func (s *Server) passwordResetCreated(w http.ResponseWriter, r *http.Request) {
-	user, ok := s.resettableUser(w, r)
+func (h *Handler) passwordResetCreated(w http.ResponseWriter, r *http.Request) {
+	user, ok := h.resettableUser(w, r)
 	if !ok {
 		return
 	}
 
 	backHref := passwordResetPath + searchQuery(r)
 
-	entry, ok := s.created.take(s.sessionID(r), user.ID, credentialsPasswordChanged)
+	entry, ok := h.created.take(h.base.SessionID(r), user.ID, credentialsPasswordChanged)
 	if !ok {
-		s.redirect(w, r, backHref)
+		web.Redirect(w, r, backHref)
 		return
 	}
 
 	page := view.UserCreatedPage{
-		Shell:     s.shell(r, changedTitle, passwordResetPath),
+		Shell:     h.base.Shell(r, changedTitle, passwordResetPath),
 		Title:     changedTitle,
 		FullName:  user.FullName,
 		Login:     entry.login,
@@ -132,23 +133,23 @@ func (s *Server) passwordResetCreated(w http.ResponseWriter, r *http.Request) {
 		ListTitle: backToSearch,
 	}
 
-	s.render(w, r, pages.UserCreated(page))
+	h.base.Render(w, r, pages.UserCreated(page))
 }
 
-func (s *Server) resettableUser(w http.ResponseWriter, r *http.Request) (auth.User, bool) {
-	id, ok := pathID(r)
+func (h *Handler) resettableUser(w http.ResponseWriter, r *http.Request) (auth.User, bool) {
+	id, ok := web.PathID(r)
 	if !ok {
 		http.NotFound(w, r)
 		return auth.User{}, false
 	}
 
-	user, err := s.auth.UserByID(r.Context(), id)
+	user, err := h.auth.UserByID(r.Context(), id)
 	if errors.Is(err, auth.ErrNotFound) || (err == nil && user.Role == auth.RoleAdmin) {
 		http.NotFound(w, r)
 		return auth.User{}, false
 	}
 	if err != nil {
-		s.serverError(w, r, "load user", err)
+		h.base.ServerError(w, r, "load user", err)
 		return auth.User{}, false
 	}
 
