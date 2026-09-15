@@ -1,4 +1,4 @@
-package server
+package server_test
 
 import (
 	"net/http"
@@ -7,34 +7,35 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/server/servertest"
 )
 
 func TestRoleSectionsAreHiddenFromOtherRoles(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	env.createUser(t, auth.RoleStudent, "student", "Козлов Пётр Ильич")
-	env.createUser(t, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
+	env := servertest.New(t)
+	env.CreateUser(t, auth.RoleStudent, "student", "Козлов Пётр Ильич")
+	env.CreateUser(t, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
 
-	student := env.loginAs(t, "student")
-	teacher := env.loginAs(t, "teacher")
-	admin := login(t, env.handler)
+	student := env.LoginAs(t, "student")
+	teacher := env.LoginAs(t, "teacher")
+	admin := servertest.Login(t, env.Handler)
 
-	assertRedirect(t, get(t, env.handler, "/journal"), "/login")
-	assertRedirect(t, get(t, env.handler, "/diary"), "/login")
+	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/journal"), "/login")
+	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/diary"), "/login")
 
-	assert.Equal(t, http.StatusNotFound, get(t, env.handler, "/journal", student).Code)
-	assert.Equal(t, http.StatusNotFound, get(t, env.handler, "/journal", admin).Code)
-	assert.Equal(t, http.StatusNotFound, get(t, env.handler, "/diary", teacher).Code)
-	assert.Equal(t, http.StatusNotFound, get(t, env.handler, "/diary", admin).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/journal", student).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/journal", admin).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/diary", teacher).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/diary", admin).Code)
 
-	diary := get(t, env.handler, "/diary", student)
+	diary := servertest.Get(t, env.Handler, "/diary", student)
 	assert.Equal(t, http.StatusOK, diary.Code)
 	assert.Contains(t, diary.Body.String(), "Раздел в разработке")
 	assert.Contains(t, diary.Body.String(), `href="/diary"`)
 	assert.NotContains(t, diary.Body.String(), `href="/admin/classes"`)
 
-	journal := get(t, env.handler, "/journal", teacher)
+	journal := servertest.Get(t, env.Handler, "/journal", teacher)
 	assert.Equal(t, http.StatusOK, journal.Code)
 	assert.Contains(t, journal.Body.String(), `href="/journal"`)
 	assert.NotContains(t, journal.Body.String(), `href="/diary"`)

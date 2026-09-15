@@ -1,4 +1,4 @@
-package server
+package admin
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/school"
+	"github.com/ruskiiamov/school/internal/server/web"
 	"github.com/ruskiiamov/school/internal/validation"
 	"github.com/ruskiiamov/school/internal/view"
 	"github.com/ruskiiamov/school/internal/view/pages"
@@ -25,36 +26,36 @@ type classCardErrors struct {
 	assignments validation.Errors
 }
 
-func (s *Server) classShow(w http.ResponseWriter, r *http.Request) {
-	class, ok := s.pathClass(w, r)
+func (h *Handler) classShow(w http.ResponseWriter, r *http.Request) {
+	class, ok := h.pathClass(w, r)
 	if !ok {
 		return
 	}
 
-	s.renderClassCard(w, r, class, classCardErrors{})
+	h.renderClassCard(w, r, class, classCardErrors{})
 }
 
-func (s *Server) classStudentAdd(w http.ResponseWriter, r *http.Request) {
-	class, ok := s.pathClass(w, r)
+func (h *Handler) classStudentAdd(w http.ResponseWriter, r *http.Request) {
+	class, ok := h.pathClass(w, r)
 	if !ok {
 		return
 	}
 
-	err := s.addClassStudent(r, class.ID, formInt64(r, "student_id"))
-	if errs, ok := formErrors(err); ok {
-		s.renderClassCard(w, r, class, classCardErrors{students: errs})
+	err := h.addClassStudent(r, class.ID, web.FormInt64(r, "student_id"))
+	if errs, ok := web.FormErrors(err); ok {
+		h.renderClassCard(w, r, class, classCardErrors{students: errs})
 		return
 	}
 	if err != nil {
-		s.handleServiceError(w, r, "add class student", err)
+		h.base.HandleServiceError(w, r, "add class student", err)
 		return
 	}
 
-	s.classStudentsDone(w, r, class)
+	h.classStudentsDone(w, r, class)
 }
 
-func (s *Server) addClassStudent(r *http.Request, classID, studentID int64) error {
-	_, err := s.activeUser(r.Context(), studentID, auth.RoleStudent)
+func (h *Handler) addClassStudent(r *http.Request, classID, studentID int64) error {
+	_, err := h.activeUser(r.Context(), studentID, auth.RoleStudent)
 	if errors.Is(err, auth.ErrNotFound) {
 		return validation.Errors{"student": msgStudentUnknown}
 	}
@@ -62,56 +63,56 @@ func (s *Server) addClassStudent(r *http.Request, classID, studentID int64) erro
 		return err
 	}
 
-	return s.school.AddClassStudent(r.Context(), classID, studentID)
+	return h.school.AddClassStudent(r.Context(), classID, studentID)
 }
 
-func (s *Server) classStudentRemove(w http.ResponseWriter, r *http.Request) {
-	class, ok := s.pathClass(w, r)
+func (h *Handler) classStudentRemove(w http.ResponseWriter, r *http.Request) {
+	class, ok := h.pathClass(w, r)
 	if !ok {
 		return
 	}
 
-	studentID, ok := pathValue(r, "sid")
+	studentID, ok := web.PathValue(r, "sid")
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
 
-	err := s.school.RemoveClassStudent(r.Context(), class.ID, studentID)
-	if errs, ok := formErrors(err); ok {
-		s.renderClassCard(w, r, class, classCardErrors{students: errs})
+	err := h.school.RemoveClassStudent(r.Context(), class.ID, studentID)
+	if errs, ok := web.FormErrors(err); ok {
+		h.renderClassCard(w, r, class, classCardErrors{students: errs})
 		return
 	}
 	if err != nil {
-		s.handleServiceError(w, r, "remove class student", err)
+		h.base.HandleServiceError(w, r, "remove class student", err)
 		return
 	}
 
-	s.classStudentsDone(w, r, class)
+	h.classStudentsDone(w, r, class)
 }
 
-func (s *Server) classAssign(w http.ResponseWriter, r *http.Request) {
-	class, ok := s.pathClass(w, r)
+func (h *Handler) classAssign(w http.ResponseWriter, r *http.Request) {
+	class, ok := h.pathClass(w, r)
 	if !ok {
 		return
 	}
 
-	err := s.assignTeacher(r, class.ID, formInt64(r, "subject_id"), formInt64(r, "teacher_id"))
-	if errs, ok := formErrors(err); ok {
-		s.renderClassCard(w, r, class, classCardErrors{assignments: errs})
+	err := h.assignTeacher(r, class.ID, web.FormInt64(r, "subject_id"), web.FormInt64(r, "teacher_id"))
+	if errs, ok := web.FormErrors(err); ok {
+		h.renderClassCard(w, r, class, classCardErrors{assignments: errs})
 		return
 	}
 	if err != nil {
-		s.handleServiceError(w, r, "assign teacher", err)
+		h.base.HandleServiceError(w, r, "assign teacher", err)
 		return
 	}
 
-	s.classAssignmentsDone(w, r, class)
+	h.classAssignmentsDone(w, r, class)
 }
 
-func (s *Server) assignTeacher(r *http.Request, classID, subjectID, teacherID int64) error {
+func (h *Handler) assignTeacher(r *http.Request, classID, subjectID, teacherID int64) error {
 	if teacherID != 0 {
-		_, err := s.activeUser(r.Context(), teacherID, auth.RoleTeacher)
+		_, err := h.activeUser(r.Context(), teacherID, auth.RoleTeacher)
 		if errors.Is(err, auth.ErrNotFound) {
 			return validation.Errors{"teacher": msgTeacherUnknown}
 		}
@@ -120,105 +121,105 @@ func (s *Server) assignTeacher(r *http.Request, classID, subjectID, teacherID in
 		}
 	}
 
-	return s.school.AssignTeacher(r.Context(), classID, subjectID, teacherID)
+	return h.school.AssignTeacher(r.Context(), classID, subjectID, teacherID)
 }
 
-func (s *Server) classAssignmentRemove(w http.ResponseWriter, r *http.Request) {
-	class, ok := s.pathClass(w, r)
+func (h *Handler) classAssignmentRemove(w http.ResponseWriter, r *http.Request) {
+	class, ok := h.pathClass(w, r)
 	if !ok {
 		return
 	}
 
-	assignmentID, ok := pathValue(r, "aid")
+	assignmentID, ok := web.PathValue(r, "aid")
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
 
-	err := s.school.RemoveAssignment(r.Context(), class.ID, assignmentID)
-	if errs, ok := formErrors(err); ok {
-		s.renderClassCard(w, r, class, classCardErrors{assignments: errs})
+	err := h.school.RemoveAssignment(r.Context(), class.ID, assignmentID)
+	if errs, ok := web.FormErrors(err); ok {
+		h.renderClassCard(w, r, class, classCardErrors{assignments: errs})
 		return
 	}
 	if err != nil {
-		s.handleServiceError(w, r, "remove assignment", err)
+		h.base.HandleServiceError(w, r, "remove assignment", err)
 		return
 	}
 
-	s.classAssignmentsDone(w, r, class)
+	h.classAssignmentsDone(w, r, class)
 }
 
-func (s *Server) pathClass(w http.ResponseWriter, r *http.Request) (school.Class, bool) {
-	id, ok := pathID(r)
+func (h *Handler) pathClass(w http.ResponseWriter, r *http.Request) (school.Class, bool) {
+	id, ok := web.PathID(r)
 	if !ok {
 		http.NotFound(w, r)
 		return school.Class{}, false
 	}
 
-	class, err := s.school.ClassByID(r.Context(), id)
+	class, err := h.school.ClassByID(r.Context(), id)
 	if err != nil {
-		s.handleServiceError(w, r, "load class", err)
+		h.base.HandleServiceError(w, r, "load class", err)
 		return school.Class{}, false
 	}
 
 	return class, true
 }
 
-func (s *Server) classStudentsDone(w http.ResponseWriter, r *http.Request, class school.Class) {
-	if !isHTMX(r) {
-		s.redirect(w, r, classPath(class.ID, ""))
+func (h *Handler) classStudentsDone(w http.ResponseWriter, r *http.Request, class school.Class) {
+	if !web.IsHTMX(r) {
+		web.Redirect(w, r, classPath(class.ID, ""))
 		return
 	}
 
-	block, err := s.classStudentsBlock(r, class, nil)
+	block, err := h.classStudentsBlock(r, class, nil)
 	if err != nil {
-		s.serverError(w, r, "load class students", err)
+		h.base.ServerError(w, r, "load class students", err)
 		return
 	}
 
-	s.render(w, r, pages.ClassStudents(block))
+	h.base.Render(w, r, pages.ClassStudents(block))
 }
 
-func (s *Server) classAssignmentsDone(w http.ResponseWriter, r *http.Request, class school.Class) {
-	if !isHTMX(r) {
-		s.redirect(w, r, classPath(class.ID, ""))
+func (h *Handler) classAssignmentsDone(w http.ResponseWriter, r *http.Request, class school.Class) {
+	if !web.IsHTMX(r) {
+		web.Redirect(w, r, classPath(class.ID, ""))
 		return
 	}
 
-	block, err := s.classAssignmentsBlock(r, class, nil)
+	block, err := h.classAssignmentsBlock(r, class, nil)
 	if err != nil {
-		s.serverError(w, r, "load class assignments", err)
+		h.base.ServerError(w, r, "load class assignments", err)
 		return
 	}
 
-	s.render(w, r, pages.ClassAssignments(block))
+	h.base.Render(w, r, pages.ClassAssignments(block))
 }
 
-func (s *Server) renderClassCard(w http.ResponseWriter, r *http.Request, class school.Class, errs classCardErrors) {
-	students, err := s.classStudentsBlock(r, class, errs.students)
+func (h *Handler) renderClassCard(w http.ResponseWriter, r *http.Request, class school.Class, errs classCardErrors) {
+	students, err := h.classStudentsBlock(r, class, errs.students)
 	if err != nil {
-		s.serverError(w, r, "load class students", err)
+		h.base.ServerError(w, r, "load class students", err)
 		return
 	}
 
-	if isHTMX(r) && errs.students != nil {
-		s.render(w, r, pages.ClassStudents(students))
+	if web.IsHTMX(r) && errs.students != nil {
+		h.base.Render(w, r, pages.ClassStudents(students))
 		return
 	}
 
-	assignments, err := s.classAssignmentsBlock(r, class, errs.assignments)
+	assignments, err := h.classAssignmentsBlock(r, class, errs.assignments)
 	if err != nil {
-		s.serverError(w, r, "load class assignments", err)
+		h.base.ServerError(w, r, "load class assignments", err)
 		return
 	}
 
-	if isHTMX(r) && errs.assignments != nil {
-		s.render(w, r, pages.ClassAssignments(assignments))
+	if web.IsHTMX(r) && errs.assignments != nil {
+		h.base.Render(w, r, pages.ClassAssignments(assignments))
 		return
 	}
 
 	page := view.ClassPage{
-		Shell:       s.shell(r, class.Name, classesPath),
+		Shell:       h.base.Shell(r, class.Name, classesPath),
 		ID:          class.ID,
 		Name:        class.Name,
 		YearName:    school.YearName(class.Year),
@@ -227,28 +228,28 @@ func (s *Server) renderClassCard(w http.ResponseWriter, r *http.Request, class s
 		Assignments: assignments,
 	}
 
-	s.render(w, r, pages.Class(page))
+	h.base.Render(w, r, pages.Class(page))
 }
 
-func (s *Server) classEditable(class school.Class) bool {
-	return class.Active && class.Year == s.school.CurrentYear()
+func (h *Handler) classEditable(class school.Class) bool {
+	return class.Active && class.Year == h.school.CurrentYear()
 }
 
-func (s *Server) classStudentsBlock(r *http.Request, class school.Class, errs validation.Errors) (view.ClassStudentsBlock, error) {
+func (h *Handler) classStudentsBlock(r *http.Request, class school.Class, errs validation.Errors) (view.ClassStudentsBlock, error) {
 	ctx := r.Context()
 
-	students, err := s.auth.Users(ctx, auth.UserFilter{Role: auth.RoleStudent, IncludeInactive: true})
+	students, err := h.auth.Users(ctx, auth.UserFilter{Role: auth.RoleStudent, IncludeInactive: true})
 	if err != nil {
 		return view.ClassStudentsBlock{}, err
 	}
 
-	classes, err := s.school.StudentClasses(ctx, class.Year)
+	classes, err := h.school.StudentClasses(ctx, class.Year)
 	if err != nil {
 		return view.ClassStudentsBlock{}, err
 	}
 
 	block := view.ClassStudentsBlock{
-		CanEdit:   s.classEditable(class),
+		CanEdit:   h.classEditable(class),
 		AddAction: classPath(class.ID, "/students"),
 		Error:     firstError(errs, "student", "class"),
 	}
@@ -278,20 +279,20 @@ func (s *Server) classStudentsBlock(r *http.Request, class school.Class, errs va
 	return block, nil
 }
 
-func (s *Server) classAssignmentsBlock(r *http.Request, class school.Class, errs validation.Errors) (view.ClassAssignmentsBlock, error) {
+func (h *Handler) classAssignmentsBlock(r *http.Request, class school.Class, errs validation.Errors) (view.ClassAssignmentsBlock, error) {
 	ctx := r.Context()
 
-	assignments, err := s.school.Assignments(ctx, class.ID)
+	assignments, err := h.school.Assignments(ctx, class.ID)
 	if err != nil {
 		return view.ClassAssignmentsBlock{}, err
 	}
 
-	subjects, err := s.school.Subjects(ctx, true)
+	subjects, err := h.school.Subjects(ctx, true)
 	if err != nil {
 		return view.ClassAssignmentsBlock{}, err
 	}
 
-	teachers, err := s.auth.Users(ctx, auth.UserFilter{Role: auth.RoleTeacher, IncludeInactive: true})
+	teachers, err := h.auth.Users(ctx, auth.UserFilter{Role: auth.RoleTeacher, IncludeInactive: true})
 	if err != nil {
 		return view.ClassAssignmentsBlock{}, err
 	}
@@ -307,7 +308,7 @@ func (s *Server) classAssignmentsBlock(r *http.Request, class school.Class, errs
 	}
 
 	block := view.ClassAssignmentsBlock{
-		CanEdit:   s.classEditable(class),
+		CanEdit:   h.classEditable(class),
 		AddAction: classPath(class.ID, "/assignments"),
 		Errors:    errs,
 	}

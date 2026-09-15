@@ -1,4 +1,4 @@
-package server
+package server_test
 
 import (
 	"net/http"
@@ -10,16 +10,17 @@ import (
 
 	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/school"
+	"github.com/ruskiiamov/school/internal/server/servertest"
 )
 
 func TestHomeShowsNoClassesBannerForAdmin(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
 
-	body := get(t, env.handler, "/", admin).Body.String()
-	yearName := school.YearName(env.school.CurrentYear())
+	body := servertest.Get(t, env.Handler, "/", admin).Body.String()
+	yearName := school.YearName(env.School.CurrentYear())
 
 	assert.Contains(t, body, "В "+yearName+" ещё нет классов")
 	assert.Contains(t, body, "Создать класс")
@@ -30,49 +31,49 @@ func TestHomeShowsNoClassesBannerForAdmin(t *testing.T) {
 func TestHomeCountsCurrentYearForAdmin(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
 	ctx := t.Context()
 
-	classID, err := env.school.CreateClass(ctx, "7А")
+	classID, err := env.School.CreateClass(ctx, "7А")
 	require.NoError(t, err)
 
-	_, err = env.school.CreateClass(ctx, "8Б")
+	_, err = env.School.CreateClass(ctx, "8Б")
 	require.NoError(t, err)
 
-	deleted, err := env.school.CreateClass(ctx, "9В")
+	deleted, err := env.School.CreateClass(ctx, "9В")
 	require.NoError(t, err)
-	require.NoError(t, env.school.SetClassActive(ctx, deleted, false))
+	require.NoError(t, env.School.SetClassActive(ctx, deleted, false))
 
-	_, err = env.school.CreateSubject(ctx, school.SubjectInput{Name: "Алгебра"})
+	_, err = env.School.CreateSubject(ctx, school.SubjectInput{Name: "Алгебра"})
 	require.NoError(t, err)
 
-	inactiveSubject, err := env.school.CreateSubject(ctx, school.SubjectInput{Name: "Черчение"})
+	inactiveSubject, err := env.School.CreateSubject(ctx, school.SubjectInput{Name: "Черчение"})
 	require.NoError(t, err)
-	require.NoError(t, env.school.SetSubjectActive(ctx, inactiveSubject, false))
+	require.NoError(t, env.School.SetSubjectActive(ctx, inactiveSubject, false))
 
 	for _, name := range []string{"Сидорова Анна", "Петров Иван", "Уволенный Учитель"} {
-		created, err := env.auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleTeacher, FullName: name})
+		created, err := env.Auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleTeacher, FullName: name})
 		require.NoError(t, err)
 
 		if name == "Уволенный Учитель" {
-			require.NoError(t, env.auth.SetUserActive(ctx, created.User.ID, false))
+			require.NoError(t, env.Auth.SetUserActive(ctx, created.User.ID, false))
 		}
 	}
 
-	env.createUser(t, auth.RoleStudent, "free", "Без Класса")
+	env.CreateUser(t, auth.RoleStudent, "free", "Без Класса")
 
 	for _, name := range []string{"Козлов Пётр", "Иванова Мария", "Выбывший Ученик"} {
-		created, err := env.auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleStudent, FullName: name})
+		created, err := env.Auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleStudent, FullName: name})
 		require.NoError(t, err)
-		require.NoError(t, env.school.SetStudentClass(ctx, created.User.ID, classID))
+		require.NoError(t, env.School.SetStudentClass(ctx, created.User.ID, classID))
 
 		if name == "Выбывший Ученик" {
-			require.NoError(t, env.auth.SetUserActive(ctx, created.User.ID, false))
+			require.NoError(t, env.Auth.SetUserActive(ctx, created.User.ID, false))
 		}
 	}
 
-	body := get(t, env.handler, "/", admin).Body.String()
+	body := servertest.Get(t, env.Handler, "/", admin).Body.String()
 
 	assert.NotContains(t, body, "ещё нет классов")
 	assertStat(t, body, "Классы", 2)
@@ -91,10 +92,10 @@ func assertStat(t *testing.T, body, label string, value int) {
 func TestHomeShowsSectionLinkForOtherRoles(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	env.createUser(t, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
-	env.createUser(t, auth.RoleStudent, "student", "Козлов Пётр Ильич")
-	env.createUser(t, auth.RoleParent, "parent", "Петрова Ольга Николаевна")
+	env := servertest.New(t)
+	env.CreateUser(t, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
+	env.CreateUser(t, auth.RoleStudent, "student", "Козлов Пётр Ильич")
+	env.CreateUser(t, auth.RoleParent, "parent", "Петрова Ольга Николаевна")
 
 	tests := []struct {
 		login string
@@ -108,9 +109,9 @@ func TestHomeShowsSectionLinkForOtherRoles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.login, func(t *testing.T) {
-			cookie := env.loginAs(t, tt.login)
+			cookie := env.LoginAs(t, tt.login)
 
-			recorder := get(t, env.handler, "/", cookie)
+			recorder := servertest.Get(t, env.Handler, "/", cookie)
 			require.Equal(t, http.StatusOK, recorder.Code)
 
 			body := recorder.Body.String()
@@ -120,8 +121,8 @@ func TestHomeShowsSectionLinkForOtherRoles(t *testing.T) {
 			assert.Contains(t, body, "Раздел в разработке")
 			assert.NotContains(t, body, "Учебный год")
 			assert.NotContains(t, body, `href="/admin/classes"`)
-			assert.Equal(t, http.StatusNotFound, get(t, env.handler, "/admin/classes", cookie).Code)
-			assert.Equal(t, http.StatusNotFound, get(t, env.handler, "/admin/students", cookie).Code)
+			assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/admin/classes", cookie).Code)
+			assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/admin/students", cookie).Code)
 		})
 	}
 

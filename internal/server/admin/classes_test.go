@@ -1,4 +1,4 @@
-package server
+package admin_test
 
 import (
 	"net/http"
@@ -12,16 +12,17 @@ import (
 
 	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/school"
+	"github.com/ruskiiamov/school/internal/server/servertest"
 	"github.com/ruskiiamov/school/internal/storage"
 )
 
-func createClass(t *testing.T, env *testEnv, admin *http.Cookie, year int, name string) int64 {
+func createClass(t *testing.T, env *servertest.Env, admin *http.Cookie, year int, name string) int64 {
 	t.Helper()
 
-	recorder := postForm(t, env.handler, classesURL(year, ""), url.Values{"name": {name}}, []*http.Cookie{admin}, nil)
-	assertRedirect(t, recorder, classesURL(year, ""))
+	recorder := servertest.PostForm(t, env.Handler, classesURL(year, ""), url.Values{"name": {name}}, []*http.Cookie{admin}, nil)
+	servertest.AssertRedirect(t, recorder, classesURL(year, ""))
 
-	classes, err := env.school.Classes(t.Context(), year, true)
+	classes, err := env.School.Classes(t.Context(), year, true)
 	require.NoError(t, err)
 
 	for _, class := range classes {
@@ -35,10 +36,10 @@ func createClass(t *testing.T, env *testEnv, admin *http.Cookie, year int, name 
 	return 0
 }
 
-func createPastClass(t *testing.T, env *testEnv, year int, name string) int64 {
+func createPastClass(t *testing.T, env *servertest.Env, year int, name string) int64 {
 	t.Helper()
 
-	id, err := storage.NewClassRepo(env.db).Create(t.Context(), year, name)
+	id, err := storage.NewClassRepo(env.DB).Create(t.Context(), year, name)
 	require.NoError(t, err)
 
 	return id
@@ -55,11 +56,11 @@ func classesURL(year int, suffix string) string {
 func TestClassesEmptyListShowsOnlyCurrentYear(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
-	current := env.school.CurrentYear()
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	current := env.School.CurrentYear()
 
-	body := get(t, env.handler, "/admin/classes", admin).Body.String()
+	body := servertest.Get(t, env.Handler, "/admin/classes", admin).Body.String()
 	assert.Contains(t, body, "В "+school.YearName(current)+" пока нет классов")
 	assert.Contains(t, body, `href="`+classesURL(current, "")+`" aria-current="page"`)
 	assert.NotContains(t, body, school.YearName(current+1))
@@ -69,10 +70,10 @@ func TestClassesEmptyListShowsOnlyCurrentYear(t *testing.T) {
 	assert.Contains(t, body, `href="`+classesURL(current, "&amp;inactive=1")+`"`)
 	assert.NotContains(t, body, "required")
 
-	garbage := get(t, env.handler, "/admin/classes?year=abc", admin).Body.String()
+	garbage := servertest.Get(t, env.Handler, "/admin/classes?year=abc", admin).Body.String()
 	assert.Contains(t, garbage, `href="`+classesURL(current, "")+`" aria-current="page"`)
 
-	years, err := env.school.ClassYears(t.Context())
+	years, err := env.School.ClassYears(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, []int{current}, years)
 }
@@ -80,42 +81,42 @@ func TestClassesEmptyListShowsOnlyCurrentYear(t *testing.T) {
 func TestClassesPastYearIsReadOnly(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
-	current := env.school.CurrentYear()
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	current := env.School.CurrentYear()
 
 	past := createPastClass(t, env, current-1, "6А")
 
-	years, err := env.school.ClassYears(t.Context())
+	years, err := env.School.ClassYears(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, []int{current - 1, current}, years)
 
-	body := get(t, env.handler, "/admin/classes", admin).Body.String()
+	body := servertest.Get(t, env.Handler, "/admin/classes", admin).Body.String()
 	assert.Less(t, strings.Index(body, school.YearName(current-1)), strings.Index(body, school.YearName(current)))
 	assert.Contains(t, body, `href="`+classesURL(current-1, "")+`"`)
 	assert.NotContains(t, body, "6А")
 
-	pastPage := get(t, env.handler, classesURL(current-1, ""), admin).Body.String()
+	pastPage := servertest.Get(t, env.Handler, classesURL(current-1, ""), admin).Body.String()
 	assert.Contains(t, pastPage, ">6А</a>")
 	assert.NotContains(t, pastPage, `action="`+classesURL(current-1, "")+`"`)
 	assert.NotContains(t, pastPage, "Новый класс")
 	assert.Contains(t, pastPage, `href="`+classesURL(current-1, "&amp;edit="+strconv.FormatInt(past, 10))+`"`)
 
-	forged := postForm(t, env.handler, classesURL(current-1, ""), url.Values{"name": {"6Б"}}, []*http.Cookie{admin}, nil)
-	assertRedirect(t, forged, classesURL(current-1, ""))
+	forged := servertest.PostForm(t, env.Handler, classesURL(current-1, ""), url.Values{"name": {"6Б"}}, []*http.Cookie{admin}, nil)
+	servertest.AssertRedirect(t, forged, classesURL(current-1, ""))
 
-	pastClasses, err := env.school.Classes(t.Context(), current-1, true)
+	pastClasses, err := env.School.Classes(t.Context(), current-1, true)
 	require.NoError(t, err)
 	require.Len(t, pastClasses, 1)
 
-	currentClasses, err := env.school.Classes(t.Context(), current, true)
+	currentClasses, err := env.School.Classes(t.Context(), current, true)
 	require.NoError(t, err)
 	require.Len(t, currentClasses, 1)
 	assert.Equal(t, "6Б", currentClasses[0].Name)
 
-	assertRedirect(t, postForm(t, env.handler, classPathFor(past, "?year="+strconv.Itoa(current-1)), url.Values{"name": {"6В"}}, []*http.Cookie{admin}, nil), classesURL(current-1, ""))
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, classPathFor(past, "?year="+strconv.Itoa(current-1)), url.Values{"name": {"6В"}}, []*http.Cookie{admin}, nil), classesURL(current-1, ""))
 
-	class, err := env.school.ClassByID(t.Context(), past)
+	class, err := env.School.ClassByID(t.Context(), past)
 	require.NoError(t, err)
 	assert.Equal(t, "6В", class.Name)
 	assert.Equal(t, current-1, class.Year)
@@ -124,14 +125,14 @@ func TestClassesPastYearIsReadOnly(t *testing.T) {
 func TestClassCreateInSelectedYear(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
-	current := env.school.CurrentYear()
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	current := env.School.CurrentYear()
 
-	messy := postForm(t, env.handler, classesURL(current, ""), url.Values{"name": {"  7 А "}}, []*http.Cookie{admin}, nil)
-	assertRedirect(t, messy, classesURL(current, ""))
+	messy := servertest.PostForm(t, env.Handler, classesURL(current, ""), url.Values{"name": {"  7 А "}}, []*http.Cookie{admin}, nil)
+	servertest.AssertRedirect(t, messy, classesURL(current, ""))
 
-	classes, err := env.school.Classes(t.Context(), current, false)
+	classes, err := env.School.Classes(t.Context(), current, false)
 	require.NoError(t, err)
 	require.Len(t, classes, 1)
 	assert.Equal(t, "7 А", classes[0].Name)
@@ -140,7 +141,7 @@ func TestClassCreateInSelectedYear(t *testing.T) {
 
 	id := classes[0].ID
 
-	list := get(t, env.handler, classesURL(current, ""), admin).Body.String()
+	list := servertest.Get(t, env.Handler, classesURL(current, ""), admin).Body.String()
 	assert.Contains(t, list, `href="`+classPathFor(id, "")+`"`)
 	assert.Contains(t, list, ">7 А</a>")
 	assert.Contains(t, list, `href="`+classesURL(current, "&amp;edit="+strconv.FormatInt(id, 10))+`"`)
@@ -150,7 +151,7 @@ func TestClassCreateInSelectedYear(t *testing.T) {
 	past := createPastClass(t, env, current-1, "7 А")
 	assert.NotEqual(t, id, past)
 
-	other := get(t, env.handler, classesURL(current-1, ""), admin).Body.String()
+	other := servertest.Get(t, env.Handler, classesURL(current-1, ""), admin).Body.String()
 	assert.Contains(t, other, ">7 А</a>")
 	assert.NotContains(t, other, `href="`+classPathFor(id, "")+`"`)
 }
@@ -158,13 +159,13 @@ func TestClassCreateInSelectedYear(t *testing.T) {
 func TestClassCardShowsEmptyBlocks(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
-	current := env.school.CurrentYear()
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	current := env.School.CurrentYear()
 
 	id := createClass(t, env, admin, current, "7А")
 
-	card := get(t, env.handler, classPathFor(id, ""), admin)
+	card := servertest.Get(t, env.Handler, classPathFor(id, ""), admin)
 	assert.Equal(t, http.StatusOK, card.Code)
 	assert.Contains(t, card.Body.String(), "7А · "+school.YearName(current))
 	assert.Contains(t, card.Body.String(), "Пока нет учеников")
@@ -176,30 +177,30 @@ func TestClassCardShowsEmptyBlocks(t *testing.T) {
 func TestClassCreateValidation(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
-	current := env.school.CurrentYear()
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	current := env.School.CurrentYear()
 
 	createClass(t, env, admin, current, "7А")
 
-	duplicate := postForm(t, env.handler, classesURL(current, ""), url.Values{"name": {"7А"}}, []*http.Cookie{admin}, nil)
+	duplicate := servertest.PostForm(t, env.Handler, classesURL(current, ""), url.Values{"name": {"7А"}}, []*http.Cookie{admin}, nil)
 	assert.Equal(t, http.StatusOK, duplicate.Code)
 	assert.Contains(t, duplicate.Body.String(), "<html")
 	assert.Contains(t, duplicate.Body.String(), "Такой класс в этом году уже есть")
 	assert.Contains(t, duplicate.Body.String(), `value="7А"`)
 
-	blank := postForm(t, env.handler, classesURL(current, ""), url.Values{"name": {"   "}}, []*http.Cookie{admin}, nil)
+	blank := servertest.PostForm(t, env.Handler, classesURL(current, ""), url.Values{"name": {"   "}}, []*http.Cookie{admin}, nil)
 	assert.Equal(t, http.StatusOK, blank.Code)
 	assert.Contains(t, blank.Body.String(), "Укажите название")
 
-	unknownYear := postForm(t, env.handler, classesURL(1999, ""), url.Values{"name": {"8А"}}, []*http.Cookie{admin}, nil)
-	assertRedirect(t, unknownYear, classesURL(current, ""))
+	unknownYear := servertest.PostForm(t, env.Handler, classesURL(1999, ""), url.Values{"name": {"8А"}}, []*http.Cookie{admin}, nil)
+	servertest.AssertRedirect(t, unknownYear, classesURL(current, ""))
 
-	classes, err := env.school.Classes(t.Context(), current, true)
+	classes, err := env.School.Classes(t.Context(), current, true)
 	require.NoError(t, err)
 	require.Len(t, classes, 2)
 
-	years, err := env.school.ClassYears(t.Context())
+	years, err := env.School.ClassYears(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, []int{current}, years)
 }
@@ -207,14 +208,14 @@ func TestClassCreateValidation(t *testing.T) {
 func TestClassEditModeShowsFormForOneRow(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
-	current := env.school.CurrentYear()
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	current := env.School.CurrentYear()
 
 	a := createClass(t, env, admin, current, "7А")
 	b := createClass(t, env, admin, current, "7Б")
 
-	body := get(t, env.handler, classesURL(current, "&edit="+strconv.FormatInt(a, 10)), admin).Body.String()
+	body := servertest.Get(t, env.Handler, classesURL(current, "&edit="+strconv.FormatInt(a, 10)), admin).Body.String()
 	assert.Contains(t, body, `value="7А"`)
 	assert.Contains(t, body, `action="`+classPathFor(a, "?year="+strconv.Itoa(current))+`"`)
 	assert.Contains(t, body, `href="`+classesURL(current, "")+`"`)
@@ -222,7 +223,7 @@ func TestClassEditModeShowsFormForOneRow(t *testing.T) {
 	assert.NotContains(t, body, `value="7Б"`)
 	assert.Contains(t, body, `href="`+classesURL(current, "&amp;edit="+strconv.FormatInt(b, 10))+`"`)
 
-	fragment := get(t, env.handler, classesURL(current, "&inactive=1&edit="+strconv.FormatInt(a, 10)), admin, map[string]string{"HX-Request": "true"})
+	fragment := servertest.Get(t, env.Handler, classesURL(current, "&inactive=1&edit="+strconv.FormatInt(a, 10)), admin, map[string]string{"HX-Request": "true"})
 	assert.Equal(t, http.StatusOK, fragment.Code)
 	assert.NotContains(t, fragment.Body.String(), "<html")
 	assert.Contains(t, fragment.Body.String(), `id="classes"`)
@@ -232,32 +233,32 @@ func TestClassEditModeShowsFormForOneRow(t *testing.T) {
 func TestClassRenameAndValidation(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
-	current := env.school.CurrentYear()
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	current := env.School.CurrentYear()
 
 	id := createClass(t, env, admin, current, "7А")
 	createClass(t, env, admin, current, "7Б")
 
-	renamed := postForm(t, env.handler, classPathFor(id, "?year="+strconv.Itoa(current)), url.Values{"name": {"7В"}}, []*http.Cookie{admin}, nil)
-	assertRedirect(t, renamed, classesURL(current, ""))
+	renamed := servertest.PostForm(t, env.Handler, classPathFor(id, "?year="+strconv.Itoa(current)), url.Values{"name": {"7В"}}, []*http.Cookie{admin}, nil)
+	servertest.AssertRedirect(t, renamed, classesURL(current, ""))
 
-	class, err := env.school.ClassByID(t.Context(), id)
+	class, err := env.School.ClassByID(t.Context(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "7В", class.Name)
 	assert.Equal(t, current, class.Year)
 
-	taken := postForm(t, env.handler, classPathFor(id, "?year="+strconv.Itoa(current)), url.Values{"name": {"7Б"}}, []*http.Cookie{admin}, nil)
+	taken := servertest.PostForm(t, env.Handler, classPathFor(id, "?year="+strconv.Itoa(current)), url.Values{"name": {"7Б"}}, []*http.Cookie{admin}, nil)
 	assert.Equal(t, http.StatusOK, taken.Code)
 	assert.Contains(t, taken.Body.String(), "Такой класс в этом году уже есть")
 	assert.Equal(t, 1, strings.Count(taken.Body.String(), `value="7Б"`))
 	assert.Contains(t, taken.Body.String(), ">7Б</a>")
 
-	blank := postForm(t, env.handler, classPathFor(id, "?year="+strconv.Itoa(current)), url.Values{"name": {""}}, []*http.Cookie{admin}, nil)
+	blank := servertest.PostForm(t, env.Handler, classPathFor(id, "?year="+strconv.Itoa(current)), url.Values{"name": {""}}, []*http.Cookie{admin}, nil)
 	assert.Equal(t, http.StatusOK, blank.Code)
 	assert.Contains(t, blank.Body.String(), "Укажите название")
 
-	class, err = env.school.ClassByID(t.Context(), id)
+	class, err = env.School.ClassByID(t.Context(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "7В", class.Name)
 }
@@ -265,20 +266,20 @@ func TestClassRenameAndValidation(t *testing.T) {
 func TestClassDeactivateHidesButKeepsName(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
-	current := env.school.CurrentYear()
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	current := env.School.CurrentYear()
 	year := strconv.Itoa(current)
 
 	id := createClass(t, env, admin, current, "7А")
 
-	assertRedirect(t, postForm(t, env.handler, classPathFor(id, "/deactivate?year="+year+"&inactive=1"), nil, []*http.Cookie{admin}, nil), classesURL(current, "&inactive=1"))
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, classPathFor(id, "/deactivate?year="+year+"&inactive=1"), nil, []*http.Cookie{admin}, nil), classesURL(current, "&inactive=1"))
 
-	visible := get(t, env.handler, classesURL(current, ""), admin).Body.String()
+	visible := servertest.Get(t, env.Handler, classesURL(current, ""), admin).Body.String()
 	assert.NotContains(t, visible, "7А")
 	assert.Contains(t, visible, "Показать удалённые")
 
-	all := get(t, env.handler, classesURL(current, "&inactive=1"), admin).Body.String()
+	all := servertest.Get(t, env.Handler, classesURL(current, "&inactive=1"), admin).Body.String()
 	assert.Contains(t, all, "7А")
 	assert.Contains(t, all, "удалён")
 	assert.Contains(t, all, "Скрыть удалённые")
@@ -286,16 +287,16 @@ func TestClassDeactivateHidesButKeepsName(t *testing.T) {
 	assert.Contains(t, all, `action="`+classPathFor(id, "/activate?year="+year+"&amp;inactive=1")+`"`)
 	assert.Contains(t, all, `action="`+classesURL(current, "&amp;inactive=1")+`"`)
 
-	card := get(t, env.handler, classPathFor(id, ""), admin).Body.String()
+	card := servertest.Get(t, env.Handler, classPathFor(id, ""), admin).Body.String()
 	assert.Contains(t, card, "удалён")
 
-	duplicate := postForm(t, env.handler, classesURL(current, ""), url.Values{"name": {"7А"}}, []*http.Cookie{admin}, nil)
+	duplicate := servertest.PostForm(t, env.Handler, classesURL(current, ""), url.Values{"name": {"7А"}}, []*http.Cookie{admin}, nil)
 	assert.Equal(t, http.StatusOK, duplicate.Code)
 	assert.Contains(t, duplicate.Body.String(), "Такой класс в этом году уже есть")
 
-	assertRedirect(t, postForm(t, env.handler, classPathFor(id, "/activate?year="+year), nil, []*http.Cookie{admin}, nil), classesURL(current, ""))
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, classPathFor(id, "/activate?year="+year), nil, []*http.Cookie{admin}, nil), classesURL(current, ""))
 
-	class, err := env.school.ClassByID(t.Context(), id)
+	class, err := env.School.ClassByID(t.Context(), id)
 	require.NoError(t, err)
 	assert.True(t, class.Active)
 }
@@ -303,18 +304,18 @@ func TestClassDeactivateHidesButKeepsName(t *testing.T) {
 func TestClassHtmxRequestsGetListFragment(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
-	current := env.school.CurrentYear()
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	current := env.School.CurrentYear()
 	htmx := map[string]string{"HX-Request": "true"}
 
-	created := postForm(t, env.handler, classesURL(current, ""), url.Values{"name": {"7А"}}, []*http.Cookie{admin}, htmx)
+	created := servertest.PostForm(t, env.Handler, classesURL(current, ""), url.Values{"name": {"7А"}}, []*http.Cookie{admin}, htmx)
 	assert.Equal(t, http.StatusOK, created.Code)
 	assert.NotContains(t, created.Body.String(), "<html")
 	assert.Contains(t, created.Body.String(), `id="classes"`)
 	assert.Contains(t, created.Body.String(), ">7А</a>")
 
-	duplicate := postForm(t, env.handler, classesURL(current, ""), url.Values{"name": {"7А"}}, []*http.Cookie{admin}, htmx)
+	duplicate := servertest.PostForm(t, env.Handler, classesURL(current, ""), url.Values{"name": {"7А"}}, []*http.Cookie{admin}, htmx)
 	assert.Equal(t, http.StatusOK, duplicate.Code)
 	assert.NotContains(t, duplicate.Body.String(), "<html")
 	assert.Contains(t, duplicate.Body.String(), "Такой класс в этом году уже есть")
@@ -323,32 +324,32 @@ func TestClassHtmxRequestsGetListFragment(t *testing.T) {
 func TestClassUnknownIDReturnsNotFound(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
 
-	assert.Equal(t, http.StatusNotFound, get(t, env.handler, "/admin/classes/999", admin).Code)
-	assert.Equal(t, http.StatusNotFound, get(t, env.handler, "/admin/classes/abc", admin).Code)
-	assert.Equal(t, http.StatusNotFound, get(t, env.handler, "/admin/classes/new", admin).Code)
-	assert.Equal(t, http.StatusNotFound, postForm(t, env.handler, "/admin/classes/999", url.Values{"name": {"X"}}, []*http.Cookie{admin}, nil).Code)
-	assert.Equal(t, http.StatusNotFound, postForm(t, env.handler, "/admin/classes/999/deactivate", nil, []*http.Cookie{admin}, nil).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/admin/classes/999", admin).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/admin/classes/abc", admin).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/admin/classes/new", admin).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.PostForm(t, env.Handler, "/admin/classes/999", url.Values{"name": {"X"}}, []*http.Cookie{admin}, nil).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.PostForm(t, env.Handler, "/admin/classes/999/deactivate", nil, []*http.Cookie{admin}, nil).Code)
 
-	_, err := env.school.ClassByID(t.Context(), 999)
+	_, err := env.School.ClassByID(t.Context(), 999)
 	assert.ErrorIs(t, err, school.ErrNotFound)
 }
 
 func TestClassesHiddenFromOtherRoles(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	env.createUser(t, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
-	teacher := env.loginAs(t, "teacher")
-	current := env.school.CurrentYear()
+	env := servertest.New(t)
+	env.CreateUser(t, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
+	teacher := env.LoginAs(t, "teacher")
+	current := env.School.CurrentYear()
 
-	assertRedirect(t, get(t, env.handler, "/admin/classes"), "/login")
-	assert.Equal(t, http.StatusNotFound, get(t, env.handler, "/admin/classes", teacher).Code)
-	assert.Equal(t, http.StatusNotFound, postForm(t, env.handler, classesURL(current, ""), url.Values{"name": {"7А"}}, []*http.Cookie{teacher}, nil).Code)
+	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/admin/classes"), "/login")
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/admin/classes", teacher).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.PostForm(t, env.Handler, classesURL(current, ""), url.Values{"name": {"7А"}}, []*http.Cookie{teacher}, nil).Code)
 
-	classes, err := env.school.Classes(t.Context(), current, true)
+	classes, err := env.School.Classes(t.Context(), current, true)
 	require.NoError(t, err)
 	assert.Empty(t, classes)
 }
@@ -356,32 +357,32 @@ func TestClassesHiddenFromOtherRoles(t *testing.T) {
 func TestClassWithStudentsCannotBeDeactivated(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
-	current := env.school.CurrentYear()
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	current := env.School.CurrentYear()
 	year := strconv.Itoa(current)
 
 	id := createClass(t, env, admin, current, "7А")
 
-	student, err := env.auth.CreateUser(t.Context(), auth.NewUser{Role: auth.RoleStudent, FullName: "Козлов Пётр Ильич"})
+	student, err := env.Auth.CreateUser(t.Context(), auth.NewUser{Role: auth.RoleStudent, FullName: "Козлов Пётр Ильич"})
 	require.NoError(t, err)
-	require.NoError(t, env.school.SetStudentClass(t.Context(), student.User.ID, id))
+	require.NoError(t, env.School.SetStudentClass(t.Context(), student.User.ID, id))
 
-	refused := postForm(t, env.handler, classPathFor(id, "/deactivate?year="+year), nil, []*http.Cookie{admin}, nil)
+	refused := servertest.PostForm(t, env.Handler, classPathFor(id, "/deactivate?year="+year), nil, []*http.Cookie{admin}, nil)
 	require.Equal(t, http.StatusOK, refused.Code)
 	assert.Contains(t, refused.Body.String(), "Сначала уберите учеников из класса")
 	assert.Contains(t, refused.Body.String(), "<html")
 
-	class, err := env.school.ClassByID(t.Context(), id)
+	class, err := env.School.ClassByID(t.Context(), id)
 	require.NoError(t, err)
 	assert.True(t, class.Active)
 
-	fragment := postForm(t, env.handler, classPathFor(id, "/deactivate?year="+year), nil, []*http.Cookie{admin},
+	fragment := servertest.PostForm(t, env.Handler, classPathFor(id, "/deactivate?year="+year), nil, []*http.Cookie{admin},
 		map[string]string{"HX-Request": "true"})
 	require.Equal(t, http.StatusOK, fragment.Code)
 	assert.Contains(t, fragment.Body.String(), "Сначала уберите учеников из класса")
 	assert.NotContains(t, fragment.Body.String(), "<html")
 
-	require.NoError(t, env.school.RemoveClassStudent(t.Context(), id, student.User.ID))
-	assertRedirect(t, postForm(t, env.handler, classPathFor(id, "/deactivate?year="+year), nil, []*http.Cookie{admin}, nil), classesURL(current, ""))
+	require.NoError(t, env.School.RemoveClassStudent(t.Context(), id, student.User.ID))
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, classPathFor(id, "/deactivate?year="+year), nil, []*http.Cookie{admin}, nil), classesURL(current, ""))
 }

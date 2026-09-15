@@ -26,11 +26,13 @@ linters:
     rules:
       - path: _test\.go
         linters: [gosec, noctx]
+      - path: internal/server/servertest/
+        linters: [noctx]
       - path: internal/config/config.go
         text: G304
-      - path: internal/server/session.go
+      - path: internal/server/web/session.go
         text: G124
-      - path: internal/server/response.go
+      - path: internal/server/web/render.go
         text: G710
 
 formatters:

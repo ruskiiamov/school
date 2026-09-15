@@ -1,4 +1,4 @@
-package server
+package admin_test
 
 import (
 	"net/http"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/school"
+	"github.com/ruskiiamov/school/internal/server/servertest"
 )
 
 var seededWorkTypes = []string{
@@ -27,10 +28,10 @@ func workTypePath(id int64, suffix string) string {
 	return "/admin/work-types/" + strconv.FormatInt(id, 10) + suffix
 }
 
-func workTypeByName(t *testing.T, env *testEnv, name string) school.WorkType {
+func workTypeByName(t *testing.T, env *servertest.Env, name string) school.WorkType {
 	t.Helper()
 
-	workTypes, err := env.school.WorkTypes(t.Context(), true)
+	workTypes, err := env.School.WorkTypes(t.Context(), true)
 	require.NoError(t, err)
 
 	for _, workType := range workTypes {
@@ -44,10 +45,10 @@ func workTypeByName(t *testing.T, env *testEnv, name string) school.WorkType {
 	return school.WorkType{}
 }
 
-func activeWorkTypeNames(t *testing.T, env *testEnv) []string {
+func activeWorkTypeNames(t *testing.T, env *servertest.Env) []string {
 	t.Helper()
 
-	workTypes, err := env.school.WorkTypes(t.Context(), false)
+	workTypes, err := env.School.WorkTypes(t.Context(), false)
 	require.NoError(t, err)
 
 	names := make([]string, 0, len(workTypes))
@@ -61,10 +62,10 @@ func activeWorkTypeNames(t *testing.T, env *testEnv) []string {
 func TestWorkTypesListShowsSeededTypesInOrder(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
 
-	recorder := get(t, env.handler, "/admin/work-types", admin)
+	recorder := servertest.Get(t, env.Handler, "/admin/work-types", admin)
 	require.Equal(t, http.StatusOK, recorder.Code)
 
 	body := recorder.Body.String()
@@ -89,11 +90,11 @@ func TestWorkTypesListShowsSeededTypesInOrder(t *testing.T) {
 func TestWorkTypeCreateAppendsToEnd(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
 
-	created := postForm(t, env.handler, "/admin/work-types", url.Values{"name": {"Проект"}}, []*http.Cookie{admin}, nil)
-	assertRedirect(t, created, "/admin/work-types")
+	created := servertest.PostForm(t, env.Handler, "/admin/work-types", url.Values{"name": {"Проект"}}, []*http.Cookie{admin}, nil)
+	servertest.AssertRedirect(t, created, "/admin/work-types")
 
 	assert.Equal(t, append(append([]string{}, seededWorkTypes...), "Проект"), activeWorkTypeNames(t, env))
 
@@ -105,25 +106,25 @@ func TestWorkTypeCreateAppendsToEnd(t *testing.T) {
 func TestWorkTypeMoveUpAndDown(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
 
 	control := workTypeByName(t, env, "Контрольная работа")
 	first := workTypeByName(t, env, "Ответ на уроке")
 
-	assertRedirect(t, postForm(t, env.handler, workTypePath(control.ID, "/up"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, workTypePath(control.ID, "/up"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
 	assert.Equal(t, []string{
 		"Ответ на уроке", "Классная работа", "Контрольная работа", "Самостоятельная работа",
 		"Домашняя работа (письменная)", "Домашняя работа (устная)",
 	}, activeWorkTypeNames(t, env))
 
-	assertRedirect(t, postForm(t, env.handler, workTypePath(first.ID, "/up"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, workTypePath(first.ID, "/up"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
 	assert.Equal(t, "Ответ на уроке", activeWorkTypeNames(t, env)[0])
 
-	assertRedirect(t, postForm(t, env.handler, workTypePath(first.ID, "/down"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, workTypePath(first.ID, "/down"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
 	assert.Equal(t, []string{"Классная работа", "Ответ на уроке"}, activeWorkTypeNames(t, env)[:2])
 
-	workTypes, err := env.school.WorkTypes(t.Context(), true)
+	workTypes, err := env.School.WorkTypes(t.Context(), true)
 	require.NoError(t, err)
 
 	for i, workType := range workTypes {
@@ -134,21 +135,21 @@ func TestWorkTypeMoveUpAndDown(t *testing.T) {
 func TestWorkTypeMoveSkipsInactiveNeighbour(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
 
 	classwork := workTypeByName(t, env, "Классная работа")
 	independent := workTypeByName(t, env, "Самостоятельная работа")
 
-	assertRedirect(t, postForm(t, env.handler, workTypePath(classwork.ID, "/deactivate"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
-	assertRedirect(t, postForm(t, env.handler, workTypePath(independent.ID, "/up"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, workTypePath(classwork.ID, "/deactivate"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, workTypePath(independent.ID, "/up"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
 
 	assert.Equal(t, []string{"Самостоятельная работа", "Ответ на уроке"}, activeWorkTypeNames(t, env)[:2])
 
-	assertRedirect(t, postForm(t, env.handler, workTypePath(classwork.ID, "/up"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, workTypePath(classwork.ID, "/up"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
 	assert.Equal(t, []string{"Самостоятельная работа", "Ответ на уроке"}, activeWorkTypeNames(t, env)[:2])
 
-	body := get(t, env.handler, "/admin/work-types?inactive=1", admin).Body.String()
+	body := servertest.Get(t, env.Handler, "/admin/work-types?inactive=1", admin).Body.String()
 	assert.NotContains(t, body, `formaction="`+workTypePath(classwork.ID, "/up?inactive=1")+`"`)
 	assert.Contains(t, body, `action="`+workTypePath(classwork.ID, "/activate?inactive=1")+`"`)
 }
@@ -156,19 +157,19 @@ func TestWorkTypeMoveSkipsInactiveNeighbour(t *testing.T) {
 func TestWorkTypeRenameAndValidation(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
 
 	workType := workTypeByName(t, env, "Классная работа")
 
-	editing := get(t, env.handler, "/admin/work-types?edit="+strconv.FormatInt(workType.ID, 10), admin).Body.String()
+	editing := servertest.Get(t, env.Handler, "/admin/work-types?edit="+strconv.FormatInt(workType.ID, 10), admin).Body.String()
 	assert.Contains(t, editing, `value="Классная работа"`)
 	assert.Equal(t, 1, strings.Count(editing, `aria-label="Название типа работы"`))
 
-	updated := postForm(t, env.handler, workTypePath(workType.ID, ""), url.Values{"name": {"Работа в классе"}}, []*http.Cookie{admin}, nil)
-	assertRedirect(t, updated, "/admin/work-types")
+	updated := servertest.PostForm(t, env.Handler, workTypePath(workType.ID, ""), url.Values{"name": {"Работа в классе"}}, []*http.Cookie{admin}, nil)
+	servertest.AssertRedirect(t, updated, "/admin/work-types")
 
-	changed, err := env.school.WorkTypeByID(t.Context(), workType.ID)
+	changed, err := env.School.WorkTypeByID(t.Context(), workType.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Работа в классе", changed.Name)
 	assert.Equal(t, 20, changed.SortOrder)
@@ -184,7 +185,7 @@ func TestWorkTypeRenameAndValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			recorder := postForm(t, env.handler, workTypePath(workType.ID, ""), tt.form, []*http.Cookie{admin}, nil)
+			recorder := servertest.PostForm(t, env.Handler, workTypePath(workType.ID, ""), tt.form, []*http.Cookie{admin}, nil)
 			assert.Equal(t, http.StatusOK, recorder.Code)
 			assert.Contains(t, recorder.Body.String(), tt.message)
 			assert.Contains(t, recorder.Body.String(), `value="`+tt.form.Get("name")+`"`)
@@ -193,7 +194,7 @@ func TestWorkTypeRenameAndValidation(t *testing.T) {
 		})
 	}
 
-	unchanged, err := env.school.WorkTypeByID(t.Context(), workType.ID)
+	unchanged, err := env.School.WorkTypeByID(t.Context(), workType.ID)
 	require.NoError(t, err)
 	assert.Equal(t, changed, unchanged)
 }
@@ -201,24 +202,24 @@ func TestWorkTypeRenameAndValidation(t *testing.T) {
 func TestWorkTypeDeactivateAndActivate(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	admin := login(t, env.handler)
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
 
 	workType := workTypeByName(t, env, "Домашняя работа (устная)")
 
-	assertRedirect(t, postForm(t, env.handler, workTypePath(workType.ID, "/deactivate"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, workTypePath(workType.ID, "/deactivate"), nil, []*http.Cookie{admin}, nil), "/admin/work-types")
 
-	visible := get(t, env.handler, "/admin/work-types", admin).Body.String()
+	visible := servertest.Get(t, env.Handler, "/admin/work-types", admin).Body.String()
 	assert.NotContains(t, visible, "Домашняя работа (устная)")
 
-	all := get(t, env.handler, "/admin/work-types?inactive=1", admin).Body.String()
+	all := servertest.Get(t, env.Handler, "/admin/work-types?inactive=1", admin).Body.String()
 	assert.Contains(t, all, "Домашняя работа (устная)")
 	assert.Contains(t, all, "удалён")
 
-	reused := postForm(t, env.handler, "/admin/work-types", url.Values{"name": {"Домашняя работа (устная)"}}, []*http.Cookie{admin}, nil)
-	assertRedirect(t, reused, "/admin/work-types")
+	reused := servertest.PostForm(t, env.Handler, "/admin/work-types", url.Values{"name": {"Домашняя работа (устная)"}}, []*http.Cookie{admin}, nil)
+	servertest.AssertRedirect(t, reused, "/admin/work-types")
 
-	conflict := postForm(t, env.handler, workTypePath(workType.ID, "/activate?inactive=1"), nil, []*http.Cookie{admin}, nil)
+	conflict := servertest.PostForm(t, env.Handler, workTypePath(workType.ID, "/activate?inactive=1"), nil, []*http.Cookie{admin}, nil)
 	assert.Equal(t, http.StatusOK, conflict.Code)
 	assert.Contains(t, conflict.Body.String(), "уже есть среди активных")
 
@@ -228,18 +229,18 @@ func TestWorkTypeDeactivateAndActivate(t *testing.T) {
 func TestWorkTypesHiddenFromOtherRoles(t *testing.T) {
 	t.Parallel()
 
-	env := newTestEnv(t)
-	env.createUser(t, auth.RoleStudent, "student", "Козлов Пётр Ильич")
-	student := env.loginAs(t, "student")
-	admin := login(t, env.handler)
+	env := servertest.New(t)
+	env.CreateUser(t, auth.RoleStudent, "student", "Козлов Пётр Ильич")
+	student := env.LoginAs(t, "student")
+	admin := servertest.Login(t, env.Handler)
 
 	first := workTypeByName(t, env, seededWorkTypes[0])
 
-	assertRedirect(t, get(t, env.handler, "/admin/work-types"), "/login")
-	assert.Equal(t, http.StatusNotFound, get(t, env.handler, "/admin/work-types", student).Code)
-	assert.Equal(t, http.StatusNotFound, postForm(t, env.handler, "/admin/work-types", url.Values{"name": {"Проект"}}, []*http.Cookie{student}, nil).Code)
-	assert.Equal(t, http.StatusNotFound, postForm(t, env.handler, workTypePath(first.ID, "/down"), nil, []*http.Cookie{student}, nil).Code)
-	assert.Equal(t, http.StatusNotFound, postForm(t, env.handler, "/admin/work-types/999/up", nil, []*http.Cookie{admin}, nil).Code)
+	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/admin/work-types"), "/login")
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/admin/work-types", student).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.PostForm(t, env.Handler, "/admin/work-types", url.Values{"name": {"Проект"}}, []*http.Cookie{student}, nil).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.PostForm(t, env.Handler, workTypePath(first.ID, "/down"), nil, []*http.Cookie{student}, nil).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.PostForm(t, env.Handler, "/admin/work-types/999/up", nil, []*http.Cookie{admin}, nil).Code)
 
 	assert.Equal(t, seededWorkTypes, activeWorkTypeNames(t, env))
 }
