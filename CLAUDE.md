@@ -9,10 +9,10 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 (standalone-бинарник, без npm), данные — SQLite через `modernc.org/sqlite`.
 
 Интерфейс полностью на русском; вёрстка должна быть одинаково пригодна на телефоне
-и на десктопе. Готовы итерации 1 (вход, дашборд) и 2 (справочники админа);
-следующая — 3, журнал учителя, см. `docs/roadmap.md`. Меню строится по роли в
-`view.NavItems(role, active)`; пункты «Журнал» и «Дневник» пока заглушки
-(`server/stub.go`).
+и на десктопе. Готовы итерации 1 (вход, дашборд), 2 (справочники админа) и
+3 (журнал учителя); следующая — 4, дневник ученика и родителя, см.
+`docs/roadmap.md`. Меню строится по роли в `view.NavItems(role, active)`;
+пункт «Дневник» пока заглушка (`server/stub.go`).
 
 ## Проектные документы
 
@@ -53,23 +53,26 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 ## Архитектура
 
 Зависимости идут строго в одну сторону: `cmd/server` → `internal/app` →
-`internal/server` → {`server/admin`, `server/account`} → `server/web` →
-{`internal/auth`, `internal/school`} → `internal/storage`.
-`auth` и `school` друг о друге не знают; `internal/view` не знает ни о `server`,
-ни о сервисах; `storage` не знает о HTTP.
+`internal/server` → {`server/admin`, `server/account`, `server/journal`} →
+`server/web` → {`internal/auth`, `internal/school`, `internal/journal`} →
+`internal/storage`. `auth`, `school` и `journal` друг о друге не знают;
+`internal/view` не знает ни о `server`, ни о сервисах; `storage` не знает о
+HTTP.
 
 - `cmd/server/main.go` — флаг `-config` (или `CONFIG_PATH`), логгер, `signal.NotifyContext`,
   порядок закрытия ресурсов.
 - `internal/app` — единственное место сборки зависимостей: открыть БД, применить
-  миграции, создать `auth.Service`, гарантировать админа, собрать `http.Server`.
-  `Run` держит три горутины в `errgroup`: сервер, уборка сессий, graceful shutdown
-  по `ctx`.
+  миграции, создать сервисы, гарантировать админа, собрать `http.Server`.
+  `Run` держит четыре горутины в `errgroup`: сервер, уборка сессий
+  (`session.cleanup_interval`), уборка осиротевших строк журнала
+  (`journal.cleanup_interval`, `journal.RunCleanup`), graceful shutdown по `ctx`.
 - `internal/config` — YAML с дефолтами в `Load` и списком проверок в `validate`
   (все ошибки собираются через `errors.Join`). Профилей окружения (`app.env`,
   `dev`/`prod`) нет и не вводить: каждое поведение — отдельное явное поле конфига.
   `timezone` проверяется через `time.LoadLocation` и отдаётся как `Config.Location`;
   `cmd/server` импортирует `time/tzdata`, чтобы статический бинарник не зависел
   от системных zoneinfo. `school.year_start_month` — номер месяца (1–12), год начинается с его первого числа.
+  `journal.cleanup_interval` — период уборки осиротевших строк журнала.
 - `internal/server` — корень HTTP (D-057): `Server` держит `*web.Base`, сервисы и
   обработчики подпакетов. `Handler()` собирает два `http.ServeMux`: внешний со
   служебными маршрутами (статика, `/healthz`) и внутренний `pages()` с маршрутами
@@ -79,7 +82,7 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
   `requestID` снаружи всего, потому что логгер — `contextHandler`, который достаёт
   `request_id` из контекста; `recoverPanic` внутри `logRequests`, чтобы паника попала
   в лог запроса. В корне остались middleware (`middleware.go`), дашборд (`home.go`)
-  и заглушки «Журнал»/«Дневник» (`stub.go`); `pages()` регистрирует их и зовёт
+  и заглушка «Дневник» (`stub.go`); `pages()` регистрирует их и зовёт
   `Routes(mux)` подпакетов — так все страницы логируются автоматически;
   служебные маршруты без access-лога — на внешнем mux.
   - `server/web` — общий инструментарий страниц, единственное место, где HTTP
@@ -88,22 +91,32 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
     (`ErrNotFound` → 404), `Authenticate`, `SessionID`, `SetSessionCookie`,
     `ClearSessionCookie`, `RequireAuth`; свободные `Redirect`, `IsHTMX`,
     `RequireRole`, `PathID`, `PathValue`, `FormValue`, `FormInt64`,
-    `FormErrors`, `UserFromContext`. Обработчиков в `web` нет и не добавлять.
+    `FormErrors`, `UserFromContext`. `HandleServiceError` превращает в 404
+    `ErrNotFound` всех трёх сервисов и `journal.ErrForbidden`. Обработчиков
+    в `web` нет и не добавлять.
   - `server/admin` — всё под `/admin`: `Handler` (`handler.go`: `New`,
     `Routes`, обёртка `h.admin(fn)` = `RequireAuth` + `RequireRole(admin)`,
     `activeUser`), по файлу на раздел (`classes.go`, `class_card.go`,
     `subjects.go`, `work_types.go`, `users.go`, `parent_children.go`,
-    `password_reset.go`), общие для строчных списков `catalog.go` (`rowEdit`,
-    `editingID`, `catalogListURL`) и одноразовые пароли `created.go`.
+    `password_reset.go`, `substitutions.go`), общие для строчных списков
+    `catalog.go` (`rowEdit`, `editingID`, `catalogListURL`) и одноразовые
+    пароли `created.go`.
   - `server/account` — вход, выход и свой пароль (`login.go`, `password.go`);
     `Routes` сам оборачивает `/account/password` в `RequireAuth` +
     `RequireRole` трёх ролей.
+  - `server/journal` — журнал учителя под `/journal`: `handler.go` (`New`,
+    `Routes`, обёртка `h.teacher(fn)`, форма пары и последние уроки),
+    `lesson.go` (страница урока, тема, удаление, `renderLesson` с режимами
+    `renderPage`/`renderTopic`/`renderBlock`), `marks.go` (оценки и сборка
+    блока `#lesson`: `lessonBlock`, `studentPanel`, `markFields`),
+    `records.go` (отсутствие и комментарий). Год и «сегодня» берёт из
+    `school` (`CurrentYear`, `Today`) и передаёт в `journal` параметрами.
   - `server/servertest` — окружение для тестов (см. «Как добавить страницу»).
   Маршруты для одной роли — `base.RequireAuth(web.RequireRole(role...)(h))`
   на каждом маршруте внутри своего пакета: аноним уходит на `/login`, чужая
-  роль получает 404 (не 403) — образец `/journal` и `/diary` в `pages()`.
-  Журнал и дневник итераций 3–4 — свои подпакеты рядом с `admin` и
-  `account`, заглушки из корня тогда удаляются.
+  роль получает 404 (не 403) — образец `/diary` в `pages()` и `h.teacher`
+  в `server/journal`. Дневник итерации 4 — свой подпакет рядом, заглушка
+  из корня тогда удаляется.
 - `internal/auth` — сервисный слой: логин/логаут/аутентификация, bcrypt, серверные
   сессии, роли, управление пользователями (`users.go`: создание с генерацией
   логина `login.go` и пароля `password.go`, правка, смена пароля и
@@ -114,20 +127,37 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
   (`users.active = 0`) не входит и теряет сессию при следующем запросе.
 - `internal/school` — справочники: предметы (`subject.go`), типы работ
   (`work_type.go`), классы (`class.go`), состав класса (`student.go`),
-  нагрузка (`assignment.go`), дети родителя (`parent.go`), счётчики
-  дашборда (`stats.go`), общая проверка названий (`name.go`). Держит
-  конкретные `*storage.*Repo`. Учебный год — не сущность (D-042):
-  `Service.CurrentYear()` (`year.go`) считает его по «сегодня» в `Location`
-  и месяцу `year_start_month`, имя даёт `school.YearName`. «Не найдено» —
-  `school.ErrNotFound`; ошибки ввода — `validation.Errors` (D-041), тексты
-  сообщений — константы `msg*` рядом с проверкой (в `school`, в `auth`, а
-  для роли и активности пользователя из формы — в `server`).
-- `internal/validation` — `Errors map[string]string` (реализует `error`) и
-  `NormalizeSpaces`, общие для `auth` и `school`.
+  нагрузка (`assignment.go`), замены (`substitution.go`), дети родителя
+  (`parent.go`), счётчики дашборда (`stats.go`), общая проверка названий
+  (`name.go`). Держит конкретные `*storage.*Repo`. Учебный год — не
+  сущность (D-042): `Service.CurrentYear()` (`year.go`) считает его по
+  «сегодня» в `Location` и месяцу `year_start_month`, имя даёт
+  `school.YearName`; `Service.Today()` — календарная дата «сегодня» в
+  UTC-полночь (`DateOf`). «Не найдено» — `school.ErrNotFound`; ошибки
+  ввода — `validation.Errors` (D-041), тексты сообщений — константы `msg*`
+  рядом с проверкой (в `school`, `auth`, `journal`, а для роли и
+  активности пользователя из формы — в `server`).
+- `internal/journal` — журнал: пары «класс, предмет» учителя из нагрузки и
+  действующих замен (`pair.go`), уроки с правами D-031 (`lesson.go`:
+  `OpenLesson` создаёт или открывает, `LessonForTeacher`, `UpdateTopic`,
+  `DeleteLesson` только пустой, `RecentLessons`), оценки и список учеников
+  урока по D-023 (`mark.go`: `LessonStudents`, `AddMark`/`UpdateMark`/
+  `DeleteMark`), записи об уроке (`record.go`: `SaveRecord`, пустая запись
+  удаляет строку), уборка осиротевших строк (`cleanup.go`). Времени не
+  считает: год и «сегодня» приходят параметрами (Q-31 → D-058). Держит свои
+  `*storage.*Repo`; ФИО учеников не знает — их подставляет обработчик из
+  `auth.Users`. «Нет доступа» — `journal.ErrForbidden`, «не найдено» —
+  `journal.ErrNotFound`; обработчик на оба отвечает 404.
+- `internal/validation` — `Errors map[string]string` (реализует `error`),
+  `NormalizeSpaces`, `ParseDate`/`DateLayout` (`YYYY-MM-DD`, как у
+  `<input type="date">`), общие для `auth`, `school` и `journal`.
 - `internal/storage` — репозитории на `database/sql`, `ErrNotFound` вместо
   `sql.ErrNoRows` наружу, миграции goose из `embed.FS`. Транзакции — внутри
   одного метода репозитория: все запросы через `tx`, потому что при
   `SetMaxOpenConns(1)` обращение к `db` изнутри транзакции повиснет.
+  Календарные даты — `TEXT` `YYYY-MM-DD` через `toDate`/`fromDate`
+  (`time.go`), открытый конец замены — NULL (`toNullDate`); в Go —
+  `time.Time` в UTC-полночь.
 - `internal/view` — view-модели (`models.go`), данные для них (`data.go`), форматирование
   (`format.go`); templ-шаблоны в `layout/`, `pages/`, `components/`; статика в
   `static/` через `embed.FS`.
@@ -242,6 +272,23 @@ cookie). Ошибка: полная страница с введёнными з�
 и баннер `NoClasses`; остальным — `view.SectionItem(role)` карточкой.
 Константы с «password» в имени ловит gosec G101 — называть по полю
 (`msgNewTooShort`).
+
+**Журнал учителя (D-058, D-059).** `/journal`: один `<select name="pair">`
+со значением `{class}-{subject}` (`pairValue`/`parsePair`) и дата (по
+умолчанию `school.Today()`), «Открыть» → `OpenLesson` → редирект на
+`/journal/lessons/{id}`; под формой последние 15 видимых уроков. Страница
+урока: тема — форма `#lesson-topic` (HTMX подменяет только её), блок
+`#lesson` — слева ученики (на телефоне чипы с `view.ShortName`, на
+десктопе колонка с ФИО) с краткими отметками («5, 4 · Н»), справа панель
+выбранного `?student={id}` (неизвестный — первый по ФИО): оценки с правкой
+в строке `?mark={id}`, форма «Поставить», форма отсутствия и комментария;
+у ученика «не в классе» форм нет, но оценки правятся и удаляются. Все
+действия панели отвечают HTMX фрагментом `#lesson`, без JS — редирект на
+`?student={sid}`; ссылки учеников — `hx-get` + `hx-push-url`. Кнопка
+«Удалить урок» только у пустого; ошибка удаления — `components.Alert`.
+Замены (`admin/substitutions.go`) — строчный паттерн с `?ended=1` и
+правкой только дат; учителя проверяет `activeUser`, класс и предмет —
+`school.CreateSubstitution`.
 
 **HTMX и редиректы.** `web.Redirect` сам отличает HTMX-запрос (`web.IsHTMX`) и отвечает
 `HX-Redirect` + 204 вместо 303. Обработчики, отвечающие и фрагментом, и целой
