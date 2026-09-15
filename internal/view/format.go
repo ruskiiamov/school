@@ -33,6 +33,18 @@ func FormatDate(t time.Time) string {
 	return fmt.Sprintf("%s, %d %s %d", weekdays[t.Weekday()], t.Day(), monthsGenitive[t.Month()-1], t.Year())
 }
 
+func FormatShortDate(t time.Time) string {
+	return t.Format("02.01.2006")
+}
+
+func FormatPeriod(start, end time.Time) string {
+	if end.IsZero() {
+		return FormatShortDate(start) + " — до отмены"
+	}
+
+	return FormatShortDate(start) + " — " + FormatShortDate(end)
+}
+
 func RoleTitle(role string) string {
 	if title, ok := roleTitles[role]; ok {
 		return title

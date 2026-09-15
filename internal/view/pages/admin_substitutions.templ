@@ -1,0 +1,124 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+const (
+	substitutionsBase   = "/admin/substitutions"
+	substitutionsTarget = "#substitutions"
+)
+
+templ Substitutions(page view.SubstitutionsPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader("Замены") {
+				if page.ShowEnded {
+					<a href={ templ.SafeURL(endedToggleURL(page.ShowEnded)) } class="text-sm font-medium text-indigo-700 hover:underline">Скрыть завершённые</a>
+				} else {
+					<a href={ templ.SafeURL(endedToggleURL(page.ShowEnded)) } class="text-sm font-medium text-indigo-700 hover:underline">Показать завершённые</a>
+				}
+			}
+			@SubstitutionsList(page)
+		</div>
+	}
+}
+
+templ SubstitutionsList(page view.SubstitutionsPage) {
+	<div id="substitutions" class="flex flex-col gap-4 lg:gap-6">
+		if page.CanCreate {
+			<form
+				method="post"
+				action={ templ.SafeURL(substitutionURL(0, "", page.ShowEnded)) }
+				hx-post={ substitutionURL(0, "", page.ShowEnded) }
+				hx-target={ substitutionsTarget }
+				hx-swap="outerHTML"
+				class={ components.CardClass, "flex flex-wrap items-start gap-2 p-3 sm:p-4" }
+			>
+				@components.RowSelect("class_id", "Класс", page.New.Classes, page.New.Errors["class"], "flex-1 basis-32")
+				@components.RowSelect("subject_id", "Предмет", page.New.Subjects, page.New.Errors["subject"], "flex-1 basis-44")
+				@components.RowSelect("teacher_id", "Учитель", page.New.Teachers, page.New.Errors["teacher"], "flex-1 basis-56")
+				@components.RowDate("start_date", page.New.StartDate, "Дата начала", page.New.Errors["start_date"], "flex-1 basis-40")
+				@components.RowDate("end_date", page.New.EndDate, "Дата окончания", page.New.Errors["end_date"], "flex-1 basis-40")
+				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>
+					@components.Icon(view.IconPlus, "size-4")
+					<span>Добавить</span>
+				</button>
+			</form>
+		} else {
+			<div class={ components.CardClass, "p-3 sm:p-4" }>
+				<span class="text-sm text-slate-500">Нужны активные классы текущего года, предметы и учителя</span>
+			</div>
+		}
+		<div class={ components.CardClass }>
+			if len(page.Substitutions) == 0 {
+				@components.EmptyState("Пока нет замен")
+			} else {
+				<ul class="divide-y divide-slate-100">
+					for _, row := range page.Substitutions {
+						@substitutionRow(row, page.ShowEnded)
+					}
+				</ul>
+			}
+		</div>
+	</div>
+}
+
+templ substitutionRow(row view.SubstitutionRow, showEnded bool) {
+	<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+		<span class="flex min-w-0 basis-full flex-wrap items-center gap-x-2 gap-y-1 sm:flex-1 sm:basis-auto">
+			<span class="text-sm font-medium text-slate-900">{ row.Class }</span>
+			<span class="text-sm text-slate-900">{ row.Subject }</span>
+			if !row.SubjectActive {
+				@components.InactiveBadge()
+			}
+			<span class="text-sm text-slate-600">{ row.Teacher }</span>
+			if !row.TeacherActive {
+				@components.InactiveBadge()
+			}
+			if !row.Editing {
+				if row.Ended {
+					<span class="text-sm text-slate-500">{ row.Period }</span>
+					<span class="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">завершена</span>
+				} else {
+					<span class="text-sm text-slate-600">{ row.Period }</span>
+				}
+			}
+		</span>
+		if row.Editing {
+			<form
+				method="post"
+				action={ templ.SafeURL(substitutionURL(row.ID, "", showEnded)) }
+				hx-post={ substitutionURL(row.ID, "", showEnded) }
+				hx-target={ substitutionsTarget }
+				hx-swap="outerHTML"
+				class="flex basis-full flex-wrap items-start gap-2"
+			>
+				@components.RowDate("start_date", row.Fields.StartDate, "Дата начала", row.Fields.Errors["start_date"], "flex-1 basis-40")
+				@components.RowDate("end_date", row.Fields.EndDate, "Дата окончания", row.Fields.Errors["end_date"], "flex-1 basis-40")
+				<span class="ml-auto flex flex-wrap items-center gap-2">
+					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
+					<a href={ templ.SafeURL(substitutionURL(0, "", showEnded)) } hx-get={ substitutionURL(0, "", showEnded) } hx-target={ substitutionsTarget } hx-swap="outerHTML" class={ components.ButtonSecondaryClass }>Отмена</a>
+				</span>
+			</form>
+		} else {
+			<span class="ml-auto flex flex-wrap items-center gap-2">
+				@components.EditLink(substitutionEditURL(row.ID, showEnded), substitutionsTarget)
+				<form
+					method="post"
+					action={ templ.SafeURL(substitutionURL(row.ID, "/delete", showEnded)) }
+					hx-post={ substitutionURL(row.ID, "/delete", showEnded) }
+					hx-target={ substitutionsTarget }
+					hx-swap="outerHTML"
+					hx-confirm={ "Удалить замену " + row.Teacher + ", " + row.Class + " · " + row.Subject + "?" }
+					data-confirm-ok="Удалить"
+				>
+					<button type="submit" class={ components.ButtonDangerClass }>Удалить</button>
+				</form>
+			</span>
+			@components.FieldError(row.Fields.Errors["start_date"])
+		}
+	</li>
+}

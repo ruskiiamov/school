@@ -66,3 +66,33 @@ func userEditURL(path, query string, id int64) string {
 
 	return path + query + "&" + edit
 }
+
+func substitutionURL(id int64, suffix string, showEnded bool) string {
+	url := substitutionsBase
+	if id != 0 {
+		url += "/" + strconv.FormatInt(id, 10) + suffix
+	}
+
+	if showEnded {
+		url += "?ended=1"
+	}
+
+	return url
+}
+
+func substitutionEditURL(id int64, showEnded bool) string {
+	url := substitutionsBase + "?edit=" + strconv.FormatInt(id, 10)
+	if showEnded {
+		url += "&ended=1"
+	}
+
+	return url
+}
+
+func endedToggleURL(showEnded bool) string {
+	if showEnded {
+		return substitutionsBase
+	}
+
+	return substitutionsBase + "?ended=1"
+}

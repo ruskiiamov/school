@@ -53,6 +53,11 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST "+passwordResetPath+"/{id}", h.admin(h.passwordReset))
 	mux.Handle("GET "+passwordResetPath+"/{id}/created", h.admin(h.passwordResetCreated))
 
+	mux.Handle("GET "+substitutionsPath, h.admin(h.substitutionsList))
+	mux.Handle("POST "+substitutionsPath, h.admin(h.substitutionCreate))
+	mux.Handle("POST "+substitutionsPath+"/{id}", h.admin(h.substitutionUpdate))
+	mux.Handle("POST "+substitutionsPath+"/{id}/delete", h.admin(h.substitutionDelete))
+
 	mux.Handle("GET "+subjectsPath, h.admin(h.subjectsList))
 	mux.Handle("POST "+subjectsPath, h.admin(h.subjectCreate))
 	mux.Handle("POST "+subjectsPath+"/{id}", h.admin(h.subjectUpdate))
