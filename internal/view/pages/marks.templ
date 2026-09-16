@@ -1,0 +1,80 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+const marksTarget = "#marks"
+
+templ Marks(page view.MarksPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader(page.Title) {
+				if page.BackHref != "" {
+					<a href={ templ.SafeURL(page.BackHref) } class={ components.ButtonSecondaryClass }>К дневнику</a>
+				}
+			}
+			@MarksContent(page)
+		</div>
+	}
+}
+
+templ MarksContent(page view.MarksPage) {
+	<div id="marks" class="flex flex-col gap-4 lg:gap-6">
+		if page.NoChildren {
+			<div class={ components.CardClass }>
+				@components.EmptyState("К вашему аккаунту не привязаны дети")
+			</div>
+		} else {
+			if len(page.Children) > 0 {
+				<nav aria-label="Дети" class="flex flex-wrap gap-2">
+					for _, child := range page.Children {
+						@diaryLinkTo(child.Href, child.Name, child.Active, marksTarget)
+					}
+				</nav>
+			}
+			<form
+				method="get"
+				action={ templ.SafeURL(page.Path) }
+				hx-get={ page.Path }
+				hx-target={ marksTarget }
+				hx-swap="outerHTML"
+				hx-trigger="submit, change"
+				hx-push-url="true"
+				class={ components.CardClass, "flex flex-wrap items-start gap-2 p-3 sm:p-4" }
+			>
+				for name, value := range page.Hidden {
+					<input type="hidden" name={ name } value={ value }/>
+				}
+				@components.PeriodFields(page.Period)
+				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Показать</button>
+				@components.PeriodNav(page.Period, marksTarget)
+			</form>
+			<p class="text-sm font-semibold text-slate-900">{ page.Period.Label }</p>
+			<section class={ components.CardClass }>
+				if len(page.Subjects) == 0 {
+					@components.EmptyState("Оценок за период нет")
+				} else {
+					<ul class="divide-y divide-slate-100">
+						for _, subject := range page.Subjects {
+							<li class="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
+								<span class="text-sm font-medium text-slate-900 sm:w-44 sm:shrink-0">{ subject.Name }</span>
+								<span class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+									for _, mark := range subject.Marks {
+										<a href={ templ.SafeURL(mark.Href) } title={ mark.Title } class="inline-flex size-9 items-center justify-center rounded-lg bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100">{ mark.Value }</a>
+									}
+								</span>
+								<span class="flex shrink-0 items-center gap-4 text-sm">
+									<span class="text-slate-600">Н: { subject.Absences }</span>
+									<span class="font-semibold text-slate-900">Средний: { subject.Average }</span>
+								</span>
+							</li>
+						}
+					</ul>
+				}
+			</section>
+		}
+	</div>
+}

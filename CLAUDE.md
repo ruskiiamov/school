@@ -10,8 +10,8 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 
 Интерфейс полностью на русском; вёрстка должна быть одинаково пригодна на телефоне
 и на десктопе. Готовы итерации 1 (вход, дашборд), 2 (справочники админа),
-3 (журнал учителя), 4 (дневник) и 5 (домашнее задание); следующая — 6,
-сводные представления, см. `docs/roadmap.md`. Меню строится по роли в
+3 (журнал учителя), 4 (дневник), 5 (домашнее задание) и 6 (сводные
+представления); следующая — 7, перевод классов, см. `docs/roadmap.md`. Меню строится по роли в
 `view.NavItems(role, active)`; заглушек больше нет.
 
 ## Проектные документы
@@ -97,7 +97,10 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
     (`ErrNotFound` → 404), `Authenticate`, `SessionID`, `SetSessionCookie`,
     `ClearSessionCookie`, `RequireAuth`; свободные `Redirect`, `IsHTMX`,
     `RequireRole`, `PathID`, `PathValue`, `FormValue`, `FormInt64`,
-    `FormErrors`, `UserFromContext`. `HandleServiceError` превращает в 404
+    `FormErrors`, `UserFromContext`; период сводок — `Period`,
+    `ParsePeriod(r, today, min, max)` (две даты `from`/`to`, по умолчанию
+    месяц «сегодня», зажим в границы года), `PeriodForm` строит
+    `view.PeriodForm` с ссылками по месяцам (`period.go`). `HandleServiceError` превращает в 404
     `ErrNotFound` всех трёх сервисов и `journal.ErrForbidden`. Обработчиков
     в `web` нет и не добавлять.
   - `server/admin` — всё под `/admin`: `Handler` (`handler.go`: `New`,
@@ -114,7 +117,9 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
     `Routes`, обёртка `h.teacher(fn)`, форма пары и последние уроки),
     `lesson.go` (страница урока, тема, удаление, `renderLesson` с режимами
     `renderPage`/`renderTopic`/`renderBlock`/`renderActions`/`renderRecord`/
-    `renderHomework`), `marks.go` (оценки и сборка
+    `renderHomework`), `summary.go` (`/journal/summary` учителя и
+    `/admin/journal/summary` админа: `pairOptions`, `gridView` с ссылкой на
+    урок через параметр, `cellText`), `marks.go` (оценки и сборка
     блока `#lesson`: `lessonBlock`, `studentPanel`, `markFields`),
     `records.go` (отсутствие и комментарий), `homework.go` (ДЗ: текст и
     срок, потоковая загрузка файлов через `r.MultipartReader` с
@@ -126,11 +131,15 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
     `lessonStudentItem` общий с учителем). Год и «сегодня» берёт из
     `school` (`CurrentYear`, `Today`) и передаёт в `journal` параметрами.
   - `server/diary` — дневник: `handler.go` (`/diary` для ученика и
-    родителя: `index`, `parentDiary` с вкладками детей, общий
-    `renderDiary(diaryView)` и `diaryURL`, который тянет скрытые параметры
-    `child`/`q` через все ссылки), `admin.go` (`/admin/diary?q=` поиск
-    ученика и `/admin/diary/{id}` тот же дневник, D-061 — исключение из
-    «всё под `/admin` в `admin`»). Только чтение, фрагмент `#diary`.
+    родителя: `index`, `parentDiary` с вкладками детей через `selectChild`
+    (404 на чужого ребёнка), общий `renderDiary(diaryView)` и `diaryURL`,
+    который тянет скрытые параметры `child`/`q` через все ссылки),
+    `admin.go` (`/admin/diary?q=` поиск ученика и `/admin/diary/{id}` тот
+    же дневник, `adminStudent` — 404 не ученику; D-061 — исключение из
+    «всё под `/admin` в `admin`»), `summary.go` (`/diary/summary` и
+    `/admin/diary/{id}/summary` — оценки по предметам за период,
+    `renderMarks`, чипы оценок ведут на день дневника). Только чтение,
+    фрагменты `#diary` и `#marks`.
   - `server/files` — `GET /files/{id}`: скачивание файла ДЗ для всех ролей
     с проверкой доступа в обработчике (`allowed`: админ всегда, учитель —
     `LessonForTeacher`, ученик — `LessonVisibleToStudent`, родитель — через
@@ -171,7 +180,10 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
   `DeleteMark`), записи об уроке (`record.go`: `SaveRecord`, пустая запись
   удаляет строку), уборка осиротевших строк (`cleanup.go`), чтение для
   дневника (`diary.go`: `DayLessons` — уроки дня ученика с его оценками,
-  отсутствием, комментарием и ДЗ), домашнее задание (`homework.go`:
+  отсутствием, комментарием и ДЗ), сводки (`summary.go`: `TeacherGrid`
+  по видимым учителю урокам пары, `PairGrid` для админа, `StudentSummary`
+  по предметам; среднее считается в сервисе, форматирует
+  `view.FormatAverage`), домашнее задание (`homework.go`:
   `Homework` — строка `homework` плюс файлы по `lesson_id`, `SaveHomework`
   удаляет строку при пустых тексте и сроке, `AddHomeworkFile` пишет на
   диск через `files.Store` и только потом строку, `DeleteHomeworkFile` —
@@ -359,6 +371,14 @@ multiple>` в `<label>`-кнопке с `hx-trigger="change"` и
 логирует строки без файла. Срок ДЗ — только информация, списков «по
 сроку» нет. В дневнике ДЗ — блок под комментарием урока и метка «ДЗ» в
 списке уроков дня.
+
+**Сводки (D-067).** `/journal/summary` (учитель), `/admin/journal/summary`
+(админ), `/diary/summary` (ученик, родитель), `/admin/diary/{id}/summary`
+(админ): GET-формы с `hx-trigger="submit, change"` и `hx-push-url`,
+фрагменты `#summary` и `#marks`. Период зажат в текущий учебный год
+(`school.YearBounds`). Таблица сводки — `overflow-x-auto` с закреплённым
+первым столбцом (`sticky left-0`), даты столбцов «16.09», ячейка — ссылка
+на урок с учеником. Четвертей и весов нет.
 
 **Дневник (D-061, D-062).** `GET /diary?date=&child=&lesson=` для ученика
 и родителя, `GET /admin/diary/{id}?date=&lesson=&q=` для админа — один

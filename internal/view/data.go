@@ -19,7 +19,7 @@ func NavItems(role, active string) []NavItem {
 			NavItem{Title: "Сброс пароля", Href: "/admin/password-reset", Icon: IconKey},
 		)
 	} else {
-		items = append(items, SectionItem(role), NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey})
+		items = append(items, SectionItem(role), summaryItem(role), NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey})
 	}
 
 	for i := range items {
@@ -35,6 +35,14 @@ func SectionItem(role string) NavItem {
 	}
 
 	return NavItem{Title: "Дневник", Href: "/diary", Icon: IconDiary}
+}
+
+func summaryItem(role string) NavItem {
+	if role == "teacher" {
+		return NavItem{Title: "Сводка", Href: "/journal/summary", Icon: IconTable}
+	}
+
+	return NavItem{Title: "Оценки", Href: "/diary/summary", Icon: IconMarks}
 }
 
 func AdminStats(classes, students, teachers, subjects int) []Stat {

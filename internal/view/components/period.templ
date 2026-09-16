@@ -1,0 +1,20 @@
+package components
+
+import "github.com/ruskiiamov/school/internal/view"
+
+templ PeriodFields(form view.PeriodForm) {
+	@RowDate("from", form.From, "С", "", "flex-1 basis-36 sm:max-w-44")
+	@RowDate("to", form.To, "По", "", "flex-1 basis-36 sm:max-w-44")
+}
+
+templ PeriodNav(form view.PeriodForm, target string) {
+	<span class="flex flex-wrap items-center gap-x-3 gap-y-1 sm:ml-auto">
+		@NavLink(form.PrevHref, "← Месяц", target)
+		@NavLink(form.ThisHref, "Этот месяц", target)
+		@NavLink(form.NextHref, "Месяц →", target)
+	</span>
+}
+
+templ NavLink(href, label, target string) {
+	<a href={ templ.SafeURL(href) } hx-get={ href } hx-target={ target } hx-swap="outerHTML" hx-push-url="true" class="inline-flex min-h-11 items-center text-sm font-medium text-indigo-700 hover:underline">{ label }</a>
+}

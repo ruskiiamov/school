@@ -97,3 +97,7 @@ func journalMarkInput(workTypeID int64, value int) journal.MarkInput {
 func journalHomework(text string) journal.HomeworkInput {
 	return journal.HomeworkInput{Text: text}
 }
+
+func monthStart(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
+}

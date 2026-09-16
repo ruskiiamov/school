@@ -94,3 +94,11 @@ func Plural(n int, one, few, many string) string {
 		return fmt.Sprintf("%d %s", n, many)
 	}
 }
+
+func FormatAverage(average float64, count int) string {
+	if count == 0 {
+		return "—"
+	}
+
+	return strings.Replace(fmt.Sprintf("%.2f", average), ".", ",", 1)
+}

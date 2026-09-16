@@ -25,6 +25,7 @@ const (
 	IconCheck     Icon = "check"
 	IconEye       Icon = "eye"
 	IconEyeOff    Icon = "eye-off"
+	IconTable     Icon = "table"
 )
 
 type User struct {
@@ -121,20 +122,21 @@ type DiaryChild struct {
 }
 
 type DiaryPage struct {
-	Shell      Shell
-	Title      string
-	BackHref   string
-	Children   []DiaryChild
-	NoChildren bool
-	Date       string
-	DateLabel  string
-	DateAction string
-	Hidden     map[string]string
-	PrevHref   string
-	TodayHref  string
-	NextHref   string
-	Lessons    []DiaryLessonItem
-	Selected   *DiaryLessonPanel
+	Shell       Shell
+	Title       string
+	BackHref    string
+	SummaryHref string
+	Children    []DiaryChild
+	NoChildren  bool
+	Date        string
+	DateLabel   string
+	DateAction  string
+	Hidden      map[string]string
+	PrevHref    string
+	TodayHref   string
+	NextHref    string
+	Lessons     []DiaryLessonItem
+	Selected    *DiaryLessonPanel
 }
 
 type SubjectRow struct {
@@ -377,13 +379,86 @@ type JournalPage struct {
 	Lessons []LessonRow
 }
 
-type AdminJournalPage struct {
+type PeriodForm struct {
+	From     string
+	To       string
+	Label    string
+	PrevHref string
+	ThisHref string
+	NextHref string
+}
+
+type GridPage struct {
 	Shell    Shell
+	Title    string
 	Path     string
+	Pairs    []PairOption
 	Classes  []Option
 	Subjects []Option
+	Hidden   map[string]string
 	Selected bool
-	Lessons  []AdminLessonRow
+	Period   PeriodForm
+	Grid     *Grid
+}
+
+type Grid struct {
+	Columns []GridColumn
+	Rows    []GridRow
+}
+
+type GridColumn struct {
+	Date string
+	Href string
+}
+
+type GridRow struct {
+	FullName  string
+	ShortName string
+	Active    bool
+	InClass   bool
+	Cells     []GridCell
+	Absences  string
+	Average   string
+}
+
+type GridCell struct {
+	Text string
+	Href string
+}
+
+type MarksPage struct {
+	Shell      Shell
+	Title      string
+	Path       string
+	BackHref   string
+	Children   []DiaryChild
+	NoChildren bool
+	Hidden     map[string]string
+	Period     PeriodForm
+	Subjects   []SubjectMarksRow
+}
+
+type SubjectMarksRow struct {
+	Name     string
+	Marks    []MarkChip
+	Absences string
+	Average  string
+}
+
+type MarkChip struct {
+	Value string
+	Title string
+	Href  string
+}
+
+type AdminJournalPage struct {
+	Shell       Shell
+	Path        string
+	Classes     []Option
+	Subjects    []Option
+	Selected    bool
+	SummaryHref string
+	Lessons     []AdminLessonRow
 }
 
 type AdminLessonRow struct {

@@ -54,49 +54,63 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) studentDiary(w http.ResponseWriter, r *http.Request) {
+	student, title, ok := h.adminStudent(w, r)
+	if !ok {
+		return
+	}
+
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	path := adminDiaryPath + "/" + strconv.FormatInt(student.ID, 10)
+	backHref := adminDiaryPath
+	summaryHref := path + "/summary"
+	hidden := map[string]string{}
+
+	if query != "" {
+		search := "?" + url.Values{"q": {query}}.Encode()
+		backHref += search
+		summaryHref += search
+		hidden["q"] = query
+	}
+
+	h.renderDiary(w, r, diaryView{
+		title:       "Дневник · " + title,
+		active:      adminDiaryPath,
+		path:        path,
+		student:     student.ID,
+		hidden:      hidden,
+		backHref:    backHref,
+		summaryHref: summaryHref,
+	})
+}
+
+func (h *Handler) adminStudent(w http.ResponseWriter, r *http.Request) (auth.User, string, bool) {
 	id, ok := web.PathID(r)
 	if !ok {
 		http.NotFound(w, r)
-		return
+		return auth.User{}, "", false
 	}
 
 	student, err := h.auth.UserByID(r.Context(), id)
 	if err != nil {
 		h.base.HandleServiceError(w, r, "load student", err)
-		return
+		return auth.User{}, "", false
 	}
 
 	if student.Role != auth.RoleStudent || !student.Active {
 		http.NotFound(w, r)
-		return
+		return auth.User{}, "", false
 	}
 
 	class, _, err := h.school.StudentClass(r.Context(), student.ID)
 	if err != nil {
 		h.base.ServerError(w, r, "load student class", err)
-		return
+		return auth.User{}, "", false
 	}
 
-	title := "Дневник · " + student.FullName
+	title := student.FullName
 	if class.Name != "" {
 		title += " · " + class.Name
 	}
 
-	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	backHref := adminDiaryPath
-	hidden := map[string]string{}
-
-	if query != "" {
-		backHref += "?" + url.Values{"q": {query}}.Encode()
-		hidden["q"] = query
-	}
-
-	h.renderDiary(w, r, diaryView{
-		title:    title,
-		active:   adminDiaryPath,
-		path:     adminDiaryPath + "/" + strconv.FormatInt(student.ID, 10),
-		student:  student.ID,
-		hidden:   hidden,
-		backHref: backHref,
-	})
+	return student, title, true
 }

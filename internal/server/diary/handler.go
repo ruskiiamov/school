@@ -19,6 +19,7 @@ import (
 
 const (
 	diaryPath      = "/diary"
+	summaryPath    = diaryPath + "/summary"
 	adminDiaryPath = "/admin/diary"
 )
 
@@ -35,8 +36,10 @@ func New(base *web.Base, authService *auth.Service, schoolService *school.Servic
 
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET "+diaryPath, h.owner(h.index))
+	mux.Handle("GET "+summaryPath, h.owner(h.summary))
 	mux.Handle("GET "+adminDiaryPath, h.admin(h.search))
 	mux.Handle("GET "+adminDiaryPath+"/{id}", h.admin(h.studentDiary))
+	mux.Handle("GET "+adminDiaryPath+"/{id}/summary", h.admin(h.adminSummary))
 }
 
 func (h *Handler) owner(fn http.HandlerFunc) http.Handler {
@@ -48,13 +51,14 @@ func (h *Handler) admin(fn http.HandlerFunc) http.Handler {
 }
 
 type diaryView struct {
-	title    string
-	active   string
-	path     string
-	student  int64
-	hidden   map[string]string
-	backHref string
-	children []view.DiaryChild
+	title       string
+	active      string
+	path        string
+	student     int64
+	hidden      map[string]string
+	backHref    string
+	summaryHref string
+	children    []view.DiaryChild
 }
 
 func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
@@ -75,23 +79,52 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) parentDiary(w http.ResponseWriter, r *http.Request, parentID, child int64) {
+	selected, children, ok := h.selectChild(w, r, parentID, child)
+	if !ok {
+		return
+	}
+
+	if len(children) == 0 {
+		h.renderDiaryPage(w, r, view.DiaryPage{Shell: h.base.Shell(r, "Дневник", diaryPath), Title: "Дневник", NoChildren: true})
+		return
+	}
+
+	dv := diaryView{
+		title:   "Дневник",
+		active:  diaryPath,
+		path:    diaryPath,
+		student: selected.ID,
+		hidden:  childHidden(selected.ID),
+	}
+
+	date := h.requestedDate(r)
+
+	for _, candidate := range children {
+		tab := diaryView{path: diaryPath, hidden: childHidden(candidate.ID)}
+		dv.children = append(dv.children, view.DiaryChild{
+			Name:   candidate.FullName,
+			Href:   diaryURL(tab, date, 0),
+			Active: candidate.ID == selected.ID,
+		})
+	}
+
+	h.renderDiary(w, r, dv)
+}
+
+func (h *Handler) selectChild(w http.ResponseWriter, r *http.Request, parentID, child int64) (auth.User, []auth.User, bool) {
 	children, err := h.children(r, parentID)
 	if err != nil {
 		h.base.ServerError(w, r, "load parent children", err)
-		return
+		return auth.User{}, nil, false
 	}
 
 	if len(children) == 0 {
 		if child != 0 {
 			http.NotFound(w, r)
-			return
+			return auth.User{}, nil, false
 		}
 
-		page := view.DiaryPage{Shell: h.base.Shell(r, "Дневник", diaryPath), Title: "Дневник", NoChildren: true}
-
-		h.renderDiaryPage(w, r, page)
-
-		return
+		return auth.User{}, nil, true
 	}
 
 	selected := children[0]
@@ -105,29 +138,14 @@ func (h *Handler) parentDiary(w http.ResponseWriter, r *http.Request, parentID, 
 
 	if !found {
 		http.NotFound(w, r)
-		return
+		return auth.User{}, nil, false
 	}
 
-	dv := diaryView{
-		title:   "Дневник",
-		active:  diaryPath,
-		path:    diaryPath,
-		student: selected.ID,
-		hidden:  map[string]string{"child": strconv.FormatInt(selected.ID, 10)},
-	}
+	return selected, children, true
+}
 
-	date := h.requestedDate(r)
-
-	for _, candidate := range children {
-		tab := diaryView{path: diaryPath, hidden: map[string]string{"child": strconv.FormatInt(candidate.ID, 10)}}
-		dv.children = append(dv.children, view.DiaryChild{
-			Name:   candidate.FullName,
-			Href:   diaryURL(tab, date, 0),
-			Active: candidate.ID == selected.ID,
-		})
-	}
-
-	h.renderDiary(w, r, dv)
+func childHidden(childID int64) map[string]string {
+	return map[string]string{"child": strconv.FormatInt(childID, 10)}
 }
 
 func (h *Handler) children(r *http.Request, parentID int64) ([]auth.User, error) {
@@ -185,17 +203,18 @@ func (h *Handler) renderDiary(w http.ResponseWriter, r *http.Request, dv diaryVi
 	dateValue := date.Format(validation.DateLayout)
 
 	page := view.DiaryPage{
-		Shell:      h.base.Shell(r, dv.title, dv.active),
-		Title:      dv.title,
-		BackHref:   dv.backHref,
-		Children:   dv.children,
-		Date:       dateValue,
-		DateLabel:  view.FormatDate(date),
-		DateAction: dv.path,
-		Hidden:     dv.hidden,
-		PrevHref:   diaryURL(dv, date.AddDate(0, 0, -1), 0),
-		TodayHref:  diaryURL(dv, h.school.Today(), 0),
-		NextHref:   diaryURL(dv, date.AddDate(0, 0, 1), 0),
+		Shell:       h.base.Shell(r, dv.title, dv.active),
+		Title:       dv.title,
+		BackHref:    dv.backHref,
+		SummaryHref: dv.summaryHref,
+		Children:    dv.children,
+		Date:        dateValue,
+		DateLabel:   view.FormatDate(date),
+		DateAction:  dv.path,
+		Hidden:      dv.hidden,
+		PrevHref:    diaryURL(dv, date.AddDate(0, 0, -1), 0),
+		TodayHref:   diaryURL(dv, h.school.Today(), 0),
+		NextHref:    diaryURL(dv, date.AddDate(0, 0, 1), 0),
 	}
 
 	requested := queryID(r, "lesson")

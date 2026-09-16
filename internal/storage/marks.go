@@ -56,6 +56,89 @@ func (r *MarkRepo) ListByLesson(ctx context.Context, lessonID int64) ([]Mark, er
 	return marks, nil
 }
 
+func (r *MarkRepo) ListByPairPeriod(ctx context.Context, classID, subjectID int64, from, to time.Time) ([]Mark, error) {
+	const query = "SELECT " + markColumns + ` FROM marks
+		WHERE lesson_id IN (SELECT id FROM lessons WHERE class_id = ? AND subject_id = ? AND date BETWEEN ? AND ?)
+		ORDER BY id`
+
+	rows, err := r.db.QueryContext(ctx, query, classID, subjectID, toDate(from), toDate(to))
+	if err != nil {
+		return nil, fmt.Errorf("select period marks: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	return collectMarks(rows)
+}
+
+type StudentMark struct {
+	Mark
+	SubjectID int64
+	Date      time.Time
+}
+
+func (r *MarkRepo) ListByStudentPeriod(ctx context.Context, studentID int64, from, to time.Time) ([]StudentMark, error) {
+	const query = `SELECT m.id, m.lesson_id, m.student_id, m.work_type_id, m.value, m.label, m.created_at, m.updated_at, l.subject_id, l.date
+		FROM marks m JOIN lessons l ON l.id = m.lesson_id
+		WHERE m.student_id = ? AND l.date BETWEEN ? AND ?
+		ORDER BY l.date, m.id`
+
+	rows, err := r.db.QueryContext(ctx, query, studentID, toDate(from), toDate(to))
+	if err != nil {
+		return nil, fmt.Errorf("select student marks: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var marks []StudentMark
+
+	for rows.Next() {
+		var (
+			mark      StudentMark
+			date      string
+			createdAt int64
+			updatedAt int64
+		)
+
+		err := rows.Scan(&mark.ID, &mark.LessonID, &mark.StudentID, &mark.WorkTypeID, &mark.Value, &mark.Label,
+			&createdAt, &updatedAt, &mark.SubjectID, &date)
+		if err != nil {
+			return nil, fmt.Errorf("scan student mark: %w", err)
+		}
+
+		if mark.Date, err = fromDate(date); err != nil {
+			return nil, fmt.Errorf("scan student mark: %w", err)
+		}
+
+		mark.CreatedAt = fromMillis(createdAt)
+		mark.UpdatedAt = fromMillis(updatedAt)
+		marks = append(marks, mark)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate student marks: %w", err)
+	}
+
+	return marks, nil
+}
+
+func collectMarks(rows *sql.Rows) ([]Mark, error) {
+	var marks []Mark
+
+	for rows.Next() {
+		mark, err := scanMark(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan mark: %w", err)
+		}
+
+		marks = append(marks, mark)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate marks: %w", err)
+	}
+
+	return marks, nil
+}
+
 func (r *MarkRepo) ByID(ctx context.Context, id int64) (Mark, error) {
 	const query = "SELECT " + markColumns + " FROM marks WHERE id = ?"
 
