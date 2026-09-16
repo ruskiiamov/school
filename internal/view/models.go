@@ -428,3 +428,16 @@ type LessonBlock struct {
 	Students []LessonStudentItem
 	Selected *LessonStudentPanel
 }
+
+type DiaryStudentRow struct {
+	FullName  string
+	ClassName string
+	Href      string
+}
+
+type DiarySearchPage struct {
+	Shell    Shell
+	Path     string
+	Query    string
+	Students []DiaryStudentRow
+}

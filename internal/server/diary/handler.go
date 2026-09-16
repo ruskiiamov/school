@@ -17,7 +17,10 @@ import (
 	"github.com/ruskiiamov/school/internal/view/pages"
 )
 
-const diaryPath = "/diary"
+const (
+	diaryPath      = "/diary"
+	adminDiaryPath = "/admin/diary"
+)
 
 type Handler struct {
 	base    *web.Base
@@ -32,14 +35,21 @@ func New(base *web.Base, authService *auth.Service, schoolService *school.Servic
 
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET "+diaryPath, h.owner(h.index))
+	mux.Handle("GET "+adminDiaryPath, h.admin(h.search))
+	mux.Handle("GET "+adminDiaryPath+"/{id}", h.admin(h.studentDiary))
 }
 
 func (h *Handler) owner(fn http.HandlerFunc) http.Handler {
 	return h.base.RequireAuth(web.RequireRole(auth.RoleStudent, auth.RoleParent)(fn))
 }
 
+func (h *Handler) admin(fn http.HandlerFunc) http.Handler {
+	return h.base.RequireAuth(web.RequireRole(auth.RoleAdmin)(fn))
+}
+
 type diaryView struct {
 	title    string
+	active   string
 	path     string
 	student  int64
 	hidden   map[string]string
@@ -61,7 +71,7 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderDiary(w, r, diaryView{title: "Дневник", path: diaryPath, student: user.ID})
+	h.renderDiary(w, r, diaryView{title: "Дневник", active: diaryPath, path: diaryPath, student: user.ID})
 }
 
 func (h *Handler) parentDiary(w http.ResponseWriter, r *http.Request, parentID, child int64) {
@@ -78,6 +88,7 @@ func (h *Handler) parentDiary(w http.ResponseWriter, r *http.Request, parentID, 
 		}
 
 		page := view.DiaryPage{Shell: h.base.Shell(r, "Дневник", diaryPath), Title: "Дневник", NoChildren: true}
+
 		h.renderDiaryPage(w, r, page)
 
 		return
@@ -99,6 +110,7 @@ func (h *Handler) parentDiary(w http.ResponseWriter, r *http.Request, parentID, 
 
 	dv := diaryView{
 		title:   "Дневник",
+		active:  diaryPath,
 		path:    diaryPath,
 		student: selected.ID,
 		hidden:  map[string]string{"child": strconv.FormatInt(selected.ID, 10)},
@@ -173,7 +185,7 @@ func (h *Handler) renderDiary(w http.ResponseWriter, r *http.Request, dv diaryVi
 	dateValue := date.Format(validation.DateLayout)
 
 	page := view.DiaryPage{
-		Shell:      h.base.Shell(r, dv.title, diaryPath),
+		Shell:      h.base.Shell(r, dv.title, dv.active),
 		Title:      dv.title,
 		BackHref:   dv.backHref,
 		Children:   dv.children,

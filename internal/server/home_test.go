@@ -104,8 +104,8 @@ func TestHomeShowsSectionLinkForOtherRoles(t *testing.T) {
 		note  string
 	}{
 		{"teacher", "/journal", "Журнал", "Уроки, оценки, отсутствие и комментарии ученикам"},
-		{"student", "/diary", "Дневник", "Раздел в разработке"},
-		{"parent", "/diary", "Дневник", "Раздел в разработке"},
+		{"student", "/diary", "Дневник", "Уроки, оценки и комментарии по дням"},
+		{"parent", "/diary", "Дневник", "Уроки, оценки и комментарии по дням"},
 	}
 
 	for _, tt := range tests {
