@@ -32,6 +32,7 @@ type Lesson struct {
 	TeacherID   int64
 	Date        time.Time
 	Topic       string
+	Year        int
 	ClassName   string
 	SubjectName string
 }
@@ -156,6 +157,7 @@ func (s *Service) withNames(ctx context.Context, stored storage.Lesson) (Lesson,
 		return Lesson{}, err
 	}
 
+	lesson.Year = class.Year
 	lesson.ClassName = class.Name
 	lesson.SubjectName = subject.Name
 

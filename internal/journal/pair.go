@@ -26,7 +26,7 @@ func (s *Service) Pairs(ctx context.Context, teacherID int64, year int, today ti
 		return nil, err
 	}
 
-	classes, err := s.activeClasses(ctx, year)
+	classes, order, err := s.activeClasses(ctx, year)
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +61,8 @@ func (s *Service) Pairs(ctx context.Context, teacherID int64, year int, today ti
 	}
 
 	sort.Slice(pairs, func(i, j int) bool {
-		if pairs[i].ClassName != pairs[j].ClassName {
-			return pairs[i].ClassName < pairs[j].ClassName
+		if pairs[i].ClassID != pairs[j].ClassID {
+			return order[pairs[i].ClassID] < order[pairs[j].ClassID]
 		}
 
 		return pairs[i].SubjectName < pairs[j].SubjectName
@@ -71,18 +71,21 @@ func (s *Service) Pairs(ctx context.Context, teacherID int64, year int, today ti
 	return pairs, nil
 }
 
-func (s *Service) activeClasses(ctx context.Context, year int) (map[int64]storage.Class, error) {
+func (s *Service) activeClasses(ctx context.Context, year int) (map[int64]storage.Class, map[int64]int, error) {
 	classes, err := s.classes.ListByYear(ctx, year, false)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	byID := make(map[int64]storage.Class, len(classes))
-	for _, class := range classes {
+	order := make(map[int64]int, len(classes))
+
+	for i, class := range classes {
 		byID[class.ID] = class
+		order[class.ID] = i
 	}
 
-	return byID, nil
+	return byID, order, nil
 }
 
 func (s *Service) activeSubjects(ctx context.Context) (map[int64]storage.Subject, error) {

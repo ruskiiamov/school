@@ -63,7 +63,7 @@ func TestClassesEmptyListShowsOnlyCurrentYear(t *testing.T) {
 	body := servertest.Get(t, env.Handler, "/admin/classes", admin).Body.String()
 	assert.Contains(t, body, "В "+school.YearName(current)+" пока нет классов")
 	assert.Contains(t, body, `href="`+classesURL(current, "")+`" aria-current="page"`)
-	assert.NotContains(t, body, school.YearName(current+1))
+	assert.Contains(t, body, `href="`+classesURL(current+1, "")+`"`)
 	assert.NotContains(t, body, school.YearName(current-1))
 	assert.Contains(t, body, `action="`+classesURL(current, "")+`"`)
 	assert.Contains(t, body, `hx-target="#classes"`)
@@ -75,7 +75,7 @@ func TestClassesEmptyListShowsOnlyCurrentYear(t *testing.T) {
 
 	years, err := env.School.ClassYears(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, []int{current}, years)
+	assert.Equal(t, []int{current, current + 1}, years)
 }
 
 func TestClassesPastYearIsReadOnly(t *testing.T) {
@@ -89,7 +89,7 @@ func TestClassesPastYearIsReadOnly(t *testing.T) {
 
 	years, err := env.School.ClassYears(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, []int{current - 1, current}, years)
+	assert.Equal(t, []int{current - 1, current, current + 1}, years)
 
 	body := servertest.Get(t, env.Handler, "/admin/classes", admin).Body.String()
 	assert.Less(t, strings.Index(body, school.YearName(current-1)), strings.Index(body, school.YearName(current)))
@@ -202,7 +202,7 @@ func TestClassCreateValidation(t *testing.T) {
 
 	years, err := env.School.ClassYears(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, []int{current}, years)
+	assert.Equal(t, []int{current, current + 1}, years)
 }
 
 func TestClassEditModeShowsFormForOneRow(t *testing.T) {
@@ -385,4 +385,50 @@ func TestClassWithStudentsCannotBeDeactivated(t *testing.T) {
 
 	require.NoError(t, env.School.RemoveClassStudent(t.Context(), id, student.User.ID))
 	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, classPathFor(id, "/deactivate?year="+year), nil, []*http.Cookie{admin}, nil), classesURL(current, ""))
+}
+
+func TestClassesSortedNaturallyWithStudentCounts(t *testing.T) {
+	t.Parallel()
+
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	current := env.School.CurrentYear()
+
+	for _, name := range []string{"10А", "2Б", "1А", "11Б", "Подготовительный"} {
+		createClass(t, env, admin, current, name)
+	}
+
+	classes, err := env.School.Classes(t.Context(), current, false)
+	require.NoError(t, err)
+
+	names := make([]string, 0, len(classes))
+	for _, class := range classes {
+		names = append(names, class.Name)
+	}
+
+	assert.Equal(t, []string{"Подготовительный", "1А", "2Б", "10А", "11Б"}, names)
+
+	env.CreateUser(t, auth.RoleStudent, "ivanov", "Иванов Пётр")
+	env.CreateUser(t, auth.RoleStudent, "petrova", "Петрова Анна")
+	require.NoError(t, env.School.AddClassStudent(t.Context(), classes[1].ID, userIDByLogin(t, env, "ivanov")))
+	require.NoError(t, env.School.AddClassStudent(t.Context(), classes[1].ID, userIDByLogin(t, env, "petrova")))
+
+	body := servertest.Get(t, env.Handler, "/admin/classes", admin).Body.String()
+	assert.Contains(t, body, ">2 ученика<")
+	assert.Contains(t, body, ">0 учеников<")
+	assert.Less(t, strings.Index(body, ">2Б</a>"), strings.Index(body, ">10А</a>"))
+}
+
+func TestClassesNextYearTabIsEmptyAndReadOnly(t *testing.T) {
+	t.Parallel()
+
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	next := env.School.CurrentYear() + 1
+
+	body := servertest.Get(t, env.Handler, classesURL(next, ""), admin).Body.String()
+	assert.Contains(t, body, `href="`+classesURL(next, "")+`" aria-current="page"`)
+	assert.Contains(t, body, "В "+school.YearName(next)+" пока нет классов")
+	assert.NotContains(t, body, `action="`+classesURL(next, "")+`"`)
+	assert.NotContains(t, body, `href="`+transferURL+`"`)
 }

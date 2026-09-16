@@ -31,19 +31,26 @@ func (h *Handler) adminIndex(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	classID, subjectID := queryID(r, "class"), queryID(r, "subject")
 
+	year, years, err := web.YearSelection(r, h.school)
+	if err != nil {
+		h.base.ServerError(w, r, "list class years", err)
+		return
+	}
+
 	page := view.AdminJournalPage{
 		Shell: h.base.Shell(r, "Журналы", adminJournalPath),
 		Path:  adminJournalPath,
+		Years: years,
 	}
 
-	if err := h.pairOptions(r, &page.Classes, &page.Subjects, classID, subjectID); err != nil {
+	if err := h.pairOptions(r, &page.Classes, &page.Subjects, year, classID, subjectID); err != nil {
 		h.base.ServerError(w, r, "list classes and subjects", err)
 		return
 	}
 
 	if classID != 0 && subjectID != 0 {
 		page.Selected = true
-		page.SummaryHref = adminSummaryPath + "?" + url.Values{"class": {strconv.FormatInt(classID, 10)}, "subject": {strconv.FormatInt(subjectID, 10)}}.Encode()
+		page.SummaryHref = adminSummaryPath + "?" + pairQuery(classID, subjectID, web.WithYear(nil, year)).Encode()
 
 		lessons, withHomework, err := h.journal.LessonsByPair(ctx, classID, subjectID)
 		if err != nil {
@@ -115,7 +122,7 @@ func (h *Handler) adminLesson(w http.ResponseWriter, r *http.Request) {
 	}
 
 	title := lesson.ClassName + " · " + lesson.SubjectName + " · " + view.FormatShortDate(lesson.Date)
-	back := url.Values{"class": {strconv.FormatInt(lesson.ClassID, 10)}, "subject": {strconv.FormatInt(lesson.SubjectID, 10)}}
+	back := pairQuery(lesson.ClassID, lesson.SubjectID, web.WithYear(nil, lesson.Year))
 
 	page := view.AdminLessonPage{
 		Shell:    h.base.Shell(r, title, adminJournalPath),
@@ -131,6 +138,15 @@ func (h *Handler) adminLesson(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.base.Render(w, r, pages.AdminLesson(page))
+}
+
+func pairQuery(classID, subjectID int64, extra map[string]string) url.Values {
+	query := url.Values{"class": {strconv.FormatInt(classID, 10)}, "subject": {strconv.FormatInt(subjectID, 10)}}
+	for name, value := range extra {
+		query.Set(name, value)
+	}
+
+	return query
 }
 
 func (h *Handler) adminLessonBlock(r *http.Request, lesson journal.Lesson) (view.AdminLessonBlock, error) {

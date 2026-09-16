@@ -63,6 +63,10 @@ func newFixture(t *testing.T) fixture {
 	}
 }
 
+func (f fixture) year() string {
+	return strconv.Itoa(f.env.School.CurrentYear())
+}
+
 func (f fixture) openLesson(t *testing.T, classID, subjectID int64, date time.Time) int64 {
 	t.Helper()
 

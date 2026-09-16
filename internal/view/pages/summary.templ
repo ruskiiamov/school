@@ -19,7 +19,7 @@ templ Summary(page view.GridPage) {
 
 templ SummaryContent(page view.GridPage) {
 	<div id="summary" class="flex flex-col gap-4 lg:gap-6">
-		if len(page.Pairs) == 0 && len(page.Classes) == 0 {
+		if len(page.Pairs) == 0 && len(page.Classes) == 0 && len(page.Years) == 0 {
 			<div class={ components.CardClass }>
 				@components.EmptyState("Вам пока не назначены классы и предметы")
 			</div>
@@ -37,6 +37,9 @@ templ SummaryContent(page view.GridPage) {
 				for name, value := range page.Hidden {
 					<input type="hidden" name={ name } value={ value }/>
 				}
+				if len(page.Years) > 0 {
+					@components.RowSelect("year", "Учебный год", page.Years, "", "basis-36")
+				}
 				if len(page.Pairs) > 0 {
 					<span class="flex min-w-0 flex-1 basis-56 flex-col gap-1">
 						<select name="pair" aria-label="Класс и предмет" class={ components.SelectClassFor("") }>
@@ -45,9 +48,11 @@ templ SummaryContent(page view.GridPage) {
 							}
 						</select>
 					</span>
-				} else {
+				} else if len(page.Classes) > 0 {
 					@components.RowSelect("class", "Класс", page.Classes, "", "flex-1 basis-40")
 					@components.RowSelect("subject", "Предмет", page.Subjects, "", "flex-1 basis-56")
+				} else {
+					<span class="inline-flex min-h-11 items-center text-sm text-slate-500">В этом году вам не назначены классы и предметы</span>
 				}
 				@components.PeriodFields(page.Period)
 				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Показать</button>

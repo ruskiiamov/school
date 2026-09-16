@@ -49,10 +49,21 @@ func (h *Handler) parentSummary(w http.ResponseWriter, r *http.Request, parentID
 		hidden:  childHidden(selected.ID),
 	}
 
-	period := h.period(r)
+	year, _, err := web.YearSelection(r, h.school)
+	if err != nil {
+		h.base.ServerError(w, r, "list class years", err)
+		return
+	}
+
+	period, _ := web.YearPeriod(r, h.school, year)
 
 	for _, candidate := range children {
-		query := period.Query(url.Values{"child": {strconv.FormatInt(candidate.ID, 10)}})
+		base := url.Values{}
+		for name, value := range web.WithYear(childHidden(candidate.ID), year) {
+			base.Set(name, value)
+		}
+
+		query := period.Query(base)
 		dv.children = append(dv.children, view.DiaryChild{
 			Name:   candidate.FullName,
 			Href:   summaryPath + "?" + query.Encode(),
@@ -64,20 +75,20 @@ func (h *Handler) parentSummary(w http.ResponseWriter, r *http.Request, parentID
 }
 
 func (h *Handler) adminSummary(w http.ResponseWriter, r *http.Request) {
-	student, title, ok := h.adminStudent(w, r)
+	filter, err := h.adminFilter(r)
+	if err != nil {
+		h.base.ServerError(w, r, "list class years", err)
+		return
+	}
+
+	student, title, ok := h.adminStudent(w, r, filter.year)
 	if !ok {
 		return
 	}
 
-	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	diary := adminDiaryPath + "/" + strconv.FormatInt(student.ID, 10)
-	backHref := diary
-	hidden := map[string]string{}
-
-	if query != "" {
-		backHref += "?" + url.Values{"q": {query}}.Encode()
-		hidden["q"] = query
-	}
+	hidden := filter.hidden()
+	delete(hidden, "year")
 
 	h.renderMarks(w, r, diaryView{
 		title:    "Оценки · " + title,
@@ -85,12 +96,18 @@ func (h *Handler) adminSummary(w http.ResponseWriter, r *http.Request) {
 		path:     diary + "/summary",
 		student:  student.ID,
 		hidden:   hidden,
-		backHref: backHref,
+		backHref: diary + filter.suffix(),
 	})
 }
 
 func (h *Handler) renderMarks(w http.ResponseWriter, r *http.Request, dv diaryView) {
-	period := h.period(r)
+	year, years, err := web.YearSelection(r, h.school)
+	if err != nil {
+		h.base.ServerError(w, r, "list class years", err)
+		return
+	}
+
+	period, anchor := web.YearPeriod(r, h.school, year)
 
 	summary, err := h.journal.StudentSummary(r.Context(), dv.student, period.From, period.To)
 	if err != nil {
@@ -105,10 +122,11 @@ func (h *Handler) renderMarks(w http.ResponseWriter, r *http.Request, dv diaryVi
 		BackHref: dv.backHref,
 		Children: dv.children,
 		Hidden:   dv.hidden,
-		Period:   web.PeriodForm(period, h.school.Today(), dv.path, dv.hidden),
+		Years:    years,
+		Period:   web.PeriodForm(period, anchor, dv.path, web.WithYear(dv.hidden, year)),
 	}
 
-	diary := diaryView{path: diaryPath, hidden: dv.hidden}
+	diary := diaryView{path: diaryPath, hidden: web.WithYear(dv.hidden, year)}
 	if dv.backHref != "" {
 		diary.path = dv.backHref
 		if i := strings.Index(diary.path, "?"); i >= 0 {
@@ -144,12 +162,6 @@ func (h *Handler) renderMarksPage(w http.ResponseWriter, r *http.Request, page v
 	}
 
 	h.base.Render(w, r, pages.Marks(page))
-}
-
-func (h *Handler) period(r *http.Request) web.Period {
-	start, end := h.school.YearBounds(h.school.CurrentYear())
-
-	return web.ParsePeriod(r, h.school.Today(), start, end)
 }
 
 func markTitle(mark journal.SummaryMark) string {

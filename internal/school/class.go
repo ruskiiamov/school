@@ -29,7 +29,7 @@ func (s *Service) ClassYears(ctx context.Context) ([]int, error) {
 		return nil, err
 	}
 
-	years = append(years, s.CurrentYear())
+	years = append(years, s.CurrentYear(), s.CurrentYear()+1)
 	slices.Sort(years)
 
 	return slices.Compact(years), nil

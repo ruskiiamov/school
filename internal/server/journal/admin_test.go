@@ -34,6 +34,7 @@ func TestAdminJournalListAndLesson(t *testing.T) {
 
 	pair := url.Values{"class": {strconv.FormatInt(f.class, 10)}, "subject": {strconv.FormatInt(f.subject, 10)}}
 	listPath := "/admin/journal?" + pair.Encode()
+	backPath := "/admin/journal?" + url.Values{"class": pair["class"], "subject": pair["subject"], "year": {f.year()}}.Encode()
 
 	body := servertest.Get(t, f.env.Handler, "/admin/journal", admin).Body.String()
 	assert.Contains(t, body, "Выберите класс и предмет")
@@ -71,7 +72,7 @@ func TestAdminJournalListAndLesson(t *testing.T) {
 	require.Equal(t, http.StatusOK, page.Code)
 	body = page.Body.String()
 	assert.Contains(t, body, "7А · Алгебра · "+f.today.Format("02.01.2006"))
-	assert.Contains(t, body, `href="`+html.EscapeString(listPath)+`"`)
+	assert.Contains(t, body, `href="`+html.EscapeString(backPath)+`"`)
 	assert.Contains(t, body, "К списку")
 	assert.Contains(t, body, "Сидорова Анна Андреевна")
 	assert.Contains(t, body, "Тема: Квадратные уравнения")

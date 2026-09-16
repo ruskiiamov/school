@@ -26,6 +26,10 @@ type fixture struct {
 	today   time.Time
 }
 
+func (f fixture) year() string {
+	return strconv.Itoa(f.env.School.CurrentYear())
+}
+
 func newFixture(t *testing.T) fixture {
 	t.Helper()
 

@@ -48,6 +48,9 @@ templ MarksContent(page view.MarksPage) {
 				for name, value := range page.Hidden {
 					<input type="hidden" name={ name } value={ value }/>
 				}
+				if len(page.Years) > 0 {
+					@components.RowSelect("year", "Учебный год", page.Years, "", "basis-36")
+				}
 				@components.PeriodFields(page.Period)
 				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Показать</button>
 				@components.PeriodNav(page.Period, marksTarget)

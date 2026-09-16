@@ -22,8 +22,10 @@
 GET  /admin/subjects?inactive=1&edit={id}   одна страница: форма добавления, строки текстом, `edit` — одна строка формой (D-043)
 POST /admin/subjects, /{id}, /{id}/deactivate, /{id}/activate
 GET  /admin/work-types?inactive=1      то же, плюс POST /{id}/up, /{id}/down — порядок стрелками
-GET  /admin/classes?year=2026&inactive=1&edit={id}   список по году как у предметов (D-043, D-044): вкладки-ссылки лет (годы существующих классов и текущий), строка добавления только в текущем году, `edit` — одна строка формой
+GET  /admin/classes?year=2026&inactive=1&edit={id}   список по году как у предметов (D-043, D-044): вкладки-ссылки лет (годы существующих классов, текущий и следующий — D-071), строка добавления только в текущем году, `edit` — одна строка формой
 POST /admin/classes?year=2026, /{id}?year=…, /{id}/deactivate?year=…, /{id}/activate?year=…   класс создаётся в текущем году; `year` в адресе — для списка и редиректа
+GET  /admin/classes/transfer           перевод классов (D-068, D-070, D-071): строка на класс прошлого года — «Переводить» (у 11-х снята, подпись «выпускной»), «Новый класс», ученики галочками
+POST /admin/classes/transfer           transfer-{id}, name-{id}, students-{id}[]; невключённые классы пропускаются; успех — редирект на список текущего года, ошибка — страница со значениями
 GET  /admin/classes/{id}               карточка класса: блоки #class-students и #class-assignments, формы только у активного класса текущего года (D-049)
 POST /admin/classes/{id}/students      добавить ученика (student_id); HTMX — фрагмент блока, иначе редирект на карточку
 POST /admin/classes/{id}/students/{sid}/remove
@@ -194,8 +196,8 @@ POST /journal/lessons/{id}/students/{sid}?student={sid}  отсутствие + 
 
 ```
 GET  /diary?date=YYYY-MM-DD&child={id}&lesson={id}   ученик и родитель: форма даты (GET, «Показать») и ссылки «Вчера/Сегодня/Завтра», у родителя вкладки детей; фрагмент `#diary` — уроки дня слева и выбранный урок справа
-GET  /admin/diary?q=                                  поиск активного ученика по ФИО, как на «Сбросе пароля»; фрагмент `#diary-search`
-GET  /admin/diary/{id}?date=&lesson=                  дневник ученика для админа, тот же фрагмент `#diary`
+GET  /admin/diary?q=&year=&class=                     поиск активного ученика по ФИО и/или состав класса выбранного года; фрагмент `#diary-search`
+GET  /admin/diary/{id}?date=&lesson=&q=&year=&class=  дневник ученика для админа, тот же фрагмент `#diary`; `year`/`class`/`q` — обратно к поиску
 ```
 
 Всё только чтение. С HTMX форма даты, ссылки дней, уроков и детей
@@ -255,10 +257,10 @@ GET  /admin/journal/lessons/{id}?student=                 админ: урок �
 ## Маршруты итерации 6
 
 ```
-GET  /journal/summary?pair=&from=&to=                    учитель: сводка «ученики × даты», фрагмент `#summary`
-GET  /diary/summary?from=&to=&child=                     ученик и родитель: оценки по предметам за период, фрагмент `#marks`
-GET  /admin/journal/summary?class=&subject=&from=&to=    админ: та же сводка по всем урокам пары
-GET  /admin/diary/{id}/summary?from=&to=&q=              админ: оценки ученика за период, «К дневнику»
+GET  /journal/summary?year=&pair=&from=&to=              учитель: сводка «ученики × даты», фрагмент `#summary`; `year` — учебный год (селект всегда: годы классов, текущий и следующий, D-068, D-070)
+GET  /diary/summary?year=&from=&to=&child=               ученик и родитель: оценки по предметам за период, фрагмент `#marks`
+GET  /admin/journal/summary?year=&class=&subject=&from=&to=    админ: та же сводка по всем урокам пары
+GET  /admin/diary/{id}/summary?year=&from=&to=&q=&class=  админ: оценки ученика за период, «К дневнику»
 ```
 
 Сводка учителя (десктоп):

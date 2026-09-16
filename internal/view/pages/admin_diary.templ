@@ -38,10 +38,14 @@ templ DiarySearchPage(page view.DiarySearchPage) {
 				autocomplete="off"
 				class={ components.InputClass, "flex-1 basis-56" }
 			/>
+			if len(page.Years) > 0 {
+				@components.RowSelect("year", "Учебный год", page.Years, "", "basis-36")
+			}
+			@components.RowSelect("class", "Класс", page.Classes, "", "basis-36")
 		</form>
 		<div class={ components.CardClass }>
-			if page.Query == "" {
-				@components.EmptyState("Введите ФИО, чтобы найти ученика")
+			if !page.Filtered {
+				@components.EmptyState("Введите ФИО или выберите класс")
 			} else if len(page.Students) == 0 {
 				@components.EmptyState("Ничего не найдено")
 			} else {

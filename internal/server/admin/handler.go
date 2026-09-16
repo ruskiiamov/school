@@ -28,6 +28,8 @@ func New(base *web.Base, authService *auth.Service, schoolService *school.Servic
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET "+classesPath, h.admin(h.classesList))
 	mux.Handle("POST "+classesPath, h.admin(h.classCreate))
+	mux.Handle("GET "+transferPath, h.admin(h.transferShow))
+	mux.Handle("POST "+transferPath, h.admin(h.transferApply))
 	mux.Handle("GET "+classesPath+"/{id}", h.admin(h.classShow))
 	mux.Handle("POST "+classesPath+"/{id}", h.admin(h.classUpdate))
 	mux.Handle("POST "+classesPath+"/{id}/deactivate", h.admin(h.classDeactivate))
