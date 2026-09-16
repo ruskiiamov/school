@@ -21,7 +21,7 @@ func TestLoginPageRenders(t *testing.T) {
 	assert.Contains(t, recorder.Header().Get("Content-Type"), "text/html")
 	assert.Contains(t, body, `lang="ru"`)
 	assert.Contains(t, body, `name="viewport"`)
-	assert.Contains(t, body, "Электронный журнал")
+	assert.Contains(t, body, ">Школа</h1>")
 	assert.Contains(t, body, "Школа №1")
 	assert.Contains(t, body, `autocomplete="current-password"`)
 	assert.Contains(t, body, `data-toggle-password`)

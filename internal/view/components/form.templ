@@ -35,6 +35,19 @@ templ EditLink(href, target string) {
 	<a href={ templ.SafeURL(href) } hx-get={ href } hx-target={ target } hx-swap="outerHTML" class={ ButtonSecondaryClass }>Изменить</a>
 }
 
+templ RowLink(href, target string) {
+	<a
+		href={ templ.SafeURL(href) }
+		hx-get={ href }
+		hx-target={ target }
+		hx-swap="outerHTML"
+		class="group flex min-w-0 flex-1 items-center gap-2 p-3 hover:bg-slate-50 sm:p-4"
+	>
+		{ children... }
+		@Icon(view.IconPencil, "size-4 shrink-0 text-slate-400 group-hover:text-indigo-600")
+	</a>
+}
+
 templ ActiveForm(active bool, deactivateAction, activateAction, target string) {
 	if active {
 		<form
@@ -70,6 +83,7 @@ templ EditForm(action, cancelHref, name, label, message, target string) {
 		hx-post={ action }
 		hx-target={ target }
 		hx-swap="outerHTML"
+		data-edit-form
 		class="flex flex-1 flex-wrap items-center gap-2"
 	>
 		<input
@@ -80,14 +94,23 @@ templ EditForm(action, cancelHref, name, label, message, target string) {
 			maxlength="100"
 			autocomplete="off"
 			autofocus
-			class={ InputClassFor(message), "flex-1 basis-40" }
+			class={ InputClassFor(message), "basis-full sm:flex-1 sm:basis-40" }
 		/>
 		<span class="ml-auto flex flex-wrap items-center gap-2">
 			<button type="submit" class={ ButtonPrimaryClass }>Сохранить</button>
-			<a href={ templ.SafeURL(cancelHref) } hx-get={ cancelHref } hx-target={ target } hx-swap="outerHTML" class={ ButtonSecondaryClass }>Отмена</a>
+			<a href={ templ.SafeURL(cancelHref) } hx-get={ cancelHref } hx-target={ target } hx-swap="outerHTML" data-cancel class={ ButtonSecondaryClass }>Отмена</a>
+			{ children... }
 		</span>
 		@FieldError(message)
 	</form>
+}
+
+templ ActiveButton(active bool, deactivateAction, activateAction string) {
+	if active {
+		<button type="submit" formaction={ templ.SafeURL(deactivateAction) } class={ ButtonDangerClass }>Удалить</button>
+	} else {
+		<button type="submit" formaction={ templ.SafeURL(activateAction) } class={ ButtonSecondaryClass }>Восстановить</button>
+	}
 }
 
 templ CreateForm(action, placeholder, label, name, message, target string) {

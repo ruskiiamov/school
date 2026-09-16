@@ -53,6 +53,44 @@
 (function () {
   "use strict";
 
+  function cancelEdit(form) {
+    var cancel = form.querySelector("[data-cancel]");
+
+    if (cancel) {
+      cancel.click();
+    }
+  }
+
+  document.addEventListener("click", function (event) {
+    var form = document.querySelector("form[data-edit-form]");
+
+    if (!form || form.contains(event.target)) {
+      return;
+    }
+
+    if (event.target.closest("a, button, input, select, textarea, label, summary, dialog")) {
+      return;
+    }
+
+    cancelEdit(form);
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    var form = event.target.closest("form[data-edit-form]");
+
+    if (form) {
+      cancelEdit(form);
+    }
+  });
+})();
+
+(function () {
+  "use strict";
+
   var toggle = document.getElementById("nav-toggle");
   var sidebar = document.getElementById("sidebar");
   var overlay = document.getElementById("nav-overlay");
