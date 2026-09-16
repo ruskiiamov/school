@@ -16,6 +16,7 @@ const (
 	renderPage renderMode = iota
 	renderTopic
 	renderBlock
+	renderActions
 )
 
 type lessonState struct {
@@ -81,9 +82,14 @@ func (h *Handler) lessonDelete(w http.ResponseWriter, r *http.Request) {
 
 	user, _ := web.UserFromContext(r.Context())
 
+	mode := renderPage
+	if web.IsHTMX(r) {
+		mode = renderActions
+	}
+
 	err := h.journal.DeleteLesson(r.Context(), user.ID, lesson.ID)
 	if errs, ok := web.FormErrors(err); ok {
-		h.renderLesson(w, r, lesson, lessonState{topic: lesson.Topic, deleteError: errs["lesson"]}, renderPage)
+		h.renderLesson(w, r, lesson, lessonState{topic: lesson.Topic, deleteError: errs["lesson"]}, mode)
 		return
 	}
 	if err != nil {
@@ -129,6 +135,19 @@ func (h *Handler) renderLesson(w http.ResponseWriter, r *http.Request, lesson jo
 		return
 	}
 
+	canDelete, err := h.journal.CanDeleteLesson(r.Context(), lesson.ID)
+	if err != nil {
+		h.base.ServerError(w, r, "check lesson records", err)
+		return
+	}
+
+	page.CanDelete = canDelete
+
+	if mode == renderActions {
+		h.base.Render(w, r, pages.LessonActions(page, false))
+		return
+	}
+
 	block, err := h.lessonBlock(r, lesson, state.mark, state.record)
 	if err != nil {
 		h.base.ServerError(w, r, "load lesson students", err)
@@ -138,17 +157,9 @@ func (h *Handler) renderLesson(w http.ResponseWriter, r *http.Request, lesson jo
 	page.Block = block
 
 	if mode == renderBlock {
-		h.base.Render(w, r, pages.LessonBlock(block))
+		h.base.Render(w, r, pages.LessonBlockUpdate(page))
 		return
 	}
-
-	canDelete, err := h.journal.CanDeleteLesson(r.Context(), lesson.ID)
-	if err != nil {
-		h.base.ServerError(w, r, "check lesson records", err)
-		return
-	}
-
-	page.CanDelete = canDelete
 
 	h.base.Render(w, r, pages.Lesson(page))
 }

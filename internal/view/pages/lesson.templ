@@ -7,33 +7,53 @@ import (
 )
 
 const (
-	lessonTopicTarget = "#lesson-topic"
-	lessonTarget      = "#lesson"
+	lessonTopicTarget   = "#lesson-topic"
+	lessonTarget        = "#lesson"
+	lessonActionsTarget = "#lesson-actions"
 )
 
 templ Lesson(page view.LessonPage) {
 	@layout.App(page.Shell) {
 		<div class="flex flex-col gap-4 lg:gap-6">
 			@components.PageHeader(page.Title) {
-				if page.CanDelete {
-					<form
-						method="post"
-						action={ templ.SafeURL(page.Path + "/delete") }
-						hx-post={ page.Path + "/delete" }
-						hx-confirm={ "Удалить урок " + page.Title + "?" }
-						data-confirm-ok="Удалить"
-					>
-						<button type="submit" class={ components.ButtonDangerClass }>Удалить урок</button>
-					</form>
-				}
-			}
-			if page.DeleteError != "" {
-				@components.Alert(page.DeleteError)
+				@LessonActions(page, false)
 			}
 			@LessonTopic(page)
 			@LessonBlock(page.Block)
 		</div>
 	}
+}
+
+templ LessonActions(page view.LessonPage, oob bool) {
+	<div
+		id="lesson-actions"
+		if oob {
+			hx-swap-oob="true"
+		}
+		class="flex flex-wrap items-center gap-3"
+	>
+		if page.DeleteError != "" {
+			<span class="text-sm text-rose-600">{ page.DeleteError }</span>
+		}
+		if page.CanDelete {
+			<form
+				method="post"
+				action={ templ.SafeURL(page.Path + "/delete") }
+				hx-post={ page.Path + "/delete" }
+				hx-target={ lessonActionsTarget }
+				hx-swap="outerHTML"
+				hx-confirm={ "Удалить урок " + page.Title + "?" }
+				data-confirm-ok="Удалить"
+			>
+				<button type="submit" class={ components.ButtonDangerClass }>Удалить урок</button>
+			</form>
+		}
+	</div>
+}
+
+templ LessonBlockUpdate(page view.LessonPage) {
+	@LessonBlock(page.Block)
+	@LessonActions(page, true)
 }
 
 templ LessonTopic(page view.LessonPage) {

@@ -122,11 +122,21 @@ func TestLessonStudentsAndMarks(t *testing.T) {
 	assert.Equal(t, http.StatusOK, fragment.Code)
 	assert.Contains(t, fragment.Body.String(), `id="lesson"`)
 	assert.Contains(t, fragment.Body.String(), ">2<")
+	assert.Contains(t, fragment.Body.String(), `id="lesson-actions" hx-swap-oob="true"`)
+	assert.NotContains(t, fragment.Body.String(), "Удалить урок")
 	assert.NotContains(t, fragment.Body.String(), "<html")
 
 	notEmpty := servertest.PostForm(t, f.env.Handler, lessonPath(id, "/delete"), nil, []*http.Cookie{teacher}, nil)
 	assert.Equal(t, http.StatusOK, notEmpty.Code)
 	assert.Contains(t, notEmpty.Body.String(), "Урок с оценками или записями удалить нельзя")
+	assert.Contains(t, notEmpty.Body.String(), "<html")
+
+	notEmptyFragment := servertest.PostForm(t, f.env.Handler, lessonPath(id, "/delete"), nil, []*http.Cookie{teacher}, map[string]string{"HX-Request": "true"})
+	assert.Equal(t, http.StatusOK, notEmptyFragment.Code)
+	assert.Contains(t, notEmptyFragment.Body.String(), `id="lesson-actions"`)
+	assert.Contains(t, notEmptyFragment.Body.String(), "Урок с оценками или записями удалить нельзя")
+	assert.NotContains(t, notEmptyFragment.Body.String(), "Удалить урок")
+	assert.NotContains(t, notEmptyFragment.Body.String(), "<html")
 
 	require.NoError(t, f.env.School.RemoveClassStudent(t.Context(), f.class, petr))
 	require.NoError(t, f.env.School.SetWorkTypeActive(t.Context(), answer.ID, false))

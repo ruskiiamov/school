@@ -55,6 +55,11 @@ func TestJournalOpenLessonTopicDelete(t *testing.T) {
 	body = servertest.Get(t, f.env.Handler, "/journal", teacher).Body.String()
 	assert.Contains(t, body, "Квадратные уравнения")
 
+	emptyFragment := servertest.Get(t, f.env.Handler, lessonPath(id, ""), teacher, map[string]string{"HX-Request": "true"})
+	assert.Equal(t, http.StatusOK, emptyFragment.Code)
+	assert.Contains(t, emptyFragment.Body.String(), `id="lesson-actions" hx-swap-oob="true"`)
+	assert.Contains(t, emptyFragment.Body.String(), "Удалить урок")
+
 	fragment := servertest.PostForm(t, f.env.Handler, lessonPath(id, "/topic"), url.Values{"topic": {"Повторение"}}, []*http.Cookie{teacher}, map[string]string{"HX-Request": "true"})
 	assert.Equal(t, http.StatusOK, fragment.Code)
 	assert.Contains(t, fragment.Body.String(), `id="lesson-topic"`)

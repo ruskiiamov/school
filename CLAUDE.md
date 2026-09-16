@@ -107,7 +107,7 @@ HTTP.
   - `server/journal` — журнал учителя под `/journal`: `handler.go` (`New`,
     `Routes`, обёртка `h.teacher(fn)`, форма пары и последние уроки),
     `lesson.go` (страница урока, тема, удаление, `renderLesson` с режимами
-    `renderPage`/`renderTopic`/`renderBlock`), `marks.go` (оценки и сборка
+    `renderPage`/`renderTopic`/`renderBlock`/`renderActions`), `marks.go` (оценки и сборка
     блока `#lesson`: `lessonBlock`, `studentPanel`, `markFields`),
     `records.go` (отсутствие и комментарий). Год и «сегодня» берёт из
     `school` (`CurrentYear`, `Today`) и передаёт в `journal` параметрами.
@@ -285,7 +285,9 @@ cookie). Ошибка: полная страница с введёнными з�
 у ученика «не в классе» форм нет, но оценки правятся и удаляются. Все
 действия панели отвечают HTMX фрагментом `#lesson`, без JS — редирект на
 `?student={sid}`; ссылки учеников — `hx-get` + `hx-push-url`. Кнопка
-«Удалить урок» только у пустого; ошибка удаления — `components.Alert`.
+«Удалить урок» и ошибка удаления — фрагмент `#lesson-actions` в шапке:
+форма целится в него, а `pages.LessonBlockUpdate` отдаёт его вместе с
+`#lesson` через `hx-swap-oob`, чтобы кнопка пропадала после первой оценки.
 Замены (`admin/substitutions.go`) — строчный паттерн с `?ended=1` и
 правкой только дат; учителя проверяет `activeUser`, класс и предмет —
 `school.CreateSubstitution`.
