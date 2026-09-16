@@ -76,9 +76,8 @@ type PasswordPage struct {
 	Done   bool
 }
 
-type StubPage struct {
-	Shell   Shell
-	Heading string
+type DiaryPage struct {
+	Shell Shell
 }
 
 type SubjectRow struct {
