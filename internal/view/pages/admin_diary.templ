@@ -1,0 +1,63 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+const diarySearchTarget = "#diary-search"
+
+templ DiarySearch(page view.DiarySearchPage) {
+	@layout.App(page.Shell) {
+		@DiarySearchPage(page)
+	}
+}
+
+templ DiarySearchPage(page view.DiarySearchPage) {
+	<div id="diary-search" class="flex flex-col gap-4 lg:gap-6">
+		@components.PageHeader("Дневники")
+		<form
+			method="get"
+			action={ templ.SafeURL(page.Path) }
+			hx-get={ page.Path }
+			hx-target={ diarySearchTarget }
+			hx-swap="outerHTML"
+			hx-trigger="submit, input changed delay:300ms, change"
+			hx-push-url="true"
+			class={ components.CardClass, "flex flex-wrap items-center gap-2 p-3 sm:p-4" }
+		>
+			<input
+				type="search"
+				id="diary-search-input"
+				hx-preserve
+				name="q"
+				value={ page.Query }
+				placeholder="Поиск ученика по ФИО"
+				aria-label="Поиск ученика по ФИО"
+				autocomplete="off"
+				class={ components.InputClass, "flex-1 basis-56" }
+			/>
+			<button type="submit" class={ components.ButtonSecondaryClass }>Найти</button>
+		</form>
+		<div class={ components.CardClass }>
+			if page.Query == "" {
+				@components.EmptyState("Введите ФИО, чтобы найти ученика")
+			} else if len(page.Students) == 0 {
+				@components.EmptyState("Ничего не найдено")
+			} else {
+				<ul class="divide-y divide-slate-100">
+					for _, student := range page.Students {
+						<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+							<span class="flex min-w-0 basis-full items-center gap-2 sm:flex-1 sm:basis-auto">
+								<span class="truncate text-sm font-medium text-slate-900">{ student.FullName }</span>
+							</span>
+							<span class="text-sm text-slate-600 sm:w-20">{ student.ClassName }</span>
+							<a href={ templ.SafeURL(student.Href) } class={ components.ButtonSecondaryClass, "ml-auto" }>Открыть</a>
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	</div>
+}
