@@ -93,3 +93,7 @@ func openLesson(t *testing.T, env *servertest.Env, cookie *http.Cookie, classID,
 func journalMarkInput(workTypeID int64, value int) journal.MarkInput {
 	return journal.MarkInput{WorkTypeID: workTypeID, Value: value}
 }
+
+func journalHomework(text string) journal.HomeworkInput {
+	return journal.HomeworkInput{Text: text}
+}

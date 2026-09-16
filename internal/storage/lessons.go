@@ -84,6 +84,33 @@ func (r *LessonRepo) ListVisible(ctx context.Context, teacherID int64, year, lim
 	return lessons, nil
 }
 
+func (r *LessonRepo) ListByPair(ctx context.Context, classID, subjectID int64) ([]Lesson, error) {
+	const query = "SELECT " + lessonColumns + " FROM lessons WHERE class_id = ? AND subject_id = ? ORDER BY date DESC, id DESC"
+
+	rows, err := r.db.QueryContext(ctx, query, classID, subjectID)
+	if err != nil {
+		return nil, fmt.Errorf("select pair lessons: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var lessons []Lesson
+
+	for rows.Next() {
+		lesson, err := scanLesson(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan lesson: %w", err)
+		}
+
+		lessons = append(lessons, lesson)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate lessons: %w", err)
+	}
+
+	return lessons, nil
+}
+
 func (r *LessonRepo) Create(ctx context.Context, lesson Lesson) (int64, error) {
 	const query = `INSERT INTO lessons (class_id, subject_id, teacher_id, date, topic, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -132,12 +159,34 @@ func (r *LessonRepo) DeleteEmpty(ctx context.Context, id int64) error {
 		AND NOT EXISTS (SELECT 1 FROM marks WHERE lesson_id = ?)
 		AND NOT EXISTS (SELECT 1 FROM lesson_students WHERE lesson_id = ?)`
 
-	result, err := r.db.ExecContext(ctx, query, id, id, id)
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delete lesson: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	result, err := tx.ExecContext(ctx, query, id, id, id)
 	if err != nil {
 		return fmt.Errorf("delete lesson: %w", err)
 	}
 
-	return requireAffected(result, "delete lesson")
+	if err := requireAffected(result, "delete lesson"); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, "DELETE FROM homework WHERE lesson_id = ?", id); err != nil {
+		return fmt.Errorf("delete lesson homework: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, "DELETE FROM homework_files WHERE lesson_id = ?", id); err != nil {
+		return fmt.Errorf("delete lesson homework files: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete lesson: %w", err)
+	}
+
+	return nil
 }
 
 func scanLesson(row scanner) (Lesson, error) {
@@ -196,4 +245,18 @@ func (r *LessonRepo) ListForStudent(ctx context.Context, studentID int64, date t
 	}
 
 	return lessons, nil
+}
+
+func (r *LessonRepo) VisibleToStudent(ctx context.Context, studentID, lessonID int64) (bool, error) {
+	const query = `SELECT EXISTS (SELECT 1 FROM lessons WHERE id = ? AND (
+		class_id IN (SELECT class_id FROM class_students WHERE student_id = ?)
+		OR id IN (SELECT lesson_id FROM marks WHERE student_id = ?)
+		OR id IN (SELECT lesson_id FROM lesson_students WHERE student_id = ?)))`
+
+	var visible bool
+	if err := r.db.QueryRowContext(ctx, query, lessonID, studentID, studentID, studentID).Scan(&visible); err != nil {
+		return false, fmt.Errorf("check lesson visibility: %w", err)
+	}
+
+	return visible, nil
 }

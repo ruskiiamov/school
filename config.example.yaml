@@ -32,6 +32,12 @@ session:
 journal:
   cleanup_interval: 24h
 
+files:
+  dir: ./data/files
+  max_file_size_mb: 10
+  max_per_lesson: 10
+  transfer_timeout: 5m
+
 admin:
   login: admin
   password: change-me

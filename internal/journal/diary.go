@@ -15,6 +15,7 @@ type DiaryLesson struct {
 	Marks       []Mark
 	Absent      bool
 	Comment     string
+	Homework    Homework
 }
 
 func (s *Service) DayLessons(ctx context.Context, studentID int64, date time.Time) ([]DiaryLesson, error) {
@@ -69,6 +70,10 @@ func (s *Service) DayLessons(ctx context.Context, studentID int64, date time.Tim
 				lesson.Absent = record.Absent
 				lesson.Comment = record.Comment
 			}
+		}
+
+		if lesson.Homework, err = s.Homework(ctx, item.ID); err != nil {
+			return nil, err
 		}
 
 		lessons = append(lessons, lesson)

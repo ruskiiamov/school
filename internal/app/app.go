@@ -13,6 +13,7 @@ import (
 
 	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/config"
+	"github.com/ruskiiamov/school/internal/files"
 	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server"
@@ -73,9 +74,19 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		log,
 	)
 
+	store, err := files.NewStore(cfg.Files.Dir)
+	if err != nil {
+		if closeErr := db.Close(); closeErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("close database: %w", closeErr))
+		}
+
+		return nil, err
+	}
+
 	journalService := journal.NewService(storage.NewLessonRepo(db), storage.NewMarkRepo(db), storage.NewLessonStudentRepo(db), storage.NewAssignmentRepo(db),
 		storage.NewSubstitutionRepo(db), storage.NewClassRepo(db), storage.NewClassStudentRepo(db),
-		storage.NewSubjectRepo(db), storage.NewWorkTypeRepo(db), log)
+		storage.NewSubjectRepo(db), storage.NewWorkTypeRepo(db), storage.NewHomeworkRepo(db), storage.NewHomeworkFileRepo(db),
+		store, journal.FileLimits{MaxFileSize: cfg.Files.MaxFileSize(), MaxPerLesson: cfg.Files.MaxPerLesson}, log)
 
 	return &App{
 		log:     log,

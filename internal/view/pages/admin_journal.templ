@@ -1,0 +1,142 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+const adminJournalTarget = "#admin-journal"
+
+templ AdminJournal(page view.AdminJournalPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader("Журналы")
+			@AdminJournalContent(page)
+		</div>
+	}
+}
+
+templ AdminJournalContent(page view.AdminJournalPage) {
+	<div id="admin-journal" class="flex flex-col gap-4 lg:gap-6">
+		<form
+			method="get"
+			action={ templ.SafeURL(page.Path) }
+			hx-get={ page.Path }
+			hx-target={ adminJournalTarget }
+			hx-swap="outerHTML"
+			hx-trigger="submit, change"
+			hx-push-url="true"
+			class={ components.CardClass, "flex flex-wrap items-start gap-2 p-3 sm:p-4" }
+		>
+			@components.RowSelect("class", "Класс", page.Classes, "", "flex-1 basis-40")
+			@components.RowSelect("subject", "Предмет", page.Subjects, "", "flex-1 basis-56")
+			<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Показать</button>
+		</form>
+		<section class={ components.CardClass }>
+			if !page.Selected {
+				@components.EmptyState("Выберите класс и предмет")
+			} else if len(page.Lessons) == 0 {
+				@components.EmptyState("Уроков пока нет")
+			} else {
+				<ul class="divide-y divide-slate-100">
+					for _, lesson := range page.Lessons {
+						<li class="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 sm:p-4">
+							<a href={ templ.SafeURL(lesson.Href) } class="text-sm font-medium text-indigo-700 hover:underline">{ lesson.Date }</a>
+							<span class="text-sm text-slate-600">{ lesson.Teacher }</span>
+							if lesson.Homework {
+								<span class="rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700">ДЗ</span>
+							}
+							if lesson.Topic != "" {
+								<span class="min-w-0 basis-full truncate text-sm text-slate-600 sm:flex-1 sm:basis-auto">{ lesson.Topic }</span>
+							}
+						</li>
+					}
+				</ul>
+			}
+		</section>
+	</div>
+}
+
+templ AdminLesson(page view.AdminLessonPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader(page.Title) {
+				<a href={ templ.SafeURL(page.BackHref) } class={ components.ButtonSecondaryClass }>К списку</a>
+			}
+			<section class={ components.CardClass, "flex flex-col gap-1 px-4 py-3 lg:px-5" }>
+				<span class="text-sm text-slate-600">{ page.Teacher }</span>
+				if page.Topic != "" {
+					<span class="text-sm text-slate-900">Тема: { page.Topic }</span>
+				} else {
+					<span class="text-sm text-slate-500">Тема не задана</span>
+				}
+			</section>
+			if page.Homework != nil {
+				<section class={ components.CardClass }>
+					@diaryHomework(*page.Homework)
+				</section>
+			}
+			@AdminLessonBlock(page.Block)
+		</div>
+	}
+}
+
+templ AdminLessonBlock(block view.AdminLessonBlock) {
+	<div id="lesson" class="grid items-start gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-6">
+		<nav aria-label="Ученики" class={ components.CardClass, "p-2 lg:p-0" }>
+			if len(block.Students) == 0 {
+				@components.EmptyState("В классе пока нет учеников")
+			} else {
+				<ul class="flex flex-wrap gap-2 lg:flex-col lg:gap-0 lg:divide-y lg:divide-slate-100">
+					for _, student := range block.Students {
+						@lessonStudentItem(student)
+					}
+				</ul>
+			}
+		</nav>
+		if block.Selected != nil {
+			@adminStudentPanel(*block.Selected)
+		}
+	</div>
+}
+
+templ adminStudentPanel(panel view.AdminStudentPanel) {
+	<section class={ components.CardClass }>
+		<div class="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 lg:px-5">
+			<h2 class="text-sm font-semibold text-slate-900">{ panel.FullName }</h2>
+			if !panel.Active {
+				@components.InactiveBadge()
+			}
+			if !panel.InClass {
+				<span class="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">не в классе</span>
+			}
+			<a href={ templ.SafeURL(panel.DiaryHref) } class="ml-auto text-sm font-medium text-indigo-700 hover:underline">Дневник</a>
+		</div>
+		if len(panel.Marks) == 0 {
+			@components.EmptyState("Оценок нет")
+		} else {
+			<ul class="divide-y divide-slate-100">
+				for _, mark := range panel.Marks {
+					<li class="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 sm:p-4">
+						<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-base font-semibold text-indigo-700">{ mark.Value }</span>
+						<span class="text-sm font-medium text-slate-900">{ mark.WorkType }</span>
+						if mark.Label != "" {
+							<span class="text-sm text-slate-600">{ mark.Label }</span>
+						}
+					</li>
+				}
+			</ul>
+		}
+		if panel.Absent || panel.Comment != "" {
+			<div class="flex flex-col gap-2 border-t border-slate-100 p-3 sm:p-4">
+				if panel.Absent {
+					<span class="w-fit rounded-md bg-amber-50 px-2 py-1 text-sm font-medium text-amber-700">Отсутствовал</span>
+				}
+				if panel.Comment != "" {
+					<p class="rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700">{ panel.Comment }</p>
+				}
+			</div>
+		}
+	</section>
+}

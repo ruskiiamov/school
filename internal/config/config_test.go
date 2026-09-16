@@ -31,6 +31,10 @@ func TestLoadExample(t *testing.T) {
 	assert.Equal(t, 12*time.Hour, cfg.Session.TTL)
 	assert.Equal(t, time.Hour, cfg.Session.CleanupInterval)
 	assert.Equal(t, 24*time.Hour, cfg.Journal.CleanupInterval)
+	assert.Equal(t, "./data/files", cfg.Files.Dir)
+	assert.Equal(t, int64(10<<20), cfg.Files.MaxFileSize())
+	assert.Equal(t, 10, cfg.Files.MaxPerLesson)
+	assert.Equal(t, 5*time.Minute, cfg.Files.TransferTimeout)
 	assert.Equal(t, slog.LevelInfo, cfg.Log.Level.Slog())
 	assert.True(t, cfg.Log.Stdout)
 	assert.Equal(t, "admin", cfg.Admin.Login)
@@ -42,7 +46,7 @@ func TestLoadExample(t *testing.T) {
 func TestLoadYearStartMonth(t *testing.T) {
 	t.Parallel()
 
-	cfg, err := Load(writeConfig(t, "school:\n  year_start_month: 9\ndb:\n  path: ./x.db\nlog:\n  file: ./x.log\nadmin:\n  login: a\n  password: p\n  full_name: n\n"))
+	cfg, err := Load(writeConfig(t, "school:\n  year_start_month: 9\ndb:\n  path: ./x.db\nlog:\n  file: ./x.log\nfiles:\n  dir: ./x\nadmin:\n  login: a\n  password: p\n  full_name: n\n"))
 	require.NoError(t, err)
 
 	assert.Equal(t, time.September, cfg.School.YearStartMonth)
@@ -80,6 +84,16 @@ func TestLoadInvalid(t *testing.T) {
 			name: "zero year start month",
 			body: "school:\n  year_start_month: 0\n",
 			want: "school.year_start_month must be between 1 and 12",
+		},
+		{
+			name: "missing files dir",
+			body: "db:\n  path: ./x.db\nlog:\n  file: ./x.log\nadmin:\n  login: a\n  password: p\n  full_name: n\n",
+			want: "files.dir is empty",
+		},
+		{
+			name: "zero max file size",
+			body: "files:\n  max_file_size_mb: 0\n",
+			want: "files.max_file_size_mb must be positive",
 		},
 		{
 			name: "unknown log level",

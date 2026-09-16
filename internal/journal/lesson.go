@@ -7,6 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/ruskiiamov/school/internal/files"
 	"github.com/ruskiiamov/school/internal/storage"
 	"github.com/ruskiiamov/school/internal/validation"
 )
@@ -127,6 +128,22 @@ func (s *Service) LessonForTeacher(ctx context.Context, teacherID, id int64) (Le
 		return Lesson{}, ErrForbidden
 	}
 
+	return s.withNames(ctx, stored)
+}
+
+func (s *Service) LessonByID(ctx context.Context, id int64) (Lesson, error) {
+	stored, err := s.lessons.ByID(ctx, id)
+	if errors.Is(err, storage.ErrNotFound) {
+		return Lesson{}, ErrNotFound
+	}
+	if err != nil {
+		return Lesson{}, err
+	}
+
+	return s.withNames(ctx, stored)
+}
+
+func (s *Service) withNames(ctx context.Context, stored storage.Lesson) (Lesson, error) {
 	lesson := toLesson(stored)
 
 	class, err := s.classes.ByID(ctx, stored.ClassID)
@@ -143,6 +160,30 @@ func (s *Service) LessonForTeacher(ctx context.Context, teacherID, id int64) (Le
 	lesson.SubjectName = subject.Name
 
 	return lesson, nil
+}
+
+func (s *Service) LessonsByPair(ctx context.Context, classID, subjectID int64) ([]Lesson, map[int64]bool, error) {
+	stored, err := s.lessons.ListByPair(ctx, classID, subjectID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ids, err := s.homework.LessonIDsByPair(ctx, classID, subjectID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	withHomework := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		withHomework[id] = true
+	}
+
+	lessons := make([]Lesson, 0, len(stored))
+	for _, item := range stored {
+		lessons = append(lessons, toLesson(item))
+	}
+
+	return lessons, withHomework, nil
 }
 
 func (s *Service) RecentLessons(ctx context.Context, teacherID int64, year int) ([]Lesson, error) {
@@ -226,13 +267,25 @@ func (s *Service) DeleteLesson(ctx context.Context, teacherID, id int64) error {
 		return validation.Errors{"lesson": msgLessonNotEmpty}
 	}
 
+	homeworkFiles, err := s.homeworkFiles.ListByLesson(ctx, id)
+	if err != nil {
+		return err
+	}
+
 	if err := s.lessons.DeleteEmpty(ctx, id); errors.Is(err, storage.ErrNotFound) {
 		return ErrNotFound
 	} else if err != nil {
 		return err
 	}
 
-	s.log.InfoContext(ctx, "lesson deleted", slog.Int64("id", id), slog.Int64("teacher_id", teacherID))
+	for _, file := range homeworkFiles {
+		if err := s.store.Delete(file.ID); err != nil && !errors.Is(err, files.ErrNotFound) {
+			s.log.ErrorContext(ctx, "remove homework file", slog.String("file_id", file.ID), slog.Any("error", err))
+		}
+	}
+
+	s.log.InfoContext(ctx, "lesson deleted", slog.Int64("id", id), slog.Int64("teacher_id", teacherID),
+		slog.Int("homework_files", len(homeworkFiles)))
 
 	return nil
 }

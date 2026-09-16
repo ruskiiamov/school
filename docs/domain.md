@@ -1,11 +1,11 @@
 # Доменная модель
 
-Основана на решениях D-001…D-062. Таблицы итерации 2 (`users` с `active`,
+Основана на решениях D-001…D-066. Таблицы итерации 2 (`users` с `active`,
 `subjects`, `work_types`, `classes`, `class_students`, `parent_children`,
 `teaching_assignments`) созданы миграцией `00002_catalog.sql`, таблицы
 итерации 3 (`substitutions`, `lessons`, `marks`, `lesson_students`) —
-`00003_journal.sql`; `homework` и `homework_files` — целевая схема
-итерации 5.
+`00003_journal.sql`, таблицы итерации 5 (`homework`, `homework_files`) —
+`00004_homework.sql`.
 Внешних ключей нет ([D-018], CLAUDE.md):
 целостность держит сервисный слой, для каждой связи ниже указано, кто чистит
 зависимые строки.
@@ -51,7 +51,7 @@ marks                id, lesson_id, student_id, work_type_id, value, label, crea
 lesson_students      lesson_id, student_id, absent, comment, updated_at
                                                                 PK (lesson_id, student_id)
 homework             lesson_id (PK), text, due_date, created_at, updated_at
-homework_files       id, lesson_id, name, size, content_type, created_at
+homework_files       id (TEXT PK), lesson_id, name, size, content_type, created_at
 ```
 
 Пояснения.
@@ -90,10 +90,15 @@ homework_files       id, lesson_id, name, size, content_type, created_at
   или отсутствие); сохранение пустого комментария со снятым флагом удаляет
   строку. `absent=1` не запрещает оценки. Комментарий — до 500 символов,
   подпись оценки — до 100, тема урока — до 200 (D-059).
-- `homework` — одно ДЗ на урок; `due_date` может быть NULL.
-- `homework_files.id` — имя файла на диске: `<files.dir>/<id>`. Оригинальное
-  имя — в `name`, отдаётся через `Content-Disposition: attachment`. Лимиты —
-  в конфиге: размер файла (по умолчанию 10 МБ), число файлов на ДЗ.
+- `homework` — одно ДЗ на урок; строка есть, только пока не пусты текст
+  или срок (`due_date` может быть NULL, срок — информация, ничего не
+  фильтрует, D-065). Текст — до 2000 символов, многострочный.
+- `homework_files` ссылаются на урок, а не на строку `homework`: файлы
+  живут и без текста. `id` — случайные 16 байт в hex, он же имя файла на
+  диске `<files.dir>/<id>`. Оригинальное имя — в `name` (до 200 символов),
+  отдаётся через `Content-Disposition: attachment`; `content_type`
+  определён сервером по содержимому. Лимиты — в конфиге `files`: размер
+  файла (по умолчанию 10 МБ), число файлов на урок (10).
 
 ## Инварианты (проверяет сервис)
 
@@ -122,7 +127,7 @@ homework_files       id, lesson_id, name, size, content_type, created_at
 | создать урок | — | нагрузка или действующая замена | — | — |
 | журнал урока: оценки, комментарий, отсутствие, ДЗ, файлы | чтение | автор урока или текущий учитель по нагрузке | — | — |
 | дневник | любого ученика, чтение | — | только свой | только своих детей |
-| скачать файл ДЗ | да | кто видит урок | ученик класса урока | родитель ученика класса |
+| скачать файл ДЗ | да | кто видит урок | кто видит урок в дневнике (состав класса или свои оценки/запись, D-023) | через любого своего ребёнка |
 
 «Текущий учитель по нагрузке» — строка `teaching_assignments` для (класс,
 предмет) урока. «Ученик класса урока» — есть строка `class_students` для класса
@@ -153,8 +158,8 @@ homework_files       id, lesson_id, name, size, content_type, created_at
 |---|---|
 | оценку | ничего |
 | файл ДЗ | строку `homework_files` и файл на диске (сначала строка, потом файл) |
-| ДЗ | `homework_files` и файлы |
-| урок (только пустой — без оценок и записей, D-024) | `homework`, `homework_files` |
+| ДЗ (пустые текст и срок) | только строку `homework`; файлы остаются |
+| урок (только пустой — без оценок и записей, D-024) | `homework`, `homework_files` в одной транзакции, затем файлы с диска |
 | нагрузку | ничего: уроки остаются у автора |
 | замену | ничего: уроки остаются у автора |
 | членство ученика в классе | ничего: оценки остаются |
@@ -164,9 +169,10 @@ homework_files       id, lesson_id, name, size, content_type, created_at
 
 Периодическая уборка: `journal.Service.RunCleanup` раз в
 `journal.cleanup_interval` (по умолчанию сутки) удаляет `marks` и
-`lesson_students` без урока (D-059); в итерации 5 сюда же — `homework`,
-`homework_files` без урока, файлы на диске без строки, строки
-`homework_files` без файла (логировать).
+`lesson_students` без урока (D-059), `homework` и `homework_files` без
+урока вместе с файлами на диске, файлы на диске без строки; строки
+`homework_files` без файла остаются и пишутся в лог предупреждением
+(D-065).
 
 ## Что вне границ (сейчас)
 
