@@ -219,6 +219,7 @@ func (h *Handler) renderDiary(w http.ResponseWriter, r *http.Request, dv diaryVi
 			Subject:  lesson.SubjectName,
 			Teacher:  view.ShortName(teacherNames[lesson.TeacherID]),
 			Summary:  diarySummary(lesson),
+			Homework: !lesson.Homework.Empty(),
 			Selected: i == selected,
 		})
 	}
@@ -235,6 +236,10 @@ func (h *Handler) renderDiary(w http.ResponseWriter, r *http.Request, dv diaryVi
 
 		for _, mark := range lesson.Marks {
 			panel.Marks = append(panel.Marks, view.DiaryMark{Value: strconv.Itoa(mark.Value), WorkType: mark.WorkTypeName, Label: mark.Label})
+		}
+
+		if !lesson.Homework.Empty() {
+			panel.Homework = diaryHomework(lesson.Homework)
 		}
 
 		page.Selected = &panel
@@ -279,6 +284,20 @@ func diarySummary(lesson journal.DiaryLesson) string {
 	default:
 		return summary
 	}
+}
+
+func diaryHomework(homework journal.Homework) *view.DiaryHomework {
+	result := &view.DiaryHomework{Text: homework.Text}
+
+	if !homework.Due.IsZero() {
+		result.Due = view.FormatShortDate(homework.Due)
+	}
+
+	for _, file := range homework.Files {
+		result.Files = append(result.Files, view.FileLink{Name: file.Name, Size: view.FormatFileSize(file.Size), Href: "/files/" + file.ID})
+	}
+
+	return result
 }
 
 func diaryURL(dv diaryView, date time.Time, lessonID int64) string {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/ruskiiamov/school/internal/files"
 	"github.com/ruskiiamov/school/internal/storage"
 )
 
@@ -22,6 +23,10 @@ type Service struct {
 	classStudents  *storage.ClassStudentRepo
 	subjects       *storage.SubjectRepo
 	workTypes      *storage.WorkTypeRepo
+	homework       *storage.HomeworkRepo
+	homeworkFiles  *storage.HomeworkFileRepo
+	store          *files.Store
+	limits         FileLimits
 	log            *slog.Logger
 }
 
@@ -35,6 +40,10 @@ func NewService(
 	classStudents *storage.ClassStudentRepo,
 	subjects *storage.SubjectRepo,
 	workTypes *storage.WorkTypeRepo,
+	homework *storage.HomeworkRepo,
+	homeworkFiles *storage.HomeworkFileRepo,
+	store *files.Store,
+	limits FileLimits,
 	log *slog.Logger,
 ) *Service {
 	return &Service{
@@ -47,6 +56,10 @@ func NewService(
 		classStudents:  classStudents,
 		subjects:       subjects,
 		workTypes:      workTypes,
+		homework:       homework,
+		homeworkFiles:  homeworkFiles,
+		store:          store,
+		limits:         limits,
 		log:            log,
 	}
 }

@@ -20,6 +20,7 @@ type Config struct {
 	Log      Log     `yaml:"log"`
 	Session  Session `yaml:"session"`
 	Journal  Journal `yaml:"journal"`
+	Files    Files   `yaml:"files"`
 	Admin    Admin   `yaml:"admin"`
 
 	Location *time.Location `yaml:"-"`
@@ -63,6 +64,17 @@ type Journal struct {
 	CleanupInterval time.Duration `yaml:"cleanup_interval"`
 }
 
+type Files struct {
+	Dir             string        `yaml:"dir"`
+	MaxFileSizeMB   int           `yaml:"max_file_size_mb"`
+	MaxPerLesson    int           `yaml:"max_per_lesson"`
+	TransferTimeout time.Duration `yaml:"transfer_timeout"`
+}
+
+func (f Files) MaxFileSize() int64 {
+	return int64(f.MaxFileSizeMB) << 20
+}
+
 type Admin struct {
 	Login    string `yaml:"login"`
 	Password string `yaml:"password"`
@@ -104,6 +116,7 @@ func Load(path string) (*Config, error) {
 		Log:      Log{Level: Level(slog.LevelInfo), MaxSizeMB: 10, MaxBackups: 5, MaxAgeDays: 30},
 		Session:  Session{CookieName: "sid", TTL: 12 * time.Hour, CleanupInterval: time.Hour},
 		Journal:  Journal{CleanupInterval: 24 * time.Hour},
+		Files:    Files{MaxFileSizeMB: 10, MaxPerLesson: 10, TransferTimeout: 5 * time.Minute},
 	}
 
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -149,6 +162,10 @@ func (c *Config) validate() error {
 	require(c.Session.TTL > 0, "session.ttl must be positive")
 	require(c.Session.CleanupInterval > 0, "session.cleanup_interval must be positive")
 	require(c.Journal.CleanupInterval > 0, "journal.cleanup_interval must be positive")
+	require(c.Files.Dir != "", "files.dir is empty")
+	require(c.Files.MaxFileSizeMB > 0, "files.max_file_size_mb must be positive")
+	require(c.Files.MaxPerLesson > 0, "files.max_per_lesson must be positive")
+	require(c.Files.TransferTimeout > 0, "files.transfer_timeout must be positive")
 	require(c.Admin.Login != "", "admin.login is empty")
 	require(c.Admin.Password != "", "admin.password is empty")
 	require(c.Admin.FullName != "", "admin.full_name is empty")

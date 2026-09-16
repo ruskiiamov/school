@@ -18,6 +18,7 @@ const (
 	renderBlock
 	renderActions
 	renderRecord
+	renderHomework
 )
 
 type lessonState struct {
@@ -26,6 +27,7 @@ type lessonState struct {
 	deleteError string
 	mark        markForm
 	record      recordForm
+	homework    homeworkForm
 }
 
 func (h *Handler) lessonShow(w http.ResponseWriter, r *http.Request) {
@@ -133,6 +135,21 @@ func (h *Handler) renderLesson(w http.ResponseWriter, r *http.Request, lesson jo
 
 	if mode == renderTopic {
 		h.base.Render(w, r, pages.LessonTopic(page))
+		return
+	}
+
+	if mode == renderPage || mode == renderHomework {
+		homework, err := h.homeworkView(r, lesson, state.homework, mode == renderHomework || state.homework.entered || state.homework.fileError != "")
+		if err != nil {
+			h.base.ServerError(w, r, "load homework", err)
+			return
+		}
+
+		page.Homework = homework
+	}
+
+	if mode == renderHomework {
+		h.base.Render(w, r, pages.LessonHomework(page.Homework))
 		return
 	}
 

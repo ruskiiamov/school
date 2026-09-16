@@ -10,9 +10,9 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 
 Интерфейс полностью на русском; вёрстка должна быть одинаково пригодна на телефоне
 и на десктопе. Готовы итерации 1 (вход, дашборд), 2 (справочники админа),
-3 (журнал учителя) и 4 (дневник); следующая — 5, домашнее задание, см.
-`docs/roadmap.md`. Меню строится по роли в `view.NavItems(role, active)`;
-заглушек больше нет.
+3 (журнал учителя), 4 (дневник) и 5 (домашнее задание); следующая — 6,
+сводные представления, см. `docs/roadmap.md`. Меню строится по роли в
+`view.NavItems(role, active)`; заглушек больше нет.
 
 ## Проектные документы
 
@@ -54,11 +54,11 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 
 Зависимости идут строго в одну сторону: `cmd/server` → `internal/app` →
 `internal/server` → {`server/admin`, `server/account`, `server/journal`,
-`server/diary`} → `server/web` → {`internal/auth`, `internal/school`,
-`internal/journal`} →
-`internal/storage`. `auth`, `school` и `journal` друг о друге не знают;
-`internal/view` не знает ни о `server`, ни о сервисах; `storage` не знает о
-HTTP.
+`server/diary`, `server/files`} → `server/web` → {`internal/auth`,
+`internal/school`, `internal/journal`} → {`internal/storage`,
+`internal/files`}. `auth`, `school` и `journal` друг о друге не знают;
+`internal/view` не знает ни о `server`, ни о сервисах; `storage` и `files`
+не знают о HTTP.
 
 - `cmd/server/main.go` — флаг `-config` (или `CONFIG_PATH`), логгер, `signal.NotifyContext`,
   порядок закрытия ресурсов.
@@ -74,6 +74,10 @@ HTTP.
   `cmd/server` импортирует `time/tzdata`, чтобы статический бинарник не зависел
   от системных zoneinfo. `school.year_start_month` — номер месяца (1–12), год начинается с его первого числа.
   `journal.cleanup_interval` — период уборки осиротевших строк журнала.
+  `files` — каталог файлов ДЗ (`dir`, создаётся при старте), лимиты
+  `max_file_size_mb`, `max_per_lesson` и `transfer_timeout` — на сколько
+  обработчики загрузки и скачивания продлевают дедлайн соединения через
+  `http.ResponseController` (глобальные `http.*_timeout` не трогать).
 - `internal/server` — корень HTTP (D-057): `Server` держит `*web.Base`, сервисы и
   обработчики подпакетов. `Handler()` собирает два `http.ServeMux`: внешний со
   служебными маршрутами (статика, `/healthz`) и внутренний `pages()` с маршрутами
@@ -109,9 +113,17 @@ HTTP.
   - `server/journal` — журнал учителя под `/journal`: `handler.go` (`New`,
     `Routes`, обёртка `h.teacher(fn)`, форма пары и последние уроки),
     `lesson.go` (страница урока, тема, удаление, `renderLesson` с режимами
-    `renderPage`/`renderTopic`/`renderBlock`/`renderActions`), `marks.go` (оценки и сборка
+    `renderPage`/`renderTopic`/`renderBlock`/`renderActions`/`renderRecord`/
+    `renderHomework`), `marks.go` (оценки и сборка
     блока `#lesson`: `lessonBlock`, `studentPanel`, `markFields`),
-    `records.go` (отсутствие и комментарий). Год и «сегодня» берёт из
+    `records.go` (отсутствие и комментарий), `homework.go` (ДЗ: текст и
+    срок, потоковая загрузка файлов через `r.MultipartReader` с
+    `http.MaxBytesReader`, удаление файла, `homeworkView`, статус
+    `homeworkStatus`), `admin.go` (`/admin/journal` и
+    `/admin/journal/lessons/{id}` только на чтение под обёрткой `h.admin`,
+    D-066 — исключение из «всё под `/admin` в `admin`», как `/admin/diary`;
+    свои шаблоны `pages.AdminJournal`/`AdminLesson`, список учеников
+    `lessonStudentItem` общий с учителем). Год и «сегодня» берёт из
     `school` (`CurrentYear`, `Today`) и передаёт в `journal` параметрами.
   - `server/diary` — дневник: `handler.go` (`/diary` для ученика и
     родителя: `index`, `parentDiary` с вкладками детей, общий
@@ -119,7 +131,14 @@ HTTP.
     `child`/`q` через все ссылки), `admin.go` (`/admin/diary?q=` поиск
     ученика и `/admin/diary/{id}` тот же дневник, D-061 — исключение из
     «всё под `/admin` в `admin`»). Только чтение, фрагмент `#diary`.
-  - `server/servertest` — окружение для тестов (см. «Как добавить страницу»).
+  - `server/files` — `GET /files/{id}`: скачивание файла ДЗ для всех ролей
+    с проверкой доступа в обработчике (`allowed`: админ всегда, учитель —
+    `LessonForTeacher`, ученик — `LessonVisibleToStudent`, родитель — через
+    детей из `school.Children`), `Content-Disposition: attachment`,
+    `http.ServeContent`.
+  - `server/servertest` — окружение для тестов (см. «Как добавить страницу»);
+    `env.Files` — хранилище файлов во временном каталоге с лимитами 1 МБ и
+    3 файла на урок.
   Маршруты для одной роли — `base.RequireAuth(web.RequireRole(role...)(h))`
   на каждом маршруте внутри своего пакета: аноним уходит на `/login`, чужая
   роль получает 404 (не 403) — образец `h.teacher` в `server/journal`,
@@ -152,14 +171,27 @@ HTTP.
   `DeleteMark`), записи об уроке (`record.go`: `SaveRecord`, пустая запись
   удаляет строку), уборка осиротевших строк (`cleanup.go`), чтение для
   дневника (`diary.go`: `DayLessons` — уроки дня ученика с его оценками,
-  отсутствием и комментарием). Времени не
+  отсутствием, комментарием и ДЗ), домашнее задание (`homework.go`:
+  `Homework` — строка `homework` плюс файлы по `lesson_id`, `SaveHomework`
+  удаляет строку при пустых тексте и сроке, `AddHomeworkFile` пишет на
+  диск через `files.Store` и только потом строку, `DeleteHomeworkFile` —
+  сначала строку, потом файл, `OpenHomeworkFile`, `LessonVisibleToStudent`;
+  лимиты — `FileLimits`). Времени не
   считает: год и «сегодня» приходят параметрами (Q-31 → D-058). Держит свои
   `*storage.*Repo`; ФИО учеников не знает — их подставляет обработчик из
   `auth.Users`. «Нет доступа» — `journal.ErrForbidden`, «не найдено» —
   `journal.ErrNotFound`; обработчик на оба отвечает 404.
 - `internal/validation` — `Errors map[string]string` (реализует `error`),
-  `NormalizeSpaces`, `ParseDate`/`DateLayout` (`YYYY-MM-DD`, как у
+  `NormalizeSpaces`, `NormalizeLines` (многострочный текст: пробелы в
+  строках схлопнуты, не больше одной пустой строки подряд),
+  `ParseDate`/`DateLayout` (`YYYY-MM-DD`, как у
   `<input type="date">`), общие для `auth`, `school` и `journal`.
+- `internal/files` — `Store` поверх каталога: `Save(reader, maxSize)`
+  пишет во временно открытый файл со случайным hex-именем, определяет
+  `Content-Type` по первым 512 байтам и возвращает `ErrTooLarge` при
+  превышении (файл удаляется), `Open`, `Delete`, `IDs` для уборки; чужие
+  имена (не 32 hex-символа) — `ErrNotFound`, так что обход каталога
+  невозможен.
 - `internal/storage` — репозитории на `database/sql`, `ErrNotFound` вместо
   `sql.ErrNoRows` наружу, миграции goose из `embed.FS`. Транзакции — внутри
   одного метода репозитория: все запросы через `tx`, потому что при
@@ -308,6 +340,25 @@ cookie). Ошибка: полная страница с введёнными з�
 Замены (`admin/substitutions.go`) — строчный паттерн с `?ended=1` и
 правкой только дат; учителя проверяет `activeUser`, класс и предмет —
 `school.CreateSubstitution`.
+
+**Домашнее задание (D-065).** На странице урока сворачиваемый
+`<details id="lesson-homework">` (`pages.LessonHomework`) между темой и
+`#lesson`: свёрнут на полной странице, раскрыт в HTMX-ответе и при ошибке
+формы (`homeworkView(..., open)`); в `<summary>` статус «не задано» /
+«задано» / «к 18.09.2026 · 2 файла». Текст и срок — одна форма с
+автосохранением (`hx-preserve` на полях), файлы — `<input type="file"
+multiple>` в `<label>`-кнопке с `hx-trigger="change"` и
+`hx-encoding="multipart/form-data"`, без кнопки «Загрузить» (без JS файлы
+не загрузить, как и комментарий); у каждого файла своя форма удаления с
+`hx-confirm`. Все три POST отвечают HTMX фрагментом `#lesson-homework`,
+без JS — редиректом на урок. Файлы на диске — `internal/files`, ID
+случайный hex и он же имя файла; скачивание только через `/files/{id}`.
+Удаление урока (`LessonRepo.DeleteEmpty`) стирает `homework` и
+`homework_files` в одной транзакции, файлы с диска — сервис после.
+Уборка `CleanupOrphans` чистит строки без урока, файлы без строки и
+логирует строки без файла. Срок ДЗ — только информация, списков «по
+сроку» нет. В дневнике ДЗ — блок под комментарием урока и метка «ДЗ» в
+списке уроков дня.
 
 **Дневник (D-061, D-062).** `GET /diary?date=&child=&lesson=` для ученика
 и родителя, `GET /admin/diary/{id}?date=&lesson=&q=` для админа — один

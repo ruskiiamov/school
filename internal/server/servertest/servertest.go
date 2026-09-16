@@ -18,6 +18,7 @@ import (
 
 	"github.com/ruskiiamov/school/internal/auth"
 	"github.com/ruskiiamov/school/internal/config"
+	"github.com/ruskiiamov/school/internal/files"
 	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/logger"
 	"github.com/ruskiiamov/school/internal/school"
@@ -36,6 +37,7 @@ type Env struct {
 	Auth    *auth.Service
 	School  *school.Service
 	Journal *journal.Service
+	Files   *files.Store
 }
 
 func New(t *testing.T) *Env {
@@ -59,9 +61,13 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 	cfg := &config.Config{
 		School:   config.School{Name: "Школа №1", YearStartMonth: time.August},
 		Session:  config.Session{CookieName: "sid", TTL: time.Hour},
+		Files:    config.Files{Dir: t.TempDir(), MaxFileSizeMB: 1, MaxPerLesson: 3, TransferTimeout: time.Minute},
 		Admin:    config.Admin{Login: AdminLogin, Password: AdminPassword, FullName: "Иванова Мария Петровна"},
 		Location: time.UTC,
 	}
+
+	store, err := files.NewStore(cfg.Files.Dir)
+	require.NoError(t, err)
 
 	db, err := storage.Open(t.Context(), config.DB{Path: filepath.Join(t.TempDir(), "test.db")})
 	require.NoError(t, err)
@@ -78,7 +84,8 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 
 	journalService := journal.NewService(storage.NewLessonRepo(db), storage.NewMarkRepo(db), storage.NewLessonStudentRepo(db), storage.NewAssignmentRepo(db),
 		storage.NewSubstitutionRepo(db), storage.NewClassRepo(db), storage.NewClassStudentRepo(db),
-		storage.NewSubjectRepo(db), storage.NewWorkTypeRepo(db), log)
+		storage.NewSubjectRepo(db), storage.NewWorkTypeRepo(db), storage.NewHomeworkRepo(db), storage.NewHomeworkFileRepo(db),
+		store, journal.FileLimits{MaxFileSize: cfg.Files.MaxFileSize(), MaxPerLesson: cfg.Files.MaxPerLesson}, log)
 
 	return &Env{
 		Handler: server.New(cfg, authService, schoolService, journalService, log).Handler(),
@@ -86,6 +93,7 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 		Auth:    authService,
 		School:  schoolService,
 		Journal: journalService,
+		Files:   store,
 	}
 }
 

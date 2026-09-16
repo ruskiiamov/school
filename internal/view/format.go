@@ -65,3 +65,32 @@ func RoleTitle(role string) string {
 
 	return role
 }
+
+func FormatFileSize(size int64) string {
+	const (
+		kilobyte = 1 << 10
+		megabyte = 1 << 20
+	)
+
+	switch {
+	case size >= megabyte:
+		return strings.Replace(fmt.Sprintf("%.1f МБ", float64(size)/megabyte), ".", ",", 1)
+	case size >= kilobyte:
+		return fmt.Sprintf("%d КБ", size/kilobyte)
+	default:
+		return fmt.Sprintf("%d Б", size)
+	}
+}
+
+func Plural(n int, one, few, many string) string {
+	mod10, mod100 := n%10, n%100
+
+	switch {
+	case mod10 == 1 && mod100 != 11:
+		return fmt.Sprintf("%d %s", n, one)
+	case mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20):
+		return fmt.Sprintf("%d %s", n, few)
+	default:
+		return fmt.Sprintf("%d %s", n, many)
+	}
+}

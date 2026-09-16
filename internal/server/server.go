@@ -12,6 +12,7 @@ import (
 	"github.com/ruskiiamov/school/internal/server/account"
 	"github.com/ruskiiamov/school/internal/server/admin"
 	"github.com/ruskiiamov/school/internal/server/diary"
+	filepages "github.com/ruskiiamov/school/internal/server/files"
 	journalpages "github.com/ruskiiamov/school/internal/server/journal"
 	"github.com/ruskiiamov/school/internal/server/web"
 	"github.com/ruskiiamov/school/internal/view/static"
@@ -25,6 +26,7 @@ type Server struct {
 	admin    *admin.Handler
 	journal  *journalpages.Handler
 	diary    *diary.Handler
+	files    *filepages.Handler
 	location *time.Location
 	log      *slog.Logger
 }
@@ -38,8 +40,9 @@ func New(cfg *config.Config, authService *auth.Service, schoolService *school.Se
 		school:   schoolService,
 		account:  account.New(base, authService, log),
 		admin:    admin.New(base, authService, schoolService),
-		journal:  journalpages.New(base, authService, schoolService, journalService),
+		journal:  journalpages.New(base, authService, schoolService, journalService, cfg.Files),
 		diary:    diary.New(base, authService, schoolService, journalService),
+		files:    filepages.New(base, schoolService, journalService, cfg.Files.TransferTimeout, log),
 		location: cfg.Location,
 		log:      log,
 	}
@@ -64,6 +67,7 @@ func (s *Server) pages() http.Handler {
 	s.admin.Routes(mux)
 	s.journal.Routes(mux)
 	s.diary.Routes(mux)
+	s.files.Routes(mux)
 
 	return mux
 }

@@ -30,3 +30,30 @@ func (e Errors) Error() string {
 func NormalizeSpaces(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
+
+func NormalizeLines(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	lines := strings.Split(s, "\n")
+
+	var (
+		result []string
+		blank  int
+	)
+
+	for _, line := range lines {
+		line = NormalizeSpaces(line)
+		if line == "" {
+			blank++
+			continue
+		}
+
+		if len(result) > 0 && blank > 0 {
+			result = append(result, "")
+		}
+
+		blank = 0
+		result = append(result, line)
+	}
+
+	return strings.Join(result, "\n")
+}

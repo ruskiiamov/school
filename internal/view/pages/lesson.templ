@@ -11,6 +11,7 @@ const (
 	lessonTarget        = "#lesson"
 	lessonActionsTarget = "#lesson-actions"
 	lessonRecordTarget  = "#lesson-record"
+	lessonHomeworkTarget = "#lesson-homework"
 )
 
 templ Lesson(page view.LessonPage) {
@@ -20,6 +21,7 @@ templ Lesson(page view.LessonPage) {
 				@LessonActions(page, false)
 			}
 			@LessonTopic(page)
+			@LessonHomework(page.Homework)
 			@LessonBlock(page.Block)
 		</div>
 	}
@@ -280,4 +282,93 @@ templ LessonRecord(record view.RecordFields) {
 		>{ record.Comment }</textarea>
 		@components.FieldError(record.Error)
 	</form>
+}
+
+templ LessonHomework(homework view.LessonHomework) {
+	<details id="lesson-homework" open?={ homework.Open } class={ components.CardClass, "group" }>
+		<summary class="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-900 marker:hidden lg:px-5 [&::-webkit-details-marker]:hidden">
+			@components.Icon(view.IconDown, "size-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180")
+			<span>Домашнее задание</span>
+			<span class="font-normal text-slate-500">{ homework.Status }</span>
+		</summary>
+		<form
+			method="post"
+			action={ templ.SafeURL(homework.Action) }
+			hx-post={ homework.Action }
+			hx-target={ lessonHomeworkTarget }
+			hx-swap="outerHTML"
+			hx-trigger="input changed delay:500ms"
+			class="flex flex-col gap-2 border-t border-slate-100 p-3 sm:p-4"
+		>
+			<label for="lesson-homework-text" class="sr-only">Задание</label>
+			<textarea
+				id="lesson-homework-text"
+				hx-preserve
+				name="text"
+				rows="4"
+				placeholder="Сохраняется по ходу набора"
+				maxlength="2000"
+				class={ components.InputClassFor(homework.Errors["text"]), "py-2" }
+			>{ homework.Text }</textarea>
+			@components.FieldError(homework.Errors["text"])
+			<span class="flex flex-wrap items-center gap-2">
+				<label for="lesson-homework-due" class="text-sm font-semibold text-slate-900">Срок</label>
+				<input
+					type="date"
+					id="lesson-homework-due"
+					hx-preserve
+					name="due"
+					value={ homework.Due }
+					class={ components.InputClassFor(homework.Errors["due"]), "w-48" }
+				/>
+				@components.FieldError(homework.Errors["due"])
+			</span>
+		</form>
+		if len(homework.Files) > 0 {
+			<ul class="divide-y divide-slate-100 border-t border-slate-100">
+				for _, file := range homework.Files {
+					<li class="flex flex-wrap items-center gap-2 px-3 py-2 sm:px-4">
+						<a href={ templ.SafeURL(file.Href) } class="min-w-0 flex-1 basis-40 truncate text-sm font-medium text-indigo-700 hover:underline">{ file.Name }</a>
+						<span class="text-xs text-slate-500">{ file.Size }</span>
+						<form
+							method="post"
+							action={ templ.SafeURL(file.DeleteAction) }
+							hx-post={ file.DeleteAction }
+							hx-target={ lessonHomeworkTarget }
+							hx-swap="outerHTML"
+							hx-confirm={ "Удалить файл " + file.Name + "?" }
+							data-confirm-ok="Удалить"
+							class="ml-auto"
+						>
+							<button type="submit" class={ components.ButtonDangerClass }>Удалить</button>
+						</form>
+					</li>
+				}
+			</ul>
+		}
+		if homework.CanUpload {
+			<form
+				method="post"
+				action={ templ.SafeURL(homework.UploadAction) }
+				enctype="multipart/form-data"
+				hx-post={ homework.UploadAction }
+				hx-encoding="multipart/form-data"
+				hx-target={ lessonHomeworkTarget }
+				hx-swap="outerHTML"
+				hx-trigger="change"
+				class="flex flex-wrap items-center gap-2 border-t border-slate-100 p-3 sm:p-4"
+			>
+				<label class={ components.ButtonSecondaryClass, "cursor-pointer" }>
+					@components.Icon(view.IconPlus, "size-4")
+					<span>Прикрепить файл</span>
+					<input type="file" name="files" multiple class="sr-only"/>
+				</label>
+				@components.FieldError(homework.FileError)
+			</form>
+		} else if homework.FileError != "" {
+			<div class="flex border-t border-slate-100 px-4 py-3">
+				@components.FieldError(homework.FileError)
+			</div>
+		}
+	</details>
 }

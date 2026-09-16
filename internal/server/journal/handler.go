@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/config"
 	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/web"
@@ -24,10 +25,11 @@ type Handler struct {
 	auth    *auth.Service
 	school  *school.Service
 	journal *journal.Service
+	files   config.Files
 }
 
-func New(base *web.Base, authService *auth.Service, schoolService *school.Service, journalService *journal.Service) *Handler {
-	return &Handler{base: base, auth: authService, school: schoolService, journal: journalService}
+func New(base *web.Base, authService *auth.Service, schoolService *school.Service, journalService *journal.Service, files config.Files) *Handler {
+	return &Handler{base: base, auth: authService, school: schoolService, journal: journalService, files: files}
 }
 
 func (h *Handler) Routes(mux *http.ServeMux) {
@@ -40,6 +42,11 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST "+lessonsPath+"/{id}/marks/{mid}", h.teacher(h.markUpdate))
 	mux.Handle("POST "+lessonsPath+"/{id}/marks/{mid}/delete", h.teacher(h.markDelete))
 	mux.Handle("POST "+lessonsPath+"/{id}/students/{sid}", h.teacher(h.recordSave))
+	mux.Handle("POST "+lessonsPath+"/{id}/homework", h.teacher(h.homeworkSave))
+	mux.Handle("POST "+lessonsPath+"/{id}/homework/files", h.teacher(h.homeworkUpload))
+	mux.Handle("POST "+lessonsPath+"/{id}/homework/files/{fid}/delete", h.teacher(h.homeworkFileDelete))
+	mux.Handle("GET "+adminJournalPath, h.admin(h.adminIndex))
+	mux.Handle("GET "+adminLessonsPath+"/{id}", h.admin(h.adminLesson))
 }
 
 func (h *Handler) teacher(fn http.HandlerFunc) http.Handler {

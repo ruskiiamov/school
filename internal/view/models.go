@@ -82,6 +82,7 @@ type DiaryLessonItem struct {
 	Subject  string
 	Teacher  string
 	Summary  string
+	Homework bool
 	Selected bool
 }
 
@@ -92,12 +93,25 @@ type DiaryMark struct {
 }
 
 type DiaryLessonPanel struct {
-	Title   string
-	Teacher string
-	Topic   string
-	Marks   []DiaryMark
-	Absent  bool
-	Comment string
+	Title    string
+	Teacher  string
+	Topic    string
+	Marks    []DiaryMark
+	Absent   bool
+	Comment  string
+	Homework *DiaryHomework
+}
+
+type DiaryHomework struct {
+	Text  string
+	Due   string
+	Files []FileLink
+}
+
+type FileLink struct {
+	Name string
+	Size string
+	Href string
 }
 
 type DiaryChild struct {
@@ -363,6 +377,48 @@ type JournalPage struct {
 	Lessons []LessonRow
 }
 
+type AdminJournalPage struct {
+	Shell    Shell
+	Path     string
+	Classes  []Option
+	Subjects []Option
+	Selected bool
+	Lessons  []AdminLessonRow
+}
+
+type AdminLessonRow struct {
+	Href     string
+	Date     string
+	Teacher  string
+	Topic    string
+	Homework bool
+}
+
+type AdminLessonPage struct {
+	Shell    Shell
+	Title    string
+	BackHref string
+	Teacher  string
+	Topic    string
+	Homework *DiaryHomework
+	Block    AdminLessonBlock
+}
+
+type AdminLessonBlock struct {
+	Students []LessonStudentItem
+	Selected *AdminStudentPanel
+}
+
+type AdminStudentPanel struct {
+	FullName  string
+	Active    bool
+	InClass   bool
+	DiaryHref string
+	Marks     []DiaryMark
+	Absent    bool
+	Comment   string
+}
+
 type LessonPage struct {
 	Shell       Shell
 	Title       string
@@ -371,7 +427,26 @@ type LessonPage struct {
 	TopicError  string
 	CanDelete   bool
 	DeleteError string
+	Homework    LessonHomework
 	Block       LessonBlock
+}
+
+type LessonHomework struct {
+	Open         bool
+	Status       string
+	Action       string
+	Text         string
+	Due          string
+	Errors       map[string]string
+	Files        []HomeworkFileRow
+	UploadAction string
+	CanUpload    bool
+	FileError    string
+}
+
+type HomeworkFileRow struct {
+	FileLink
+	DeleteAction string
 }
 
 type LessonStudentItem struct {
