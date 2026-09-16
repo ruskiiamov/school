@@ -43,6 +43,7 @@ func TestJournalOpenLessonTopicDelete(t *testing.T) {
 	require.Equal(t, http.StatusOK, lesson.Code)
 	assert.Contains(t, lesson.Body.String(), "7А · Алгебра · "+f.today.Format("02.01.2006"))
 	assert.Contains(t, lesson.Body.String(), `action="`+lessonPath(id, "/topic")+`"`)
+	assert.Contains(t, lesson.Body.String(), ">Тема урока</label>")
 	assert.Contains(t, lesson.Body.String(), `action="`+lessonPath(id, "/delete")+`"`)
 	assert.Contains(t, lesson.Body.String(), "Удалить урок")
 

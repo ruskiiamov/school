@@ -38,15 +38,28 @@ func TestLessonRecordAbsenceAndComment(t *testing.T) {
 
 	body := servertest.Get(t, f.env.Handler, lessonPath(id, "")+studentQuery(maria), teacher).Body.String()
 	assert.Contains(t, body, `action="`+recordPath(id, maria)+`"`)
-	assert.Contains(t, body, `name="absent" value="1" class`)
-	assert.Contains(t, body, "Отсутствовал")
+	assert.Contains(t, body, `name="absent" value="1"`)
+	assert.Contains(t, body, `aria-pressed="false"`)
+	assert.Contains(t, body, "Добавить комментарий")
+	assert.NotContains(t, body, "<details open")
+
+	toggled := servertest.PostForm(t, f.env.Handler, recordPath(id, maria), url.Values{"absent": {"1"}, "comment": {""}}, []*http.Cookie{teacher}, nil)
+	servertest.AssertRedirect(t, toggled, lessonPath(id, "")+studentQuery(maria))
+
+	body = servertest.Get(t, f.env.Handler, lessonPath(id, "")+studentQuery(maria), teacher).Body.String()
+	assert.Contains(t, body, `aria-pressed="true"`)
+	assert.Contains(t, body, `name="absent" value="0"`)
+	assert.Contains(t, body, ">Н<")
 
 	saved := servertest.PostForm(t, f.env.Handler, recordPath(id, maria), url.Values{"absent": {"1"}, "comment": {" Болела,  справка "}}, []*http.Cookie{teacher}, nil)
 	servertest.AssertRedirect(t, saved, lessonPath(id, "")+studentQuery(maria))
 
 	body = servertest.Get(t, f.env.Handler, lessonPath(id, "")+studentQuery(maria), teacher).Body.String()
-	assert.Contains(t, body, `name="absent" value="1" checked`)
+	assert.Contains(t, body, `aria-pressed="true"`)
+	assert.Contains(t, body, `name="comment" value="Болела, справка"`)
+	assert.Contains(t, body, ">Болела, справка</p>")
 	assert.Contains(t, body, ">Болела, справка</textarea>")
+	assert.Contains(t, body, "Изменить комментарий")
 	assert.Contains(t, body, ">Н<")
 	assert.NotContains(t, body, `action="`+lessonPath(id, "/delete")+`"`)
 
@@ -63,6 +76,7 @@ func TestLessonRecordAbsenceAndComment(t *testing.T) {
 	long := servertest.PostForm(t, f.env.Handler, recordPath(id, maria), url.Values{"comment": {strings.Repeat("а", 501)}}, []*http.Cookie{teacher}, nil)
 	assert.Equal(t, http.StatusOK, long.Code)
 	assert.Contains(t, long.Body.String(), "Комментарий не длиннее 500 символов")
+	assert.Contains(t, long.Body.String(), "<details open")
 
 	notMember := servertest.PostForm(t, f.env.Handler, recordPath(id, outsider), url.Values{"absent": {"1"}}, []*http.Cookie{teacher}, map[string]string{"HX-Request": "true"})
 	assert.Equal(t, http.StatusOK, notMember.Code)
@@ -70,9 +84,10 @@ func TestLessonRecordAbsenceAndComment(t *testing.T) {
 	assert.Contains(t, notMember.Body.String(), `id="lesson"`)
 	assert.NotContains(t, notMember.Body.String(), "<html")
 
-	cleared := servertest.PostForm(t, f.env.Handler, recordPath(id, maria), url.Values{"comment": {""}}, []*http.Cookie{teacher}, map[string]string{"HX-Request": "true"})
+	cleared := servertest.PostForm(t, f.env.Handler, recordPath(id, maria), url.Values{"absent": {"0"}, "comment": {""}}, []*http.Cookie{teacher}, map[string]string{"HX-Request": "true"})
 	assert.Equal(t, http.StatusOK, cleared.Code)
-	assert.NotContains(t, cleared.Body.String(), "checked")
+	assert.Contains(t, cleared.Body.String(), `aria-pressed="false"`)
+	assert.Contains(t, cleared.Body.String(), "Добавить комментарий")
 	assert.Contains(t, cleared.Body.String(), ">5<")
 
 	entries, err := f.env.Journal.LessonStudents(t.Context(), journal.Lesson{ID: id, ClassID: f.class})
