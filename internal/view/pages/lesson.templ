@@ -66,13 +66,14 @@ templ LessonTopic(page view.LessonPage) {
 		hx-swap="outerHTML"
 		class={ components.CardClass, "flex flex-wrap items-start gap-2 p-3 sm:p-4" }
 	>
+		<label for="lesson-topic-input" class="flex min-h-11 basis-full items-center text-sm font-semibold text-slate-900 sm:basis-auto">Тема урока</label>
 		<span class="flex min-w-0 flex-1 basis-56 flex-col gap-1">
 			<input
 				type="text"
+				id="lesson-topic-input"
 				name="topic"
 				value={ page.Topic }
-				placeholder="Тема урока"
-				aria-label="Тема урока"
+				placeholder="Тема не задана"
 				maxlength="200"
 				autocomplete="off"
 				class={ components.InputClassFor(page.TopicError) }
@@ -164,31 +165,7 @@ templ lessonStudentPanel(panel view.LessonStudentPanel) {
 				@markFields(panel.New)
 				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Поставить</button>
 			</form>
-			<form
-				method="post"
-				action={ templ.SafeURL(panel.Record.Action) }
-				hx-post={ panel.Record.Action }
-				hx-target={ lessonTarget }
-				hx-swap="outerHTML"
-				class="flex flex-col gap-3 border-t border-slate-100 p-3 sm:p-4"
-			>
-				<label class="flex min-h-11 items-center gap-3 text-sm text-slate-900">
-					<input type="checkbox" name="absent" value="1" checked?={ panel.Record.Absent } class="size-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-200"/>
-					<span>Отсутствовал</span>
-				</label>
-				<span class="flex min-w-0 flex-col gap-1">
-					<textarea
-						name="comment"
-						rows="3"
-						placeholder="Комментарий ученику"
-						aria-label="Комментарий ученику"
-						maxlength="500"
-						class={ components.InputClassFor(panel.Record.Error), "py-2" }
-					>{ panel.Record.Comment }</textarea>
-					@components.FieldError(panel.Record.Error)
-				</span>
-				<button type="submit" class={ components.ButtonPrimaryClass, "self-start" }>Сохранить</button>
-			</form>
+			@recordForms(panel.Record)
 		}
 		if panel.Error != "" {
 			<div class="flex border-t border-slate-100 px-4 py-3">
@@ -245,4 +222,68 @@ templ markRow(mark view.MarkRow) {
 			</span>
 		}
 	</li>
+}
+
+templ recordForms(record view.RecordFields) {
+	<div class="flex flex-col gap-3 border-t border-slate-100 p-3 sm:p-4">
+		<form
+			method="post"
+			action={ templ.SafeURL(record.Action) }
+			hx-post={ record.Action }
+			hx-target={ lessonTarget }
+			hx-swap="outerHTML"
+			class="flex"
+		>
+			<input type="hidden" name="comment" value={ record.Comment }/>
+			if record.Absent {
+				<input type="hidden" name="absent" value="0"/>
+				<button type="submit" class={ components.ButtonActiveClass } aria-pressed="true">
+					@components.Icon(view.IconCheck, "size-4")
+					<span>Отсутствовал</span>
+				</button>
+			} else {
+				<input type="hidden" name="absent" value="1"/>
+				<button type="submit" class={ components.ButtonSecondaryClass } aria-pressed="false">Отсутствовал</button>
+			}
+		</form>
+		if record.Comment != "" {
+			<p class="rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700">{ record.Comment }</p>
+		}
+		<details open?={ record.Error != "" }>
+			<summary class={ components.ButtonSecondaryClass, "w-fit cursor-pointer list-none [&::-webkit-details-marker]:hidden" }>
+				if record.Comment != "" {
+					Изменить комментарий
+				} else {
+					Добавить комментарий
+				}
+			</summary>
+			<form
+				method="post"
+				action={ templ.SafeURL(record.Action) }
+				hx-post={ record.Action }
+				hx-target={ lessonTarget }
+				hx-swap="outerHTML"
+				class="mt-3 flex flex-col gap-3"
+			>
+				if record.Absent {
+					<input type="hidden" name="absent" value="1"/>
+				} else {
+					<input type="hidden" name="absent" value="0"/>
+				}
+				<span class="flex min-w-0 flex-col gap-1">
+					<textarea
+						name="comment"
+						rows="3"
+						placeholder="Комментарий ученику"
+						aria-label="Комментарий ученику"
+						maxlength="500"
+						autofocus
+						class={ components.InputClassFor(record.Error), "py-2" }
+					>{ record.Comment }</textarea>
+					@components.FieldError(record.Error)
+				</span>
+				<button type="submit" class={ components.ButtonPrimaryClass, "self-start" }>Сохранить</button>
+			</form>
+		</details>
+	</div>
 }
