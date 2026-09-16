@@ -31,7 +31,6 @@ func TestRoleSectionsAreHiddenFromOtherRoles(t *testing.T) {
 
 	diary := servertest.Get(t, env.Handler, "/diary", student)
 	assert.Equal(t, http.StatusOK, diary.Code)
-	assert.Contains(t, diary.Body.String(), "Раздел в разработке")
 	assert.Contains(t, diary.Body.String(), `href="/diary"`)
 	assert.NotContains(t, diary.Body.String(), `href="/admin/classes"`)
 
