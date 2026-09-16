@@ -136,6 +136,15 @@ func TestJournalSubstituteRights(t *testing.T) {
 		[]*http.Cookie{substitute}, nil)
 	assert.Equal(t, http.StatusOK, outside.Code)
 	assert.Contains(t, outside.Body.String(), "На эту дату замена не действует")
+	assert.Contains(t, outside.Body.String(), "<html")
+
+	outsideFragment := servertest.PostForm(t, f.env.Handler, "/journal",
+		url.Values{"pair": {pairValue(f.class, f.subject)}, "date": {dateValue(f.today.AddDate(0, 0, 5))}},
+		[]*http.Cookie{substitute}, map[string]string{"HX-Request": "true"})
+	assert.Equal(t, http.StatusOK, outsideFragment.Code)
+	assert.Contains(t, outsideFragment.Body.String(), `id="journal"`)
+	assert.Contains(t, outsideFragment.Body.String(), "На эту дату замена не действует")
+	assert.NotContains(t, outsideFragment.Body.String(), "<html")
 
 	lessonBySubstitute := openLesson(t, f.env, substitute, f.class, f.subject, f.today)
 	assert.Equal(t, lessonBySubstitute, openLesson(t, f.env, main, f.class, f.subject, f.today))

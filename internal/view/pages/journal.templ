@@ -6,56 +6,67 @@ import (
 	"github.com/ruskiiamov/school/internal/view/layout"
 )
 
-const journalBase = "/journal"
+const (
+	journalBase   = "/journal"
+	journalTarget = "#journal"
+)
 
 templ Journal(page view.JournalPage) {
 	@layout.App(page.Shell) {
 		<div class="flex flex-col gap-4 lg:gap-6">
 			@components.PageHeader("Журнал")
-			if len(page.Pairs) == 0 {
-				<div class={ components.CardClass }>
-					@components.EmptyState("Вам пока не назначены классы и предметы")
-				</div>
-			} else {
-				<form
-					method="post"
-					action={ templ.SafeURL(journalBase) }
-					hx-post={ journalBase }
-					class={ components.CardClass, "flex flex-wrap items-start gap-2 p-3 sm:p-4" }
-				>
-					<span class="flex min-w-0 flex-1 basis-56 flex-col gap-1">
-						<select name="pair" aria-label="Класс и предмет" class={ components.SelectClassFor(page.Errors["pair"]) }>
-							for _, pair := range page.Pairs {
-								<option value={ pair.Value } selected?={ pair.Selected }>{ pair.Name }</option>
-							}
-						</select>
-						@components.FieldError(page.Errors["pair"])
-					</span>
-					@components.RowDate("date", page.Date, "Дата урока", page.Errors["date"], "flex-1 basis-40")
-					<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Открыть</button>
-				</form>
-			}
-			<section class={ components.CardClass }>
-				<div class="border-b border-slate-100 px-4 py-3 lg:px-5">
-					<h2 class="text-sm font-semibold text-slate-900">Последние уроки</h2>
-				</div>
-				if len(page.Lessons) == 0 {
-					@components.EmptyState("Пока нет уроков")
-				} else {
-					<ul class="divide-y divide-slate-100">
-						for _, lesson := range page.Lessons {
-							<li class="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 sm:p-4">
-								<a href={ templ.SafeURL(lesson.Href) } class="text-sm font-medium text-indigo-700 hover:underline">{ lesson.Date }</a>
-								<span class="text-sm font-medium text-slate-900">{ lesson.Class }</span>
-								<span class="text-sm text-slate-900">{ lesson.Subject }</span>
-								if lesson.Topic != "" {
-									<span class="min-w-0 basis-full truncate text-sm text-slate-600 sm:flex-1 sm:basis-auto">{ lesson.Topic }</span>
-								}
-							</li>
-						}
-					</ul>
-				}
-			</section>
+			@JournalContent(page)
 		</div>
 	}
+}
+
+templ JournalContent(page view.JournalPage) {
+	<div id="journal" class="flex flex-col gap-4 lg:gap-6">
+		if len(page.Pairs) == 0 {
+			<div class={ components.CardClass }>
+				@components.EmptyState("Вам пока не назначены классы и предметы")
+			</div>
+		} else {
+			<form
+				method="post"
+				action={ templ.SafeURL(journalBase) }
+				hx-post={ journalBase }
+				hx-target={ journalTarget }
+				hx-swap="outerHTML"
+				class={ components.CardClass, "flex flex-wrap items-start gap-2 p-3 sm:p-4" }
+			>
+				<span class="flex min-w-0 flex-1 basis-56 flex-col gap-1">
+					<select name="pair" aria-label="Класс и предмет" class={ components.SelectClassFor(page.Errors["pair"]) }>
+						for _, pair := range page.Pairs {
+							<option value={ pair.Value } selected?={ pair.Selected }>{ pair.Name }</option>
+						}
+					</select>
+					@components.FieldError(page.Errors["pair"])
+				</span>
+				@components.RowDate("date", page.Date, "Дата урока", page.Errors["date"], "flex-1 basis-40")
+				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Открыть</button>
+			</form>
+		}
+		<section class={ components.CardClass }>
+			<div class="border-b border-slate-100 px-4 py-3 lg:px-5">
+				<h2 class="text-sm font-semibold text-slate-900">Последние уроки</h2>
+			</div>
+			if len(page.Lessons) == 0 {
+				@components.EmptyState("Пока нет уроков")
+			} else {
+				<ul class="divide-y divide-slate-100">
+					for _, lesson := range page.Lessons {
+						<li class="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 sm:p-4">
+							<a href={ templ.SafeURL(lesson.Href) } class="text-sm font-medium text-indigo-700 hover:underline">{ lesson.Date }</a>
+							<span class="text-sm font-medium text-slate-900">{ lesson.Class }</span>
+							<span class="text-sm text-slate-900">{ lesson.Subject }</span>
+							if lesson.Topic != "" {
+								<span class="min-w-0 basis-full truncate text-sm text-slate-600 sm:flex-1 sm:basis-auto">{ lesson.Topic }</span>
+							}
+						</li>
+					}
+				</ul>
+			}
+		</section>
+	</div>
 }

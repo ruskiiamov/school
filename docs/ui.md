@@ -168,8 +168,8 @@ GET  /account/password, POST /account/password
 GET  /admin/substitutions?ended=1&edit={id}   строчный паттерн (D-043): строка добавления «класс, предмет, учитель, с, по», `edit` — одна строка формой только с датами
 POST /admin/substitutions, /{id}, /{id}/delete   → список (HTMX — фрагмент `#substitutions`), `ended` тянется через редиректы
 
-GET  /journal                          форма «Класс · Предмет» + дата + «Открыть», ниже последние 15 уроков
-POST /journal                          class_id, subject_id (одно поле `pair` вида `{class}-{subject}`), date → создать или открыть → редирект на /journal/lessons/{id}; ошибка — та же страница
+GET  /journal                          форма «Класс · Предмет» + дата + «Открыть», ниже последние 15 уроков; оба в фрагменте `#journal`, форма целится в него
+POST /journal                          class_id, subject_id (одно поле `pair` вида `{class}-{subject}`), date → создать или открыть → редирект на /journal/lessons/{id} (HTMX — `HX-Redirect`); ошибка — фрагмент `#journal` или вся страница
 GET  /journal/lessons/{id}?student={sid}&mark={mid}   страница урока: шапка, тема, `#lesson` из списка учеников и панели выбранного; `mark` — одна оценка формой
 POST /journal/lessons/{id}/topic       тема → редирект на урок (HTMX — фрагмент `#lesson-topic`)
 POST /journal/lessons/{id}/delete      только пустой урок → редирект на /journal
