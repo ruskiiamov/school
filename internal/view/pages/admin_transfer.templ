@@ -1,0 +1,106 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+templ Transfer(page view.TransferPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader("Перевод классов · " + page.FromYearName + " → " + page.ToYearName) {
+				<a href={ templ.SafeURL(page.BackHref) } class="text-sm font-medium text-indigo-700 hover:underline">К классам</a>
+			}
+			if len(page.Classes) == 0 {
+				<div class={ components.CardClass }>
+					@components.EmptyState("В " + page.FromYearName + " нет классов для перевода")
+				</div>
+			} else {
+				<form method="post" action={ templ.SafeURL(page.Action) } class="flex flex-col gap-4 lg:gap-6">
+					for _, class := range page.Classes {
+						@transferClass(class)
+					}
+					if page.Error != "" {
+						@components.Alert(page.Error)
+					}
+					<div class="flex flex-wrap items-center gap-2">
+						<button type="submit" class={ components.ButtonPrimaryClass }>Создать</button>
+						<a href={ templ.SafeURL(page.BackHref) } class={ components.ButtonSecondaryClass }>Отмена</a>
+					</div>
+				</form>
+			}
+		</div>
+	}
+}
+
+templ transferClass(class view.TransferClassRow) {
+	{{ key := strconv.FormatInt(class.ID, 10) }}
+	<section class={ components.CardClass }>
+		<div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-100 px-4 py-3 lg:px-5">
+			<h2 class="text-sm font-semibold text-slate-900">{ class.Name }</h2>
+			<label class={ checkboxLabelClass }>
+				<input type="checkbox" name={ "transfer-" + key } value="1" checked?={ class.Transfer } class={ checkboxClass }/>
+				<span>Переводить</span>
+			</label>
+			if class.Graduating {
+				<span class="text-sm text-slate-500">выпускной</span>
+			}
+		</div>
+		<div class="flex flex-col gap-3 p-3 sm:p-4">
+			<label class="flex flex-col gap-1 sm:max-w-xs">
+				<span class="text-sm text-slate-600">Новый класс</span>
+				<input
+					type="text"
+					name={ "name-" + key }
+					value={ class.NewName }
+					maxlength="100"
+					autocomplete="off"
+					class={ components.InputClassFor(class.NameError) }
+				/>
+				@components.FieldError(class.NameError)
+				if class.Exists {
+					<span class="text-sm text-amber-700">Такой класс уже есть — строка пропущена</span>
+				}
+			</label>
+			if len(class.Students) == 0 {
+				<span class="text-sm text-slate-500">Учеников нет</span>
+			} else {
+				<ul class="grid gap-1 sm:grid-cols-2">
+					for _, student := range class.Students {
+						<li>
+							@transferStudent(key, student)
+						</li>
+					}
+				</ul>
+			}
+			@components.FieldError(class.StudentsError)
+		</div>
+	</section>
+}
+
+templ transferStudent(key string, student view.TransferStudentRow) {
+	if student.Active && student.CurrentClass == "" {
+		<label class={ checkboxLabelClass }>
+			<input type="checkbox" name={ "students-" + key } value={ strconv.FormatInt(student.ID, 10) } checked?={ student.Checked } class={ checkboxClass }/>
+			<span class="text-slate-900">{ student.FullName }</span>
+		</label>
+	} else {
+		<span class={ checkboxLabelClass, "text-slate-500" }>
+			<input type="checkbox" disabled class={ checkboxClass }/>
+			<span>{ student.FullName }</span>
+			if !student.Active {
+				@components.InactiveBadge()
+			} else {
+				<span class="text-xs">уже в { student.CurrentClass }</span>
+			}
+		</span>
+	}
+}
+
+const (
+	checkboxLabelClass = "inline-flex min-h-11 items-center gap-2 text-sm"
+	checkboxClass      = "size-5 shrink-0 rounded border-slate-300 accent-indigo-600"
+)

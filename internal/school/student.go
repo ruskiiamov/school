@@ -15,7 +15,11 @@ const (
 )
 
 func (s *Service) StudentClass(ctx context.Context, studentID int64) (Class, bool, error) {
-	stored, err := s.classStudents.ClassOfStudent(ctx, studentID, s.CurrentYear())
+	return s.StudentClassIn(ctx, studentID, s.CurrentYear())
+}
+
+func (s *Service) StudentClassIn(ctx context.Context, studentID int64, year int) (Class, bool, error) {
+	stored, err := s.classStudents.ClassOfStudent(ctx, studentID, year)
 	if errors.Is(err, storage.ErrNotFound) {
 		return Class{}, false, nil
 	}
@@ -38,6 +42,20 @@ func (s *Service) StudentClasses(ctx context.Context, year int) (map[int64]Class
 	}
 
 	return classes, nil
+}
+
+func (s *Service) ClassSizes(ctx context.Context, year int) (map[int64]int, error) {
+	members, err := s.classStudents.ListByYear(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+
+	sizes := make(map[int64]int, len(members))
+	for _, member := range members {
+		sizes[member.ClassID]++
+	}
+
+	return sizes, nil
 }
 
 func (s *Service) CheckStudentClass(ctx context.Context, classID int64) error {

@@ -33,6 +33,9 @@ templ ClassesList(page view.ClassesPage) {
 			@components.CreateForm(classURL(0, "", page.Year, page.ShowInactive),
 				"Новый класс", "Название нового класса", page.NewName, page.NewError, classesTarget)
 		}
+		if page.TransferHref != "" {
+			<a href={ templ.SafeURL(page.TransferHref) } class={ components.ButtonSecondaryClass, "self-start" }>Создать классы из прошлого года</a>
+		}
 		<div class={ components.CardClass }>
 			if len(page.Classes) == 0 {
 				@components.EmptyState("В " + page.YearName + " пока нет классов")
@@ -61,12 +64,15 @@ templ classRow(row view.ClassRow, year int, showInactive bool) {
 			@components.EditForm(classURL(row.ID, "", year, showInactive),
 				classURL(0, "", year, showInactive), row.Name, "Название класса", row.Error, classesTarget)
 		} else {
-			if row.Active {
-				<a href={ templ.SafeURL(row.Href) } class="min-w-0 basis-full truncate text-sm font-medium text-indigo-700 hover:underline sm:flex-1 sm:basis-auto">{ row.Name }</a>
-			} else {
-				<a href={ templ.SafeURL(row.Href) } class="min-w-0 basis-full truncate text-sm text-slate-500 hover:underline sm:flex-1 sm:basis-auto">{ row.Name }</a>
-				@components.InactiveBadge()
-			}
+			<span class="flex min-w-0 basis-full items-center gap-2 sm:flex-1 sm:basis-auto">
+				if row.Active {
+					<a href={ templ.SafeURL(row.Href) } class="min-w-0 truncate text-sm font-medium text-indigo-700 hover:underline">{ row.Name }</a>
+				} else {
+					<a href={ templ.SafeURL(row.Href) } class="min-w-0 truncate text-sm text-slate-500 hover:underline">{ row.Name }</a>
+					@components.InactiveBadge()
+				}
+				<span class="shrink-0 text-sm text-slate-500">{ row.Students }</span>
+			</span>
 			<span class="ml-auto flex flex-wrap items-center gap-2">
 				@components.EditLink(classEditURL(row.ID, year, showInactive), classesTarget)
 				@components.ActiveForm(row.Active,

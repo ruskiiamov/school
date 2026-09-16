@@ -24,7 +24,13 @@ func (h *Handler) summary(w http.ResponseWriter, r *http.Request) {
 	pair := r.URL.Query().Get("pair")
 	classID, subjectID := parsePair(pair)
 
-	pairs, err := h.journal.Pairs(ctx, user.ID, h.school.CurrentYear(), h.school.Today())
+	year, years, err := web.YearSelection(r, h.school)
+	if err != nil {
+		h.base.ServerError(w, r, "list class years", err)
+		return
+	}
+
+	pairs, err := h.journal.Pairs(ctx, user.ID, year, h.school.Today())
 	if err != nil {
 		h.base.ServerError(w, r, "list teacher pairs", err)
 		return
@@ -34,6 +40,7 @@ func (h *Handler) summary(w http.ResponseWriter, r *http.Request) {
 		Shell: h.base.Shell(r, "Сводка", summaryPath),
 		Title: "Сводка",
 		Path:  summaryPath,
+		Years: years,
 	}
 
 	for _, item := range pairs {
@@ -50,8 +57,8 @@ func (h *Handler) summary(w http.ResponseWriter, r *http.Request) {
 		hidden["pair"] = pair
 	}
 
-	period := h.period(r)
-	page.Period = web.PeriodForm(period, h.school.Today(), summaryPath, hidden)
+	period, anchor := web.YearPeriod(r, h.school, year)
+	page.Period = web.PeriodForm(period, anchor, summaryPath, web.WithYear(hidden, year))
 
 	if classID != 0 {
 		page.Selected = true
@@ -78,13 +85,20 @@ func (h *Handler) adminSummary(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	classID, subjectID := queryID(r, "class"), queryID(r, "subject")
 
+	year, years, err := web.YearSelection(r, h.school)
+	if err != nil {
+		h.base.ServerError(w, r, "list class years", err)
+		return
+	}
+
 	page := view.GridPage{
 		Shell: h.base.Shell(r, "Сводка", adminJournalPath),
 		Title: "Сводка",
 		Path:  adminSummaryPath,
+		Years: years,
 	}
 
-	if err := h.pairOptions(r, &page.Classes, &page.Subjects, classID, subjectID); err != nil {
+	if err := h.pairOptions(r, &page.Classes, &page.Subjects, year, classID, subjectID); err != nil {
 		h.base.ServerError(w, r, "list classes and subjects", err)
 		return
 	}
@@ -95,8 +109,8 @@ func (h *Handler) adminSummary(w http.ResponseWriter, r *http.Request) {
 		hidden["subject"] = strconv.FormatInt(subjectID, 10)
 	}
 
-	period := h.period(r)
-	page.Period = web.PeriodForm(period, h.school.Today(), adminSummaryPath, hidden)
+	period, anchor := web.YearPeriod(r, h.school, year)
+	page.Period = web.PeriodForm(period, anchor, adminSummaryPath, web.WithYear(hidden, year))
 
 	if classID != 0 && subjectID != 0 {
 		page.Selected = true
@@ -117,16 +131,10 @@ func (h *Handler) adminSummary(w http.ResponseWriter, r *http.Request) {
 	h.renderGrid(w, r, page)
 }
 
-func (h *Handler) period(r *http.Request) web.Period {
-	start, end := h.school.YearBounds(h.school.CurrentYear())
-
-	return web.ParsePeriod(r, h.school.Today(), start, end)
-}
-
-func (h *Handler) pairOptions(r *http.Request, classes, subjects *[]view.Option, classID, subjectID int64) error {
+func (h *Handler) pairOptions(r *http.Request, classes, subjects *[]view.Option, year int, classID, subjectID int64) error {
 	ctx := r.Context()
 
-	classList, err := h.school.Classes(ctx, h.school.CurrentYear(), false)
+	classList, err := h.school.Classes(ctx, year, false)
 	if err != nil {
 		return err
 	}

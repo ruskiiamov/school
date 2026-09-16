@@ -165,6 +165,40 @@ func (r *ClassStudentRepo) StudentIDs(ctx context.Context, classID int64) ([]int
 	return ids, nil
 }
 
+type Member struct {
+	StudentID int64
+	Active    bool
+}
+
+func (r *ClassStudentRepo) Members(ctx context.Context, classID int64) ([]Member, error) {
+	const query = `SELECT cs.student_id, u.active
+		FROM class_students cs JOIN users u ON u.id = cs.student_id
+		WHERE cs.class_id = ? ORDER BY cs.student_id`
+
+	rows, err := r.db.QueryContext(ctx, query, classID)
+	if err != nil {
+		return nil, fmt.Errorf("select class members: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var members []Member
+
+	for rows.Next() {
+		var member Member
+		if err := rows.Scan(&member.StudentID, &member.Active); err != nil {
+			return nil, fmt.Errorf("scan class member: %w", err)
+		}
+
+		members = append(members, member)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate class members: %w", err)
+	}
+
+	return members, nil
+}
+
 func (r *ClassStudentRepo) IsMember(ctx context.Context, classID, studentID int64) (bool, error) {
 	const query = "SELECT EXISTS (SELECT 1 FROM class_students WHERE class_id = ? AND student_id = ?)"
 

@@ -94,7 +94,7 @@ func TestAdminSummaryGrid(t *testing.T) {
 
 	pair := url.Values{"class": {strconv.FormatInt(f.class, 10)}, "subject": {strconv.FormatInt(f.subject, 10)}}
 	body := servertest.Get(t, f.env.Handler, "/admin/journal?"+pair.Encode(), admin).Body.String()
-	assert.Contains(t, body, `href="`+html.EscapeString("/admin/journal/summary?"+pair.Encode())+`"`)
+	assert.Contains(t, body, `href="`+html.EscapeString("/admin/journal/summary?"+pair.Encode()+"&year="+f.year())+`"`)
 	assert.Contains(t, body, ">Сводка</a>")
 
 	query := pair

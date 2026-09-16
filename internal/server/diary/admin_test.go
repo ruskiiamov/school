@@ -30,7 +30,7 @@ func TestAdminDiarySearchAndOpen(t *testing.T) {
 
 	code, body := get(t, f.env, "/admin/diary", admin, false)
 	require.Equal(t, http.StatusOK, code)
-	assert.Contains(t, body, "Введите ФИО, чтобы найти ученика")
+	assert.Contains(t, body, "Введите ФИО или выберите класс")
 	assert.Contains(t, body, `href="/admin/diary" aria-current="page"`)
 
 	code, body = get(t, f.env, "/admin/diary?q=иванова", admin, true)
@@ -38,7 +38,7 @@ func TestAdminDiarySearchAndOpen(t *testing.T) {
 	assert.Contains(t, body, `id="diary-search"`)
 	assert.Contains(t, body, "Иванова Мария Петровна")
 	assert.Contains(t, body, ">7А<")
-	assert.Contains(t, body, `href="/admin/diary/`+idValue(f.student)+`?q=%D0%B8%D0%B2%D0%B0%D0%BD%D0%BE%D0%B2%D0%B0"`)
+	assert.Contains(t, body, `href="/admin/diary/`+idValue(f.student)+`?q=%D0%B8%D0%B2%D0%B0%D0%BD%D0%BE%D0%B2%D0%B0&amp;year=`+f.year()+`"`)
 	assert.NotContains(t, body, "Иванова Ушедшая Петровна")
 	assert.NotContains(t, body, "Чужой Ученик")
 	assert.NotContains(t, body, "<html")
@@ -51,11 +51,11 @@ func TestAdminDiarySearchAndOpen(t *testing.T) {
 	code, body = get(t, f.env, path+"?q=иванова", admin, false)
 	require.Equal(t, http.StatusOK, code)
 	assert.Contains(t, body, "Дневник · Иванова Мария Петровна · 7А")
-	assert.Contains(t, body, `href="/admin/diary?q=%D0%B8%D0%B2%D0%B0%D0%BD%D0%BE%D0%B2%D0%B0"`)
+	assert.Contains(t, body, `href="/admin/diary?q=%D0%B8%D0%B2%D0%B0%D0%BD%D0%BE%D0%B2%D0%B0&amp;year=`+f.year()+`"`)
 	assert.Contains(t, body, "К поиску")
 	assert.Contains(t, body, ">5<")
 	assert.Contains(t, body, `name="q" value="иванова"`)
-	assert.Contains(t, body, `href="`+html.EscapeString(diaryURL(path, f.today, url.Values{"lesson": {idValue(algebra)}, "q": {"иванова"}}))+`" hx-get`)
+	assert.Contains(t, body, `href="`+html.EscapeString(diaryURL(path, f.today, url.Values{"lesson": {idValue(algebra)}, "q": {"иванова"}, "year": {f.year()}}))+`" hx-get`)
 	assert.NotContains(t, body, "Отсутствовал")
 
 	code, _ = get(t, f.env, "/admin/diary/"+idValue(f.teacher), admin, false)

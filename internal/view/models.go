@@ -181,12 +181,13 @@ type YearOption struct {
 }
 
 type ClassRow struct {
-	ID      int64
-	Name    string
-	Href    string
-	Active  bool
-	Editing bool
-	Error   string
+	ID       int64
+	Name     string
+	Href     string
+	Active   bool
+	Students string
+	Editing  bool
+	Error    string
 }
 
 type ClassesPage struct {
@@ -197,9 +198,40 @@ type ClassesPage struct {
 	Classes      []ClassRow
 	ShowInactive bool
 	CanCreate    bool
+	TransferHref string
 	ToggleHref   string
 	NewName      string
 	NewError     string
+}
+
+type TransferStudentRow struct {
+	ID           int64
+	FullName     string
+	Active       bool
+	CurrentClass string
+	Checked      bool
+}
+
+type TransferClassRow struct {
+	ID            int64
+	Name          string
+	NewName       string
+	Transfer      bool
+	Graduating    bool
+	Exists        bool
+	Students      []TransferStudentRow
+	NameError     string
+	StudentsError string
+}
+
+type TransferPage struct {
+	Shell        Shell
+	FromYearName string
+	ToYearName   string
+	Action       string
+	BackHref     string
+	Classes      []TransferClassRow
+	Error        string
 }
 
 type MemberRow struct {
@@ -392,6 +424,7 @@ type GridPage struct {
 	Shell    Shell
 	Title    string
 	Path     string
+	Years    []Option
 	Pairs    []PairOption
 	Classes  []Option
 	Subjects []Option
@@ -434,6 +467,7 @@ type MarksPage struct {
 	Children   []DiaryChild
 	NoChildren bool
 	Hidden     map[string]string
+	Years      []Option
 	Period     PeriodForm
 	Subjects   []SubjectMarksRow
 }
@@ -454,6 +488,7 @@ type MarkChip struct {
 type AdminJournalPage struct {
 	Shell       Shell
 	Path        string
+	Years       []Option
 	Classes     []Option
 	Subjects    []Option
 	Selected    bool
@@ -590,5 +625,8 @@ type DiarySearchPage struct {
 	Shell    Shell
 	Path     string
 	Query    string
+	Years    []Option
+	Classes  []Option
+	Filtered bool
 	Students []DiaryStudentRow
 }

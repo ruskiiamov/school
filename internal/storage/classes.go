@@ -33,7 +33,7 @@ func (r *ClassRepo) ListByYear(ctx context.Context, year int, includeInactive bo
 		query += " AND active = 1"
 	}
 
-	query += " ORDER BY name, id"
+	query += " ORDER BY CAST(name AS INTEGER), name, id"
 
 	rows, err := r.db.QueryContext(ctx, query, year)
 	if err != nil {
@@ -135,6 +135,49 @@ func (r *ClassRepo) SetActive(ctx context.Context, id int64, active bool) error 
 	}
 
 	return requireAffected(result, "set class active")
+}
+
+type NewClass struct {
+	Name       string
+	StudentIDs []int64
+}
+
+func (r *ClassRepo) Transfer(ctx context.Context, year int, classes []NewClass) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	now := toMillis(time.Now())
+
+	for _, class := range classes {
+		const insert = "INSERT INTO classes (year, name, active, created_at, updated_at) VALUES (?, ?, 1, ?, ?)"
+
+		result, err := tx.ExecContext(ctx, insert, year, class.Name, now, now)
+		if err != nil {
+			return fmt.Errorf("insert class: %w", err)
+		}
+
+		classID, err := result.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("insert class: %w", err)
+		}
+
+		for _, studentID := range class.StudentIDs {
+			const member = "INSERT INTO class_students (class_id, student_id) VALUES (?, ?)"
+
+			if _, err := tx.ExecContext(ctx, member, classID, studentID); err != nil {
+				return fmt.Errorf("add student to class: %w", err)
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 func (r *ClassRepo) CountActiveByYear(ctx context.Context, year int) (int, error) {

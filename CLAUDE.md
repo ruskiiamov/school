@@ -10,8 +10,9 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 
 Интерфейс полностью на русском; вёрстка должна быть одинаково пригодна на телефоне
 и на десктопе. Готовы итерации 1 (вход, дашборд), 2 (справочники админа),
-3 (журнал учителя), 4 (дневник), 5 (домашнее задание) и 6 (сводные
-представления); следующая — 7, перевод классов, см. `docs/roadmap.md`. Меню строится по роли в
+3 (журнал учителя), 4 (дневник), 5 (домашнее задание), 6 (сводные
+представления) и 7 (перевод классов и прошлые годы); следующей в
+`docs/roadmap.md` нет. Меню строится по роли в
 `view.NavItems(role, active)`; заглушек больше нет.
 
 ## Проектные документы
@@ -100,16 +101,23 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
     `FormErrors`, `UserFromContext`; период сводок — `Period`,
     `ParsePeriod(r, today, min, max)` (две даты `from`/`to`, по умолчанию
     месяц «сегодня», зажим в границы года), `PeriodForm` строит
-    `view.PeriodForm` с ссылками по месяцам (`period.go`). `HandleServiceError` превращает в 404
+    `view.PeriodForm` с ссылками по месяцам (`period.go`); учебный год —
+    `year.go`: `YearSelection(r, school)` (годы `school.ClassYears` —
+    годы классов, текущий и следующий; `?year=` вне списка → текущий,
+    селект показывается всегда),
+    `WithYear` добавляет `year` в скрытые параметры ссылок, `YearPeriod`
+    зажимает период в границы выбранного года с якорем «сегодня» или
+    началом прошлого года. `HandleServiceError` превращает в 404
     `ErrNotFound` всех трёх сервисов и `journal.ErrForbidden`. Обработчиков
     в `web` нет и не добавлять.
   - `server/admin` — всё под `/admin`: `Handler` (`handler.go`: `New`,
     `Routes`, обёртка `h.admin(fn)` = `RequireAuth` + `RequireRole(admin)`,
     `activeUser`), по файлу на раздел (`classes.go`, `class_card.go`,
     `subjects.go`, `work_types.go`, `users.go`, `parent_children.go`,
-    `password_reset.go`, `substitutions.go`), общие для строчных списков
-    `catalog.go` (`rowEdit`, `editingID`, `catalogListURL`) и одноразовые
-    пароли `created.go`.
+    `password_reset.go`, `substitutions.go`, `transfer.go` — перевод
+    классов `/admin/classes/transfer`, обычная форма без HTMX), общие для
+    строчных списков `catalog.go` (`rowEdit`, `editingID`, `catalogListURL`)
+    и одноразовые пароли `created.go`.
   - `server/account` — вход, выход и свой пароль (`login.go`, `password.go`);
     `Routes` сам оборачивает `/account/password` в `RequireAuth` +
     `RequireRole` трёх ролей.
@@ -118,8 +126,9 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
     `lesson.go` (страница урока, тема, удаление, `renderLesson` с режимами
     `renderPage`/`renderTopic`/`renderBlock`/`renderActions`/`renderRecord`/
     `renderHomework`), `summary.go` (`/journal/summary` учителя и
-    `/admin/journal/summary` админа: `pairOptions`, `gridView` с ссылкой на
-    урок через параметр, `cellText`), `marks.go` (оценки и сборка
+    `/admin/journal/summary` админа: `pairOptions` по году, `gridView` с
+    ссылкой на урок через параметр, `cellText`; год — `web.YearSelection`),
+    `marks.go` (оценки и сборка
     блока `#lesson`: `lessonBlock`, `studentPanel`, `markFields`),
     `records.go` (отсутствие и комментарий), `homework.go` (ДЗ: текст и
     срок, потоковая загрузка файлов через `r.MultipartReader` с
@@ -134,12 +143,14 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
     родителя: `index`, `parentDiary` с вкладками детей через `selectChild`
     (404 на чужого ребёнка), общий `renderDiary(diaryView)` и `diaryURL`,
     который тянет скрытые параметры `child`/`q` через все ссылки),
-    `admin.go` (`/admin/diary?q=` поиск ученика и `/admin/diary/{id}` тот
-    же дневник, `adminStudent` — 404 не ученику; D-061 — исключение из
-    «всё под `/admin` в `admin`»), `summary.go` (`/diary/summary` и
-    `/admin/diary/{id}/summary` — оценки по предметам за период,
-    `renderMarks`, чипы оценок ведут на день дневника). Только чтение,
-    фрагменты `#diary` и `#marks`.
+    `admin.go` (`/admin/diary?q=&year=&class=` поиск ученика по ФИО и
+    состав класса выбранного года — `adminFilter` тянет `q`/`year`/`class`
+    в ссылки, `/admin/diary/{id}` тот же дневник, `adminStudent(year)` —
+    404 не ученику, класс в заголовке за выбранный год; D-061 —
+    исключение из «всё под `/admin` в `admin`»), `summary.go`
+    (`/diary/summary` и `/admin/diary/{id}/summary` — оценки по предметам
+    за период с селектом года, `renderMarks`, чипы оценок ведут на день
+    дневника). Только чтение, фрагменты `#diary` и `#marks`.
   - `server/files` — `GET /files/{id}`: скачивание файла ДЗ для всех ролей
     с проверкой доступа в обработчике (`allowed`: админ всегда, учитель —
     `LessonForTeacher`, ученик — `LessonVisibleToStudent`, родитель — через
@@ -161,10 +172,21 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
   через реальную БД. «Не найдено» — `auth.ErrNotFound`. Неактивный пользователь
   (`users.active = 0`) не входит и теряет сессию при следующем запросе.
 - `internal/school` — справочники: предметы (`subject.go`), типы работ
-  (`work_type.go`), классы (`class.go`), состав класса (`student.go`),
-  нагрузка (`assignment.go`), замены (`substitution.go`), дети родителя
-  (`parent.go`), счётчики дашборда (`stats.go`), общая проверка названий
-  (`name.go`). Держит конкретные `*storage.*Repo`. Учебный год — не
+  (`work_type.go`), классы (`class.go`), состав класса (`student.go`,
+  `StudentClassIn` по году), нагрузка (`assignment.go`), замены
+  (`substitution.go`), дети родителя (`parent.go`), перевод классов
+  (`transfer.go`: `CanTransfer`, `TransferPlan` — активные классы
+  `текущий − 1`, `NextClassName` (+1 к ведущему числу), `Graduating` у
+  строки плана — только «ведущее число 11, галочка снята»; ученики с
+  флагами активности и «уже в классе»; `Transfer` сверяет ввод с планом,
+  невключённые классы пропускает, ключи ошибок
+  `name-{id}`/`students-{id}`/`form`, пишет одной транзакцией
+  `ClassRepo.Transfer`; колонка `classes.graduating` в схеме есть, но не
+  используется — D-071), число учеников по классам года
+  (`ClassSizes`), счётчики дашборда (`stats.go`), общая проверка
+  названий (`name.go`). Классы из репозитория идут в естественном
+  порядке (`ORDER BY CAST(name AS INTEGER), name`), `journal.Pairs`
+  держит тот же порядок. Держит конкретные `*storage.*Repo`. Учебный год — не
   сущность (D-042): `Service.CurrentYear()` (`year.go`) считает его по
   «сегодня» в `Location` и месяцу `year_start_month`, имя даёт
   `school.YearName`; `Service.Today()` — календарная дата «сегодня» в
@@ -372,13 +394,27 @@ multiple>` в `<label>`-кнопке с `hx-trigger="change"` и
 сроку» нет. В дневнике ДЗ — блок под комментарием урока и метка «ДЗ» в
 списке уроков дня.
 
-**Сводки (D-067).** `/journal/summary` (учитель), `/admin/journal/summary`
+**Сводки (D-067, D-068).** `/journal/summary` (учитель), `/admin/journal/summary`
 (админ), `/diary/summary` (ученик, родитель), `/admin/diary/{id}/summary`
 (админ): GET-формы с `hx-trigger="submit, change"` и `hx-push-url`,
-фрагменты `#summary` и `#marks`. Период зажат в текущий учебный год
-(`school.YearBounds`). Таблица сводки — `overflow-x-auto` с закреплённым
+фрагменты `#summary` и `#marks`. Период зажат в выбранный учебный год
+(`web.YearPeriod`); селект `year` (годы классов, текущий и следующий)
+показывается всегда, и `year` всегда идёт в ссылки периода и вкладок
+(`web.WithYear`). Сводка учителя без пар в году показывает форму
+с селектом и текстом, а не пустое состояние. Таблица сводки — `overflow-x-auto` с закреплённым
 первым столбцом (`sticky left-0`), даты столбцов «16.09», ячейка — ссылка
 на урок с учеником. Четвертей и весов нет.
+
+**Перевод классов (D-068).** Кнопка «Создать классы из прошлого года» на
+вкладке текущего года в «Классах» (`CanTransfer`), страница
+`/admin/classes/transfer` — форма без HTMX: на каждый класс прошлого года
+поля `transfer-{id}`, `name-{id}`, `students-{id}` (чекбоксы; у 11-х
+«Переводить» снята с подписью «выпускной»); обработчик собирает
+`school.TransferInput` по плану (`transferInputFromForm`), ошибка —
+полная страница со введённым, статус 200, успех — редирект на список
+текущего года. Пометки «выпуск» нет (D-071). Вкладки «Классов» —
+`ClassYears` (годы классов, текущий, следующий); на вкладке следующего
+года ни формы добавления, ни кнопки перевода.
 
 **Дневник (D-061, D-062).** `GET /diary?date=&child=&lesson=` для ученика
 и родителя, `GET /admin/diary/{id}?date=&lesson=&q=` для админа — один

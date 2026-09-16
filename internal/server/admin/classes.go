@@ -123,15 +123,22 @@ func (h *Handler) renderClasses(w http.ResponseWriter, r *http.Request, newName,
 		return
 	}
 
+	sizes, err := h.school.ClassSizes(r.Context(), year)
+	if err != nil {
+		h.base.ServerError(w, r, "count class students", err)
+		return
+	}
+
 	editing := editingID(r, edit.entered, edit.id)
 
 	rows := make([]view.ClassRow, 0, len(classes))
 	for _, class := range classes {
 		row := view.ClassRow{
-			ID:     class.ID,
-			Name:   class.Name,
-			Href:   classPath(class.ID, ""),
-			Active: class.Active,
+			ID:       class.ID,
+			Name:     class.Name,
+			Href:     classPath(class.ID, ""),
+			Active:   class.Active,
+			Students: view.Plural(sizes[class.ID], "ученик", "ученика", "учеников"),
 		}
 		row.Editing = class.ID == editing
 
@@ -145,6 +152,21 @@ func (h *Handler) renderClasses(w http.ResponseWriter, r *http.Request, newName,
 		rows = append(rows, row)
 	}
 
+	current := year == h.school.CurrentYear()
+
+	transferHref := ""
+	if current {
+		canTransfer, err := h.school.CanTransfer(r.Context())
+		if err != nil {
+			h.base.ServerError(w, r, "check class transfer", err)
+			return
+		}
+
+		if canTransfer {
+			transferHref = transferPath
+		}
+	}
+
 	page := view.ClassesPage{
 		Shell:        h.base.Shell(r, "Классы", classesPath),
 		Year:         year,
@@ -152,7 +174,8 @@ func (h *Handler) renderClasses(w http.ResponseWriter, r *http.Request, newName,
 		Years:        yearOptions(years, year, inactive),
 		Classes:      rows,
 		ShowInactive: inactive,
-		CanCreate:    year == h.school.CurrentYear(),
+		CanCreate:    current,
+		TransferHref: transferHref,
 		ToggleHref:   classesListURL(year, !inactive),
 		NewName:      newName,
 		NewError:     newError,

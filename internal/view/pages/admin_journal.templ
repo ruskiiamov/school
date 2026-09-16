@@ -29,6 +29,9 @@ templ AdminJournalContent(page view.AdminJournalPage) {
 			hx-push-url="true"
 			class={ components.CardClass, "flex flex-wrap items-start gap-2 p-3 sm:p-4" }
 		>
+			if len(page.Years) > 0 {
+				@components.RowSelect("year", "Учебный год", page.Years, "", "basis-36")
+			}
 			@components.RowSelect("class", "Класс", page.Classes, "", "flex-1 basis-40")
 			@components.RowSelect("subject", "Предмет", page.Subjects, "", "flex-1 basis-56")
 			<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Показать</button>
