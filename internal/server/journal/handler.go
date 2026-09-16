@@ -120,6 +120,11 @@ func (h *Handler) renderJournal(w http.ResponseWriter, r *http.Request, form jou
 		})
 	}
 
+	if web.IsHTMX(r) {
+		h.base.Render(w, r, pages.JournalContent(page))
+		return
+	}
+
 	h.base.Render(w, r, pages.Journal(page))
 }
 
