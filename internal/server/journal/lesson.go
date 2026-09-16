@@ -17,6 +17,7 @@ const (
 	renderTopic
 	renderBlock
 	renderActions
+	renderRecord
 )
 
 type lessonState struct {
@@ -156,7 +157,12 @@ func (h *Handler) renderLesson(w http.ResponseWriter, r *http.Request, lesson jo
 
 	page.Block = block
 
-	if mode == renderBlock {
+	if mode == renderRecord && block.Selected != nil {
+		h.base.Render(w, r, pages.LessonRecord(block.Selected.Record))
+		return
+	}
+
+	if mode == renderBlock || mode == renderRecord {
 		h.base.Render(w, r, pages.LessonBlockUpdate(page))
 		return
 	}

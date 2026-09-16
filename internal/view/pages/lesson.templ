@@ -10,6 +10,7 @@ const (
 	lessonTopicTarget   = "#lesson-topic"
 	lessonTarget        = "#lesson"
 	lessonActionsTarget = "#lesson-actions"
+	lessonRecordTarget  = "#lesson-record"
 )
 
 templ Lesson(page view.LessonPage) {
@@ -82,7 +83,6 @@ templ LessonTopic(page view.LessonPage) {
 			/>
 			@components.FieldError(page.TopicError)
 		</span>
-		<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Сохранить</button>
 	</form>
 }
 
@@ -145,6 +145,9 @@ templ lessonStudentPanel(panel view.LessonStudentPanel) {
 			if !panel.InClass {
 				<span class="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">не в классе</span>
 			}
+			if panel.InClass {
+				@absentForm(panel.Record)
+			}
 		</div>
 		if len(panel.Marks) == 0 {
 			@components.EmptyState("Оценок пока нет")
@@ -167,7 +170,7 @@ templ lessonStudentPanel(panel view.LessonStudentPanel) {
 				@markFields(panel.New)
 				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Поставить</button>
 			</form>
-			@recordForms(panel.Record)
+			@LessonRecord(panel.Record)
 		}
 		if panel.Error != "" {
 			<div class="flex border-t border-slate-100 px-4 py-3">
@@ -226,66 +229,55 @@ templ markRow(mark view.MarkRow) {
 	</li>
 }
 
-templ recordForms(record view.RecordFields) {
-	<div class="group flex flex-col gap-3 border-t border-slate-100 p-3 sm:p-4">
-		<form
-			method="post"
-			action={ templ.SafeURL(record.Action) }
-			hx-post={ record.Action }
-			hx-target={ lessonTarget }
-			hx-swap="outerHTML"
-			class="flex"
-		>
-			<input type="hidden" name="comment" value={ record.Comment }/>
-			if record.Absent {
-				<input type="hidden" name="absent" value="0"/>
-				<button type="submit" class={ components.ButtonActiveClass } aria-pressed="true">
-					@components.Icon(view.IconCheck, "size-4")
-					<span>Отсутствовал</span>
-				</button>
-			} else {
-				<input type="hidden" name="absent" value="1"/>
-				<button type="submit" class={ components.ButtonSecondaryClass } aria-pressed="false">Отсутствовал</button>
-			}
-		</form>
-		if record.Comment != "" {
-			<p class="rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700 group-has-[[open]]:hidden">{ record.Comment }</p>
+templ absentForm(record view.RecordFields) {
+	<form
+		method="post"
+		action={ templ.SafeURL(record.Action) }
+		hx-post={ record.Action }
+		hx-target={ lessonTarget }
+		hx-swap="outerHTML"
+		class="ml-auto"
+	>
+		<input type="hidden" name="comment" value={ record.Comment }/>
+		if record.Absent {
+			<input type="hidden" name="absent" value="0"/>
+			<button type="submit" class={ components.ButtonActiveClass } aria-pressed="true">
+				@components.Icon(view.IconCheck, "size-4")
+				<span>Отсутствовал</span>
+			</button>
+		} else {
+			<input type="hidden" name="absent" value="1"/>
+			<button type="submit" class={ components.ButtonSecondaryClass } aria-pressed="false">Отсутствовал</button>
 		}
-		<details open?={ record.Error != "" }>
-			<summary class={ components.ButtonSecondaryClass, "w-fit cursor-pointer list-none [&::-webkit-details-marker]:hidden" }>
-				if record.Comment != "" {
-					Изменить комментарий
-				} else {
-					Добавить комментарий
-				}
-			</summary>
-			<form
-				method="post"
-				action={ templ.SafeURL(record.Action) }
-				hx-post={ record.Action }
-				hx-target={ lessonTarget }
-				hx-swap="outerHTML"
-				class="mt-3 flex flex-col gap-3"
-			>
-				if record.Absent {
-					<input type="hidden" name="absent" value="1"/>
-				} else {
-					<input type="hidden" name="absent" value="0"/>
-				}
-				<span class="flex min-w-0 flex-col gap-1">
-					<textarea
-						name="comment"
-						rows="3"
-						placeholder="Комментарий ученику"
-						aria-label="Комментарий ученику"
-						maxlength="500"
-						autofocus
-						class={ components.InputClassFor(record.Error), "py-2" }
-					>{ record.Comment }</textarea>
-					@components.FieldError(record.Error)
-				</span>
-				<button type="submit" class={ components.ButtonPrimaryClass, "self-start" }>Сохранить</button>
-			</form>
-		</details>
-	</div>
+	</form>
+}
+
+templ LessonRecord(record view.RecordFields) {
+	<form
+		id="lesson-record"
+		method="post"
+		action={ templ.SafeURL(record.Action) }
+		hx-post={ record.Action }
+		hx-target={ lessonRecordTarget }
+		hx-swap="outerHTML"
+		hx-trigger="input changed delay:500ms"
+		class="flex flex-col gap-2 border-t border-slate-100 p-3 sm:p-4"
+	>
+		if record.Absent {
+			<input type="hidden" name="absent" value="1"/>
+		} else {
+			<input type="hidden" name="absent" value="0"/>
+		}
+		<label for={ record.FieldID } class="text-sm font-semibold text-slate-900">Комментарий ученику</label>
+		<textarea
+			id={ record.FieldID }
+			hx-preserve
+			name="comment"
+			rows="3"
+			placeholder="Сохраняется по ходу набора"
+			maxlength="500"
+			class={ components.InputClassFor(record.Error), "py-2" }
+		>{ record.Comment }</textarea>
+		@components.FieldError(record.Error)
+	</form>
 }

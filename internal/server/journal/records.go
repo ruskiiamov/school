@@ -32,15 +32,25 @@ func (h *Handler) recordSave(w http.ResponseWriter, r *http.Request) {
 		Comment: web.FormValue(r, "comment"),
 	}}
 
+	mode := h.markMode(r)
+	if r.Header.Get("HX-Target") == "lesson-record" {
+		mode = renderRecord
+	}
+
 	err := h.journal.SaveRecord(r.Context(), user.ID, lesson.ID, studentID, form.input)
 	if errs, ok := web.FormErrors(err); ok {
 		form.errs = errs
-		h.renderLesson(w, r, lesson, lessonState{topic: lesson.Topic, record: form}, h.markMode(r))
+		h.renderLesson(w, r, lesson, lessonState{topic: lesson.Topic, record: form}, mode)
 
 		return
 	}
 	if err != nil {
 		h.base.HandleServiceError(w, r, "save lesson record", err)
+		return
+	}
+
+	if mode == renderRecord {
+		h.renderLesson(w, r, lesson, lessonState{topic: lesson.Topic}, mode)
 		return
 	}
 
