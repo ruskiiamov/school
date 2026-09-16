@@ -419,6 +419,7 @@ type LessonStudentPanel struct {
 
 type RecordFields struct {
 	Action  string
+	FieldID string
 	Absent  bool
 	Comment string
 	Error   string

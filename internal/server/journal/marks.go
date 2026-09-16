@@ -207,6 +207,7 @@ func (h *Handler) studentPanel(r *http.Request, lesson journal.Lesson, entry jou
 		Error:     form.errs["student"],
 		Record: view.RecordFields{
 			Action:  lessonPath(lesson.ID, "/students/"+strconv.FormatInt(entry.ID, 10)) + studentQuery(entry.ID, 0),
+			FieldID: "lesson-comment-" + strconv.FormatInt(entry.ID, 10),
 			Absent:  entry.Absent,
 			Comment: entry.Comment,
 		},
