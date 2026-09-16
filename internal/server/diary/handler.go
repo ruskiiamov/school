@@ -3,6 +3,8 @@ package diary
 import (
 	"net/http"
 	"net/url"
+	"slices"
+	"sort"
 	"strconv"
 	"time"
 
@@ -47,14 +49,104 @@ type diaryView struct {
 
 func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 	user, _ := web.UserFromContext(r.Context())
-
 	child := queryID(r, "child")
+
+	if user.Role == auth.RoleParent {
+		h.parentDiary(w, r, user.ID, child)
+		return
+	}
+
 	if child != 0 && child != user.ID {
 		http.NotFound(w, r)
 		return
 	}
 
 	h.renderDiary(w, r, diaryView{title: "Дневник", path: diaryPath, student: user.ID})
+}
+
+func (h *Handler) parentDiary(w http.ResponseWriter, r *http.Request, parentID, child int64) {
+	children, err := h.children(r, parentID)
+	if err != nil {
+		h.base.ServerError(w, r, "load parent children", err)
+		return
+	}
+
+	if len(children) == 0 {
+		if child != 0 {
+			http.NotFound(w, r)
+			return
+		}
+
+		page := view.DiaryPage{Shell: h.base.Shell(r, "Дневник", diaryPath), Title: "Дневник", NoChildren: true}
+		h.renderDiaryPage(w, r, page)
+
+		return
+	}
+
+	selected := children[0]
+	found := child == 0
+
+	for _, candidate := range children {
+		if candidate.ID == child {
+			selected, found = candidate, true
+		}
+	}
+
+	if !found {
+		http.NotFound(w, r)
+		return
+	}
+
+	dv := diaryView{
+		title:   "Дневник",
+		path:    diaryPath,
+		student: selected.ID,
+		hidden:  map[string]string{"child": strconv.FormatInt(selected.ID, 10)},
+	}
+
+	date := h.requestedDate(r)
+
+	for _, candidate := range children {
+		tab := diaryView{path: diaryPath, hidden: map[string]string{"child": strconv.FormatInt(candidate.ID, 10)}}
+		dv.children = append(dv.children, view.DiaryChild{
+			Name:   candidate.FullName,
+			Href:   diaryURL(tab, date, 0),
+			Active: candidate.ID == selected.ID,
+		})
+	}
+
+	h.renderDiary(w, r, dv)
+}
+
+func (h *Handler) children(r *http.Request, parentID int64) ([]auth.User, error) {
+	links, err := h.school.Children(r.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	ids := links[parentID]
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	students, err := h.auth.Users(r.Context(), auth.UserFilter{Role: auth.RoleStudent})
+	if err != nil {
+		return nil, err
+	}
+
+	var children []auth.User
+
+	for _, student := range students {
+		if slices.Contains(ids, student.ID) {
+			children = append(children, student)
+		}
+	}
+
+	sort.Slice(children, func(i, j int) bool {
+		return children[i].FullName < children[j].FullName
+	})
+
+	return children, nil
 }
 
 func (h *Handler) renderDiary(w http.ResponseWriter, r *http.Request, dv diaryView) {
@@ -136,6 +228,10 @@ func (h *Handler) renderDiary(w http.ResponseWriter, r *http.Request, dv diaryVi
 		page.Selected = &panel
 	}
 
+	h.renderDiaryPage(w, r, page)
+}
+
+func (h *Handler) renderDiaryPage(w http.ResponseWriter, r *http.Request, page view.DiaryPage) {
 	if web.IsHTMX(r) {
 		h.base.Render(w, r, pages.DiaryContent(page))
 		return
