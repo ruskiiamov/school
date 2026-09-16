@@ -6,13 +6,155 @@ import (
 	"github.com/ruskiiamov/school/internal/view/layout"
 )
 
+const diaryTarget = "#diary"
+
 templ Diary(page view.DiaryPage) {
 	@layout.App(page.Shell) {
 		<div class="flex flex-col gap-4 lg:gap-6">
-			@components.PageHeader("Дневник")
-			<div class={ components.CardClass }>
-				@components.EmptyState("Уроков в этот день нет")
-			</div>
+			@components.PageHeader(page.Title) {
+				if page.BackHref != "" {
+					<a href={ templ.SafeURL(page.BackHref) } class={ components.ButtonSecondaryClass }>К поиску</a>
+				}
+			}
+			@DiaryContent(page)
 		</div>
 	}
+}
+
+templ DiaryContent(page view.DiaryPage) {
+	<div id="diary" class="flex flex-col gap-4 lg:gap-6">
+		if page.NoChildren {
+			<div class={ components.CardClass }>
+				@components.EmptyState("К вашему аккаунту не привязаны дети")
+			</div>
+		} else {
+			if len(page.Children) > 0 {
+				<nav aria-label="Дети" class="flex flex-wrap gap-2">
+					for _, child := range page.Children {
+						@diaryLink(child.Href, child.Name, child.Active)
+					}
+				</nav>
+			}
+			<form
+				method="get"
+				action={ templ.SafeURL(page.DateAction) }
+				hx-get={ page.DateAction }
+				hx-target={ diaryTarget }
+				hx-swap="outerHTML"
+				hx-push-url="true"
+				class={ components.CardClass, "flex flex-wrap items-center gap-2 p-3 sm:p-4" }
+			>
+				for name, value := range page.Hidden {
+					<input type="hidden" name={ name } value={ value }/>
+				}
+				@components.RowDate("date", page.Date, "Дата", "", "flex-1 basis-40 sm:max-w-56")
+				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Показать</button>
+				<span class="flex flex-wrap items-center gap-x-3 gap-y-1 sm:ml-auto">
+					@diaryNav(page.PrevHref, "← Вчера")
+					@diaryNav(page.TodayHref, "Сегодня")
+					@diaryNav(page.NextHref, "Завтра →")
+				</span>
+			</form>
+			<p class="text-sm font-semibold text-slate-900">{ page.DateLabel }</p>
+			<div class="grid items-start gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-6">
+				<nav aria-label="Уроки дня" class={ components.CardClass, "p-2 lg:p-0" }>
+					if len(page.Lessons) == 0 {
+						@components.EmptyState("Уроков в этот день нет")
+					} else {
+						<ul class="flex flex-wrap gap-2 lg:flex-col lg:gap-0 lg:divide-y lg:divide-slate-100">
+							for _, lesson := range page.Lessons {
+								@diaryLessonItem(lesson)
+							}
+						</ul>
+					}
+				</nav>
+				if page.Selected != nil {
+					@diaryLessonPanel(*page.Selected)
+				}
+			</div>
+		}
+	</div>
+}
+
+templ diaryLink(href, label string, active bool) {
+	<a
+		href={ templ.SafeURL(href) }
+		hx-get={ href }
+		hx-target={ diaryTarget }
+		hx-swap="outerHTML"
+		hx-push-url="true"
+		if active {
+			aria-current="page"
+			class="inline-flex min-h-11 items-center rounded-lg bg-indigo-50 px-4 text-sm font-medium text-indigo-700"
+		} else {
+			class="inline-flex min-h-11 items-center rounded-lg px-4 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+		}
+	>{ label }</a>
+}
+
+templ diaryNav(href, label string) {
+	<a href={ templ.SafeURL(href) } hx-get={ href } hx-target={ diaryTarget } hx-swap="outerHTML" hx-push-url="true" class="inline-flex min-h-11 items-center text-sm font-medium text-indigo-700 hover:underline">{ label }</a>
+}
+
+templ diaryLessonItem(lesson view.DiaryLessonItem) {
+	<li class="lg:flex">
+		<a
+			href={ templ.SafeURL(lesson.Href) }
+			hx-get={ lesson.Href }
+			hx-target={ diaryTarget }
+			hx-swap="outerHTML"
+			hx-push-url="true"
+			if lesson.Selected {
+				aria-current="true"
+				class="flex min-h-11 items-center gap-2 rounded-lg bg-indigo-50 px-3 text-sm font-medium text-indigo-700 lg:w-full lg:rounded-none lg:px-4 lg:py-2"
+			} else {
+				class="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 lg:w-full lg:rounded-none lg:ring-0 lg:px-4 lg:py-2"
+			}
+		>
+			<span class="flex min-w-0 flex-1 flex-col">
+				<span class="truncate">{ lesson.Subject }</span>
+				<span class="hidden truncate text-xs font-normal text-slate-500 lg:inline">{ lesson.Teacher }</span>
+			</span>
+			if lesson.Summary != "" {
+				<span class="shrink-0 text-xs font-semibold text-slate-500">{ lesson.Summary }</span>
+			}
+		</a>
+	</li>
+}
+
+templ diaryLessonPanel(panel view.DiaryLessonPanel) {
+	<section class={ components.CardClass }>
+		<div class="flex flex-col gap-1 border-b border-slate-100 px-4 py-3 lg:px-5">
+			<h2 class="text-sm font-semibold text-slate-900">{ panel.Title }</h2>
+			<span class="text-sm text-slate-600">{ panel.Teacher }</span>
+			if panel.Topic != "" {
+				<span class="text-sm text-slate-900">Тема: { panel.Topic }</span>
+			}
+		</div>
+		if len(panel.Marks) == 0 {
+			@components.EmptyState("Оценок нет")
+		} else {
+			<ul class="divide-y divide-slate-100">
+				for _, mark := range panel.Marks {
+					<li class="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 sm:p-4">
+						<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-base font-semibold text-indigo-700">{ mark.Value }</span>
+						<span class="text-sm font-medium text-slate-900">{ mark.WorkType }</span>
+						if mark.Label != "" {
+							<span class="text-sm text-slate-600">{ mark.Label }</span>
+						}
+					</li>
+				}
+			</ul>
+		}
+		if panel.Absent || panel.Comment != "" {
+			<div class="flex flex-col gap-2 border-t border-slate-100 p-3 sm:p-4">
+				if panel.Absent {
+					<span class="w-fit rounded-md bg-amber-50 px-2 py-1 text-sm font-medium text-amber-700">Отсутствовал</span>
+				}
+				if panel.Comment != "" {
+					<p class="rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700">{ panel.Comment }</p>
+				}
+			</div>
+		}
+	</section>
 }

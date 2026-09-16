@@ -165,3 +165,35 @@ func scanLesson(row scanner) (Lesson, error) {
 
 	return lesson, nil
 }
+
+func (r *LessonRepo) ListForStudent(ctx context.Context, studentID int64, date time.Time) ([]Lesson, error) {
+	const query = "SELECT " + lessonColumns + ` FROM lessons
+		WHERE date = ? AND (
+			class_id IN (SELECT class_id FROM class_students WHERE student_id = ?)
+			OR id IN (SELECT lesson_id FROM marks WHERE student_id = ?)
+			OR id IN (SELECT lesson_id FROM lesson_students WHERE student_id = ?))
+		ORDER BY id`
+
+	rows, err := r.db.QueryContext(ctx, query, toDate(date), studentID, studentID, studentID)
+	if err != nil {
+		return nil, fmt.Errorf("select student lessons: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var lessons []Lesson
+
+	for rows.Next() {
+		lesson, err := scanLesson(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan lesson: %w", err)
+		}
+
+		lessons = append(lessons, lesson)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate lessons: %w", err)
+	}
+
+	return lessons, nil
+}

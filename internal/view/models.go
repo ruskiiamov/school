@@ -76,8 +76,51 @@ type PasswordPage struct {
 	Done   bool
 }
 
+type DiaryLessonItem struct {
+	ID       int64
+	Href     string
+	Subject  string
+	Teacher  string
+	Summary  string
+	Selected bool
+}
+
+type DiaryMark struct {
+	Value    string
+	WorkType string
+	Label    string
+}
+
+type DiaryLessonPanel struct {
+	Title   string
+	Teacher string
+	Topic   string
+	Marks   []DiaryMark
+	Absent  bool
+	Comment string
+}
+
+type DiaryChild struct {
+	Name   string
+	Href   string
+	Active bool
+}
+
 type DiaryPage struct {
-	Shell Shell
+	Shell      Shell
+	Title      string
+	BackHref   string
+	Children   []DiaryChild
+	NoChildren bool
+	Date       string
+	DateLabel  string
+	DateAction string
+	Hidden     map[string]string
+	PrevHref   string
+	TodayHref  string
+	NextHref   string
+	Lessons    []DiaryLessonItem
+	Selected   *DiaryLessonPanel
 }
 
 type SubjectRow struct {
