@@ -9,10 +9,10 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 (standalone-бинарник, без npm), данные — SQLite через `modernc.org/sqlite`.
 
 Интерфейс полностью на русском; вёрстка должна быть одинаково пригодна на телефоне
-и на десктопе. Готовы итерации 1 (вход, дашборд), 2 (справочники админа) и
-3 (журнал учителя); следующая — 4, дневник ученика и родителя, см.
+и на десктопе. Готовы итерации 1 (вход, дашборд), 2 (справочники админа),
+3 (журнал учителя) и 4 (дневник); следующая — 5, домашнее задание, см.
 `docs/roadmap.md`. Меню строится по роли в `view.NavItems(role, active)`;
-пункт «Дневник» пока заглушка (`server/stub.go`).
+заглушек больше нет.
 
 ## Проектные документы
 
@@ -53,8 +53,9 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 ## Архитектура
 
 Зависимости идут строго в одну сторону: `cmd/server` → `internal/app` →
-`internal/server` → {`server/admin`, `server/account`, `server/journal`} →
-`server/web` → {`internal/auth`, `internal/school`, `internal/journal`} →
+`internal/server` → {`server/admin`, `server/account`, `server/journal`,
+`server/diary`} → `server/web` → {`internal/auth`, `internal/school`,
+`internal/journal`} →
 `internal/storage`. `auth`, `school` и `journal` друг о друге не знают;
 `internal/view` не знает ни о `server`, ни о сервисах; `storage` не знает о
 HTTP.
@@ -81,10 +82,11 @@ HTTP.
   `chain(mux, requestID, secureHeaders, s.crossOriginProtection)`. Порядок значим:
   `requestID` снаружи всего, потому что логгер — `contextHandler`, который достаёт
   `request_id` из контекста; `recoverPanic` внутри `logRequests`, чтобы паника попала
-  в лог запроса. В корне остались middleware (`middleware.go`), дашборд (`home.go`)
-  и заглушка «Дневник» (`stub.go`); `pages()` регистрирует их и зовёт
-  `Routes(mux)` подпакетов — так все страницы логируются автоматически;
-  служебные маршруты без access-лога — на внешнем mux.
+  в лог запроса. В корне остались middleware (`middleware.go`) и дашборд
+  (`home.go`, подписи карточек ролей — `sectionNote`); `pages()`
+  регистрирует их и зовёт `Routes(mux)` подпакетов — так все страницы
+  логируются автоматически; служебные маршруты без access-лога — на
+  внешнем mux.
   - `server/web` — общий инструментарий страниц, единственное место, где HTTP
     знает про сессии и оболочку: `Base` (сервис `auth`, имя школы, cookie,
     логгер) с методами `Render`, `Shell`, `ServerError`, `HandleServiceError`
@@ -111,12 +113,17 @@ HTTP.
     блока `#lesson`: `lessonBlock`, `studentPanel`, `markFields`),
     `records.go` (отсутствие и комментарий). Год и «сегодня» берёт из
     `school` (`CurrentYear`, `Today`) и передаёт в `journal` параметрами.
+  - `server/diary` — дневник: `handler.go` (`/diary` для ученика и
+    родителя: `index`, `parentDiary` с вкладками детей, общий
+    `renderDiary(diaryView)` и `diaryURL`, который тянет скрытые параметры
+    `child`/`q` через все ссылки), `admin.go` (`/admin/diary?q=` поиск
+    ученика и `/admin/diary/{id}` тот же дневник, D-061 — исключение из
+    «всё под `/admin` в `admin`»). Только чтение, фрагмент `#diary`.
   - `server/servertest` — окружение для тестов (см. «Как добавить страницу»).
   Маршруты для одной роли — `base.RequireAuth(web.RequireRole(role...)(h))`
   на каждом маршруте внутри своего пакета: аноним уходит на `/login`, чужая
-  роль получает 404 (не 403) — образец `/diary` в `pages()` и `h.teacher`
-  в `server/journal`. Дневник итерации 4 — свой подпакет рядом, заглушка
-  из корня тогда удаляется.
+  роль получает 404 (не 403) — образец `h.teacher` в `server/journal`,
+  `h.owner` и `h.admin` в `server/diary`.
 - `internal/auth` — сервисный слой: логин/логаут/аутентификация, bcrypt, серверные
   сессии, роли, управление пользователями (`users.go`: создание с генерацией
   логина `login.go` и пароля `password.go`, правка, смена пароля и
@@ -143,7 +150,9 @@ HTTP.
   `DeleteLesson` только пустой, `RecentLessons`), оценки и список учеников
   урока по D-023 (`mark.go`: `LessonStudents`, `AddMark`/`UpdateMark`/
   `DeleteMark`), записи об уроке (`record.go`: `SaveRecord`, пустая запись
-  удаляет строку), уборка осиротевших строк (`cleanup.go`). Времени не
+  удаляет строку), уборка осиротевших строк (`cleanup.go`), чтение для
+  дневника (`diary.go`: `DayLessons` — уроки дня ученика с его оценками,
+  отсутствием и комментарием). Времени не
   считает: год и «сегодня» приходят параметрами (Q-31 → D-058). Держит свои
   `*storage.*Repo`; ФИО учеников не знает — их подставляет обработчик из
   `auth.Users`. «Нет доступа» — `journal.ErrForbidden`, «не найдено» —
@@ -294,6 +303,15 @@ cookie). Ошибка: полная страница с введёнными з�
 Замены (`admin/substitutions.go`) — строчный паттерн с `?ended=1` и
 правкой только дат; учителя проверяет `activeUser`, класс и предмет —
 `school.CreateSubstitution`.
+
+**Дневник (D-061, D-062).** `GET /diary?date=&child=&lesson=` для ученика
+и родителя, `GET /admin/diary/{id}?date=&lesson=&q=` для админа — один
+рендер `renderDiary(diaryView)`: форма даты (GET, «Показать») и ссылки
+«Вчера/Сегодня/Завтра», у родителя вкладки детей, слева уроки дня (на
+телефоне чипы), справа выбранный урок с оценками, «Отсутствовал» и
+комментарием. Всё в фрагменте `#diary` с `hx-push-url`; форм, меняющих
+состояние, нет. Чужое (ребёнок, урок, не ученик) — 404 до рендера; в
+тестах хэш-ссылки с `&` сравнивать через `html.EscapeString`.
 
 **HTMX и редиректы.** `web.Redirect` сам отличает HTMX-запрос (`web.IsHTMX`) и отвечает
 `HX-Redirect` + 204 вместо 303. Обработчики, отвечающие и фрагментом, и целой
