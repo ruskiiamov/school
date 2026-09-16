@@ -64,6 +64,7 @@ templ LessonTopic(page view.LessonPage) {
 		hx-post={ page.Path + "/topic" }
 		hx-target={ lessonTopicTarget }
 		hx-swap="outerHTML"
+		hx-trigger="submit, input changed delay:500ms"
 		class={ components.CardClass, "flex flex-wrap items-start gap-2 p-3 sm:p-4" }
 	>
 		<label for="lesson-topic-input" class="flex min-h-11 basis-full items-center text-sm font-semibold text-slate-900 sm:basis-auto">Тема урока</label>
@@ -71,6 +72,7 @@ templ LessonTopic(page view.LessonPage) {
 			<input
 				type="text"
 				id="lesson-topic-input"
+				hx-preserve
 				name="topic"
 				value={ page.Topic }
 				placeholder="Тема не задана"
@@ -225,7 +227,7 @@ templ markRow(mark view.MarkRow) {
 }
 
 templ recordForms(record view.RecordFields) {
-	<div class="flex flex-col gap-3 border-t border-slate-100 p-3 sm:p-4">
+	<div class="group flex flex-col gap-3 border-t border-slate-100 p-3 sm:p-4">
 		<form
 			method="post"
 			action={ templ.SafeURL(record.Action) }
@@ -247,7 +249,7 @@ templ recordForms(record view.RecordFields) {
 			}
 		</form>
 		if record.Comment != "" {
-			<p class="rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700">{ record.Comment }</p>
+			<p class="rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700 group-has-[[open]]:hidden">{ record.Comment }</p>
 		}
 		<details open?={ record.Error != "" }>
 			<summary class={ components.ButtonSecondaryClass, "w-fit cursor-pointer list-none [&::-webkit-details-marker]:hidden" }>
