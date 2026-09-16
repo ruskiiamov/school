@@ -26,7 +26,7 @@ templ SubjectsList(page view.SubjectsPage) {
 	<div id="subjects" class="flex flex-col gap-4 lg:gap-6">
 		@components.CreateForm(catalogURL(subjectsBase, 0, "", page.ShowInactive),
 			"Новый предмет", "Название нового предмета", page.NewName, page.NewError, subjectsTarget)
-		<div class={ components.CardClass }>
+		<div class={ components.CardClass, "overflow-hidden" }>
 			if len(page.Subjects) == 0 {
 				@components.EmptyState("Пока нет предметов")
 			} else {
@@ -41,24 +41,23 @@ templ SubjectsList(page view.SubjectsPage) {
 }
 
 templ subjectRow(row view.SubjectRow, showInactive bool) {
-	<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+	<li class={ "flex flex-wrap items-center gap-2", templ.KV("p-3 sm:p-4", row.Editing) }>
 		if row.Editing {
 			@components.EditForm(catalogURL(subjectsBase, row.ID, "", showInactive),
-				catalogURL(subjectsBase, 0, "", showInactive), row.Name, "Название предмета", row.Error, subjectsTarget)
-		} else {
-			if row.Active {
-				<span class="min-w-0 basis-full truncate text-sm font-medium text-slate-900 sm:flex-1 sm:basis-auto">{ row.Name }</span>
-			} else {
-				<span class="min-w-0 basis-full truncate text-sm text-slate-500 sm:flex-1 sm:basis-auto">{ row.Name }</span>
-				@components.InactiveBadge()
-			}
-			<span class="ml-auto flex flex-wrap items-center gap-2">
-				@components.EditLink(catalogEditURL(subjectsBase, row.ID, showInactive), subjectsTarget)
-				@components.ActiveForm(row.Active,
+				catalogURL(subjectsBase, 0, "", showInactive), row.Name, "Название предмета", row.Error, subjectsTarget) {
+				@components.ActiveButton(row.Active,
 					catalogURL(subjectsBase, row.ID, "/deactivate", showInactive),
-					catalogURL(subjectsBase, row.ID, "/activate", showInactive), subjectsTarget)
-			</span>
-			@components.FieldError(row.Error)
+					catalogURL(subjectsBase, row.ID, "/activate", showInactive))
+			}
+		} else {
+			@components.RowLink(catalogEditURL(subjectsBase, row.ID, showInactive), subjectsTarget) {
+				if row.Active {
+					<span class="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{ row.Name }</span>
+				} else {
+					<span class="min-w-0 flex-1 truncate text-sm text-slate-500">{ row.Name }</span>
+					@components.InactiveBadge()
+				}
+			}
 		}
 	</li>
 }

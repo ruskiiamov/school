@@ -9,6 +9,7 @@ type rowEdit struct {
 	id      int64
 	name    string
 	entered bool
+	open    bool
 	message string
 }
 

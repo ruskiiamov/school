@@ -26,6 +26,7 @@ const (
 	IconEye       Icon = "eye"
 	IconEyeOff    Icon = "eye-off"
 	IconTable     Icon = "table"
+	IconPencil    Icon = "pencil"
 )
 
 type User struct {

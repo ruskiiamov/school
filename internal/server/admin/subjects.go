@@ -70,7 +70,7 @@ func (h *Handler) subjectSetActive(w http.ResponseWriter, r *http.Request, activ
 
 	err := h.school.SetSubjectActive(r.Context(), id, active)
 	if errs, ok := web.FormErrors(err); ok {
-		h.renderSubjects(w, r, "", "", rowEdit{id: id, message: errs["name"]})
+		h.renderSubjects(w, r, "", "", rowEdit{id: id, open: true, message: errs["name"]})
 		return
 	}
 	if err != nil {
@@ -99,7 +99,7 @@ func (h *Handler) renderSubjects(w http.ResponseWriter, r *http.Request, newName
 		return
 	}
 
-	editing := editingID(r, edit.entered, edit.id)
+	editing := editingID(r, edit.entered || edit.open, edit.id)
 
 	rows := make([]view.SubjectRow, 0, len(subjects))
 	for _, subject := range subjects {
