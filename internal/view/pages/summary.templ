@@ -1,0 +1,118 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+const summaryTarget = "#summary"
+
+templ Summary(page view.GridPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader(page.Title)
+			@SummaryContent(page)
+		</div>
+	}
+}
+
+templ SummaryContent(page view.GridPage) {
+	<div id="summary" class="flex flex-col gap-4 lg:gap-6">
+		if len(page.Pairs) == 0 && len(page.Classes) == 0 {
+			<div class={ components.CardClass }>
+				@components.EmptyState("Вам пока не назначены классы и предметы")
+			</div>
+		} else {
+			<form
+				method="get"
+				action={ templ.SafeURL(page.Path) }
+				hx-get={ page.Path }
+				hx-target={ summaryTarget }
+				hx-swap="outerHTML"
+				hx-trigger="submit, change"
+				hx-push-url="true"
+				class={ components.CardClass, "flex flex-wrap items-start gap-2 p-3 sm:p-4" }
+			>
+				for name, value := range page.Hidden {
+					<input type="hidden" name={ name } value={ value }/>
+				}
+				if len(page.Pairs) > 0 {
+					<span class="flex min-w-0 flex-1 basis-56 flex-col gap-1">
+						<select name="pair" aria-label="Класс и предмет" class={ components.SelectClassFor("") }>
+							for _, pair := range page.Pairs {
+								<option value={ pair.Value } selected?={ pair.Selected }>{ pair.Name }</option>
+							}
+						</select>
+					</span>
+				} else {
+					@components.RowSelect("class", "Класс", page.Classes, "", "flex-1 basis-40")
+					@components.RowSelect("subject", "Предмет", page.Subjects, "", "flex-1 basis-56")
+				}
+				@components.PeriodFields(page.Period)
+				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Показать</button>
+				@components.PeriodNav(page.Period, summaryTarget)
+			</form>
+			<p class="text-sm font-semibold text-slate-900">{ page.Period.Label }</p>
+			<section class={ components.CardClass }>
+				if !page.Selected {
+					@components.EmptyState("Выберите класс и предмет")
+				} else if page.Grid == nil || len(page.Grid.Columns) == 0 {
+					@components.EmptyState("Уроков за период нет")
+				} else if len(page.Grid.Rows) == 0 {
+					@components.EmptyState("В классе пока нет учеников")
+				} else {
+					@summaryGrid(*page.Grid)
+				}
+			</section>
+		}
+	</div>
+}
+
+templ summaryGrid(grid view.Grid) {
+	<div class="overflow-x-auto rounded-xl">
+		<table class="min-w-full border-separate border-spacing-0 text-sm">
+			<thead>
+				<tr>
+					<th scope="col" class="sticky left-0 z-10 border-b border-slate-200 bg-white px-3 py-2 text-left font-semibold text-slate-900">Ученик</th>
+					for _, column := range grid.Columns {
+						<th scope="col" class="border-b border-slate-200 px-2 py-2 text-center font-medium whitespace-nowrap text-slate-600">
+							<a href={ templ.SafeURL(column.Href) } class="text-indigo-700 hover:underline">{ column.Date }</a>
+						</th>
+					}
+					<th scope="col" class="border-b border-slate-200 px-2 py-2 text-center font-semibold text-slate-900">Н</th>
+					<th scope="col" class="border-b border-slate-200 px-2 py-2 text-center font-semibold whitespace-nowrap text-slate-900">Средний</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, row := range grid.Rows {
+					<tr>
+						<td class="sticky left-0 z-10 border-b border-slate-100 bg-white px-3 py-2 whitespace-nowrap">
+							<span class="flex items-center gap-2">
+								<span class="lg:hidden">{ row.ShortName }</span>
+								<span class="hidden lg:inline">{ row.FullName }</span>
+								if !row.Active {
+									@components.InactiveBadge()
+								}
+								if !row.InClass {
+									<span class="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">не в классе</span>
+								}
+							</span>
+						</td>
+						for _, cell := range row.Cells {
+							<td class="border-b border-slate-100 px-1 py-1 text-center whitespace-nowrap">
+								if cell.Text != "" {
+									<a href={ templ.SafeURL(cell.Href) } class="inline-flex min-h-9 items-center rounded-md px-2 font-semibold text-indigo-700 hover:bg-indigo-50">{ cell.Text }</a>
+								} else {
+									<a href={ templ.SafeURL(cell.Href) } class="inline-flex min-h-9 items-center px-2 text-slate-300 hover:text-indigo-700" aria-label="Открыть урок">·</a>
+								}
+							</td>
+						}
+						<td class="border-b border-slate-100 px-2 py-2 text-center text-slate-700">{ row.Absences }</td>
+						<td class="border-b border-slate-100 px-2 py-2 text-center font-semibold text-slate-900">{ row.Average }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</div>
+}

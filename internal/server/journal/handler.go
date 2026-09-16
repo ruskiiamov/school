@@ -45,7 +45,9 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST "+lessonsPath+"/{id}/homework", h.teacher(h.homeworkSave))
 	mux.Handle("POST "+lessonsPath+"/{id}/homework/files", h.teacher(h.homeworkUpload))
 	mux.Handle("POST "+lessonsPath+"/{id}/homework/files/{fid}/delete", h.teacher(h.homeworkFileDelete))
+	mux.Handle("GET "+summaryPath, h.teacher(h.summary))
 	mux.Handle("GET "+adminJournalPath, h.admin(h.adminIndex))
+	mux.Handle("GET "+adminSummaryPath, h.admin(h.adminSummary))
 	mux.Handle("GET "+adminLessonsPath+"/{id}", h.admin(h.adminLesson))
 }
 

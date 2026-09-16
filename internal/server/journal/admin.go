@@ -31,35 +31,19 @@ func (h *Handler) adminIndex(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	classID, subjectID := queryID(r, "class"), queryID(r, "subject")
 
-	classes, err := h.school.Classes(ctx, h.school.CurrentYear(), false)
-	if err != nil {
-		h.base.ServerError(w, r, "list classes", err)
-		return
-	}
-
-	subjects, err := h.school.Subjects(ctx, false)
-	if err != nil {
-		h.base.ServerError(w, r, "list subjects", err)
-		return
-	}
-
 	page := view.AdminJournalPage{
-		Shell:    h.base.Shell(r, "Журналы", adminJournalPath),
-		Path:     adminJournalPath,
-		Classes:  []view.Option{{Name: classOption, Selected: classID == 0}},
-		Subjects: []view.Option{{Name: subjectOption, Selected: subjectID == 0}},
+		Shell: h.base.Shell(r, "Журналы", adminJournalPath),
+		Path:  adminJournalPath,
 	}
 
-	for _, class := range classes {
-		page.Classes = append(page.Classes, view.Option{ID: class.ID, Name: class.Name, Selected: class.ID == classID})
-	}
-
-	for _, subject := range subjects {
-		page.Subjects = append(page.Subjects, view.Option{ID: subject.ID, Name: subject.Name, Selected: subject.ID == subjectID})
+	if err := h.pairOptions(r, &page.Classes, &page.Subjects, classID, subjectID); err != nil {
+		h.base.ServerError(w, r, "list classes and subjects", err)
+		return
 	}
 
 	if classID != 0 && subjectID != 0 {
 		page.Selected = true
+		page.SummaryHref = adminSummaryPath + "?" + url.Values{"class": {strconv.FormatInt(classID, 10)}, "subject": {strconv.FormatInt(subjectID, 10)}}.Encode()
 
 		lessons, withHomework, err := h.journal.LessonsByPair(ctx, classID, subjectID)
 		if err != nil {

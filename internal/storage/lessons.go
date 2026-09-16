@@ -111,6 +111,33 @@ func (r *LessonRepo) ListByPair(ctx context.Context, classID, subjectID int64) (
 	return lessons, nil
 }
 
+func (r *LessonRepo) ListByPairPeriod(ctx context.Context, classID, subjectID int64, from, to time.Time) ([]Lesson, error) {
+	const query = "SELECT " + lessonColumns + " FROM lessons WHERE class_id = ? AND subject_id = ? AND date BETWEEN ? AND ? ORDER BY date, id"
+
+	rows, err := r.db.QueryContext(ctx, query, classID, subjectID, toDate(from), toDate(to))
+	if err != nil {
+		return nil, fmt.Errorf("select period lessons: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var lessons []Lesson
+
+	for rows.Next() {
+		lesson, err := scanLesson(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan lesson: %w", err)
+		}
+
+		lessons = append(lessons, lesson)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate lessons: %w", err)
+	}
+
+	return lessons, nil
+}
+
 func (r *LessonRepo) Create(ctx context.Context, lesson Lesson) (int64, error) {
 	const query = `INSERT INTO lessons (class_id, subject_id, teacher_id, date, topic, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`

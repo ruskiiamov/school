@@ -13,6 +13,12 @@ func (s *Service) Today() time.Time {
 	return DateOf(time.Now().In(s.location))
 }
 
+func (s *Service) YearBounds(year int) (time.Time, time.Time) {
+	start := time.Date(year, s.yearStartMonth, 1, 0, 0, 0, 0, time.UTC)
+
+	return start, start.AddDate(1, 0, -1)
+}
+
 func DateOf(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 }
