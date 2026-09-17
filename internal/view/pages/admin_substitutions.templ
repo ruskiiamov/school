@@ -42,10 +42,7 @@ templ SubstitutionsList(page view.SubstitutionsPage) {
 				@components.RowSelect("teacher_id", "Учитель", page.New.Teachers, page.New.Errors["teacher"], "flex-1 basis-56")
 				@components.RowDate("start_date", page.New.StartDate, "Дата начала", page.New.Errors["start_date"], "flex-1 basis-40 sm:max-w-56")
 				@components.RowDate("end_date", page.New.EndDate, "Дата окончания", page.New.Errors["end_date"], "flex-1 basis-40 sm:max-w-56")
-				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>
-					@components.Icon(view.IconPlus, "size-4")
-					<span>Добавить</span>
-				</button>
+				@components.AddButton()
 			</form>
 		} else {
 			<div class={ components.CardClass, "p-3 sm:p-4" }>
@@ -77,13 +74,13 @@ templ substitutionRow(row view.SubstitutionRow, showEnded bool) {
 				hx-target={ substitutionsTarget }
 				hx-swap="outerHTML"
 				data-edit-form
+				data-cancel={ substitutionURL(0, "", showEnded) }
 				class="flex basis-full flex-wrap items-start gap-2"
 			>
 				@components.RowDate("start_date", row.Fields.StartDate, "Дата начала", row.Fields.Errors["start_date"], "flex-1 basis-40")
 				@components.RowDate("end_date", row.Fields.EndDate, "Дата окончания", row.Fields.Errors["end_date"], "flex-1 basis-40")
-				<span class="ml-auto flex flex-wrap items-center gap-2">
-					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
-					@components.CancelLink(substitutionURL(0, "", showEnded), substitutionsTarget)
+				<span class="ml-auto flex shrink-0 items-center gap-2">
+					@components.SaveButton()
 					@components.DeleteButton(substitutionURL(row.ID, "/delete", showEnded), substitutionsTarget,
 						"Удалить замену "+row.Teacher+", "+row.Class+" · "+row.Subject+"?")
 				</span>

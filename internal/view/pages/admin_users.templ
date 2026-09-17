@@ -58,10 +58,7 @@ templ UsersPage(page view.UsersPage) {
 			class={ components.CardClass, "flex flex-wrap items-start gap-2 p-3 sm:p-4" }
 		>
 			@userFields(page.New, true)
-			<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>
-				@components.Icon(view.IconPlus, "size-4")
-				<span>Добавить</span>
-			</button>
+			@components.AddButton()
 		</form>
 		<div class={ components.CardClass, "overflow-hidden" }>
 			if len(page.Users) == 0 {
@@ -101,12 +98,12 @@ templ userRow(page view.UsersPage, row view.UserRow) {
 				hx-target={ usersTarget }
 				hx-swap="outerHTML"
 				data-edit-form
+				data-cancel={ page.Path + page.ListQuery }
 				class="flex flex-1 flex-wrap items-start gap-2"
 			>
 				@userFields(row.Fields, false)
-				<span class="ml-auto flex flex-wrap items-center gap-2">
-					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
-					@components.CancelLink(page.Path+page.ListQuery, usersTarget)
+				<span class="ml-auto flex shrink-0 items-center gap-2">
+					@components.SaveButton()
 					@components.ActiveButton(row.Active,
 						userURL(page.Path, row.ID, "/deactivate", page.ListQuery),
 						userURL(page.Path, row.ID, "/activate", page.ListQuery))
@@ -199,7 +196,7 @@ templ childrenBlock(block view.ChildrenBlock) {
 							@memberName(student)
 							<form method="post" action={ templ.SafeURL(block.AddAction) } hx-post={ block.AddAction } hx-target={ usersTarget } hx-swap="outerHTML" class="ml-auto">
 								<input type="hidden" name="student_id" value={ strconv.FormatInt(student.ID, 10) }/>
-								<button type="submit" class={ components.ButtonSecondaryClass }>Добавить</button>
+								@components.IconSubmit(view.IconPlus, "Добавить", components.ButtonIconSecondaryClass)
 							</form>
 						</li>
 					}

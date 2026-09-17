@@ -47,15 +47,17 @@ templ AdminJournalContent(page view.AdminJournalPage) {
 			} else {
 				<ul class="divide-y divide-slate-100">
 					for _, lesson := range page.Lessons {
-						<li class="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 sm:p-4">
-							<a href={ templ.SafeURL(lesson.Href) } class="text-sm font-medium text-indigo-700 hover:underline">{ lesson.Date }</a>
-							<span class="text-sm text-slate-600">{ lesson.Teacher }</span>
-							if lesson.Homework {
-								<span class="rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700">ДЗ</span>
-							}
-							if lesson.Topic != "" {
-								<span class="min-w-0 basis-full truncate text-sm text-slate-600 sm:flex-1 sm:basis-auto">{ lesson.Topic }</span>
-							}
+						<li>
+							<a href={ templ.SafeURL(lesson.Href) } class="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 hover:bg-slate-50 sm:p-4">
+								<span class="text-sm font-medium text-indigo-700">{ lesson.Date }</span>
+								<span class="text-sm text-slate-600">{ lesson.Teacher }</span>
+								if lesson.Homework {
+									<span class="rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700">ДЗ</span>
+								}
+								if lesson.Topic != "" {
+									<span class="min-w-0 basis-full truncate text-sm text-slate-600 sm:flex-1 sm:basis-auto">{ lesson.Topic }</span>
+								}
+							</a>
 						</li>
 					}
 				</ul>

@@ -170,7 +170,7 @@ templ lessonStudentPanel(panel view.LessonStudentPanel) {
 				class="flex flex-wrap items-start gap-2 border-t border-slate-100 p-3 sm:p-4"
 			>
 				@markFields(panel.New)
-				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Поставить</button>
+				@components.IconSubmit(view.IconPlus, "Поставить", components.ButtonIconPrimaryClass)
 			</form>
 			@LessonRecord(panel.Record)
 		}
@@ -183,9 +183,9 @@ templ lessonStudentPanel(panel view.LessonStudentPanel) {
 }
 
 templ markFields(fields view.MarkFields) {
-	@components.RowSelect("work_type_id", "Тип работы", fields.WorkTypes, fields.Errors["work_type"], "flex-1 basis-52")
 	@components.RowSelect("value", "Оценка", fields.Values, fields.Errors["value"], "w-28")
-	@components.RowInput("label", fields.Label, "За что", "За что", fields.Errors["label"], "flex-1 basis-40")
+	@components.RowSelect("work_type_id", "Тип работы", fields.WorkTypes, fields.Errors["work_type"], "flex-1 basis-52")
+	@components.RowInput("label", fields.Label, "Комментарий к оценке", "Комментарий к оценке", fields.Errors["label"], "flex-1 basis-48")
 }
 
 templ markRow(mark view.MarkRow) {
@@ -198,12 +198,12 @@ templ markRow(mark view.MarkRow) {
 				hx-target={ lessonTarget }
 				hx-swap="outerHTML"
 				data-edit-form
+				data-cancel={ mark.CancelHref }
 				class="flex flex-1 flex-wrap items-start gap-2"
 			>
 				@markFields(mark.Fields)
-				<span class="ml-auto flex flex-wrap items-center gap-2">
-					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
-					@components.CancelLink(mark.CancelHref, lessonTarget)
+				<span class="ml-auto flex shrink-0 items-center gap-2">
+					@components.SaveButton()
 					@components.DeleteButton(mark.DeleteAction, lessonTarget, "Удалить оценку "+mark.Value+" ("+mark.WorkType+")?")
 				</span>
 			</form>
@@ -258,13 +258,13 @@ templ LessonRecord(record view.RecordFields) {
 		} else {
 			<input type="hidden" name="absent" value="0"/>
 		}
-		<label for={ record.FieldID } class="text-sm font-semibold text-slate-900">Комментарий ученику</label>
+		<label for={ record.FieldID } class="sr-only">Комментарий ученику</label>
 		<textarea
 			id={ record.FieldID }
 			hx-preserve
 			name="comment"
 			rows="3"
-			placeholder="Сохраняется по ходу набора"
+			placeholder="Комментарий ученику"
 			maxlength="500"
 			class={ components.InputClassFor(record.Error), "py-2" }
 		>{ record.Comment }</textarea>
@@ -328,7 +328,7 @@ templ LessonHomework(homework view.LessonHomework) {
 							data-confirm-ok="Удалить"
 							class="ml-auto"
 						>
-							<button type="submit" class={ components.ButtonDangerClass }>Удалить</button>
+							@components.IconSubmit(view.IconTrash, "Удалить", components.ButtonIconDangerClass)
 						</form>
 					</li>
 				}

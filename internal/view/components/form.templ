@@ -37,10 +37,9 @@ templ RowLink(href, target string) {
 		hx-get={ href }
 		hx-target={ target }
 		hx-swap="outerHTML"
-		class="group flex min-w-0 flex-1 flex-wrap items-center gap-2 p-3 hover:bg-slate-50 sm:p-4"
+		class="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-3 hover:bg-slate-50 sm:p-4"
 	>
 		{ children... }
-		@Icon(view.IconPencil, "ml-auto size-4 shrink-0 text-slate-400 group-hover:text-indigo-600")
 	</a>
 }
 
@@ -58,6 +57,30 @@ templ EditIconLink(href, target string) {
 	</a>
 }
 
+templ IconSubmit(icon view.Icon, label, class string) {
+	<button type="submit" aria-label={ label } title={ label } class={ class }>
+		@Icon(icon, "size-5")
+	</button>
+}
+
+templ IconFormAction(icon view.Icon, label, action, class string) {
+	<button type="submit" formaction={ templ.SafeURL(action) } aria-label={ label } title={ label } class={ class }>
+		@Icon(icon, "size-5")
+	</button>
+}
+
+templ AddButton() {
+	@IconSubmit(view.IconPlus, "Добавить", ButtonIconPrimaryClass)
+}
+
+templ SaveButton() {
+	@IconSubmit(view.IconSave, "Сохранить", ButtonIconPrimaryClass)
+}
+
+templ RemoveButton() {
+	@IconSubmit(view.IconTrash, "Убрать", ButtonIconDangerClass)
+}
+
 templ DeleteButton(action, target, confirm string) {
 	<button
 		type="submit"
@@ -67,12 +90,20 @@ templ DeleteButton(action, target, confirm string) {
 		hx-swap="outerHTML"
 		hx-confirm={ confirm }
 		data-confirm-ok="Удалить"
-		class={ ButtonDangerClass }
-	>Удалить</button>
+		aria-label="Удалить"
+		title="Удалить"
+		class={ ButtonIconDangerClass }
+	>
+		@Icon(view.IconTrash, "size-5")
+	</button>
 }
 
-templ CancelLink(href, target string) {
-	<a href={ templ.SafeURL(href) } hx-get={ href } hx-target={ target } hx-swap="outerHTML" data-cancel class={ ButtonSecondaryClass }>Отмена</a>
+templ ActiveButton(active bool, deactivateAction, activateAction string) {
+	if active {
+		@IconFormAction(view.IconTrash, "Удалить", deactivateAction, ButtonIconDangerClass)
+	} else {
+		@IconFormAction(view.IconRestore, "Восстановить", activateAction, ButtonIconSecondaryClass)
+	}
 }
 
 templ EditForm(action, cancelHref, name, label, message, target string) {
@@ -83,6 +114,7 @@ templ EditForm(action, cancelHref, name, label, message, target string) {
 		hx-target={ target }
 		hx-swap="outerHTML"
 		data-edit-form
+		data-cancel={ cancelHref }
 		class="flex flex-1 flex-wrap items-center gap-2"
 	>
 		<input
@@ -93,23 +125,14 @@ templ EditForm(action, cancelHref, name, label, message, target string) {
 			maxlength="100"
 			autocomplete="off"
 			autofocus
-			class={ InputClassFor(message), "basis-full sm:flex-1 sm:basis-40" }
+			class={ InputClassFor(message), "min-w-0 flex-1 basis-40" }
 		/>
-		<span class="ml-auto flex flex-wrap items-center gap-2">
-			<button type="submit" class={ ButtonPrimaryClass }>Сохранить</button>
-			@CancelLink(cancelHref, target)
+		<span class="ml-auto flex shrink-0 items-center gap-2">
+			@SaveButton()
 			{ children... }
 		</span>
 		@FieldError(message)
 	</form>
-}
-
-templ ActiveButton(active bool, deactivateAction, activateAction string) {
-	if active {
-		<button type="submit" formaction={ templ.SafeURL(deactivateAction) } class={ ButtonDangerClass }>Удалить</button>
-	} else {
-		<button type="submit" formaction={ templ.SafeURL(activateAction) } class={ ButtonSecondaryClass }>Восстановить</button>
-	}
 }
 
 templ CreateForm(action, placeholder, label, name, message, target string) {
@@ -129,12 +152,9 @@ templ CreateForm(action, placeholder, label, name, message, target string) {
 			aria-label={ label }
 			maxlength="100"
 			autocomplete="off"
-			class={ InputClassFor(message), "flex-1 basis-56" }
+			class={ InputClassFor(message), "min-w-0 flex-1 basis-40" }
 		/>
-		<button type="submit" class={ ButtonPrimaryClass }>
-			@Icon(view.IconPlus, "size-4")
-			<span>Добавить</span>
-		</button>
+		@AddButton()
 		@FieldError(message)
 	</form>
 }

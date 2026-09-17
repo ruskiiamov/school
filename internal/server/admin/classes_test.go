@@ -221,8 +221,8 @@ func TestClassEditModeShowsFormForOneRow(t *testing.T) {
 	body := servertest.Get(t, env.Handler, classesURL(current, "&edit="+strconv.FormatInt(a, 10)), admin).Body.String()
 	assert.Contains(t, body, `value="7А"`)
 	assert.Contains(t, body, `action="`+classPathFor(a, "?year="+strconv.Itoa(current))+`"`)
-	assert.Contains(t, body, `href="`+classesURL(current, "")+`"`)
-	assert.Contains(t, body, ">Отмена</a>")
+	assert.Contains(t, body, `data-cancel="`+classesURL(current, "")+`"`)
+	assert.NotContains(t, body, `aria-label="Отмена"`)
 	assert.NotContains(t, body, `value="7Б"`)
 	assert.Contains(t, body, `href="`+classesURL(current, "&amp;edit="+strconv.FormatInt(b, 10))+`"`)
 
@@ -292,7 +292,7 @@ func TestClassDeactivateHidesButKeepsName(t *testing.T) {
 
 	restoring := servertest.Get(t, env.Handler, classesURL(current, "&inactive=1&edit="+strconv.FormatInt(id, 10)), admin).Body.String()
 	assert.Contains(t, restoring, `formaction="`+classPathFor(id, "/activate?year="+year+"&amp;inactive=1")+`"`)
-	assert.Contains(t, restoring, ">Восстановить<")
+	assert.Contains(t, restoring, `aria-label="Восстановить"`)
 
 	card := servertest.Get(t, env.Handler, classPathFor(id, ""), admin).Body.String()
 	assert.Contains(t, card, "удалён")
