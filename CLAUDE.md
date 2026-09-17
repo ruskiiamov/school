@@ -261,19 +261,23 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 **SQLite открывается с `SetMaxOpenConns(1)`**, WAL и `_txlock=immediate` —
 писатель один, на это можно опираться, но не менять без причины.
 
-**Формы справочников (D-041, D-043, D-072, D-073).** Простые справочники (предметы, типы
+**Формы справочников (D-041, D-043, D-072…D-074).** Простые справочники (предметы, типы
 работ) — одна страница: форма добавления и строки текстом, вся строка —
 ссылка на тот же список с `?edit={id}` (`editingID`), и только эта строка
 рендерится формой; сложные формы — отдельные страницы (D-035). Кнопок в
-строке нет (D-072, D-073): строка — `components.RowLink` на `?edit={id}` с
-карандашом справа (у классов строка ведёт на карточку, а на `?edit=` —
+строке нет (D-072, D-073): строка — `components.RowLink` на `?edit={id}`
+без карандаша (у классов строка ведёт на карточку, а на `?edit=` —
 `EditIconLink`; у типов работ стрелки порядка стоят перед ссылкой), а
-действия живут в форме правки: «Сохранить», `CancelLink` (`data-cancel`),
+действия живут в форме правки: `SaveButton` (галочка),
 «Удалить»/«Восстановить» — `components.ActiveButton` (`formaction`, у
 `EditForm` через `{ children... }`), удаление с подтверждением —
 `components.DeleteButton` (`formaction` + `hx-post` + `hx-confirm` на
-самой кнопке). Ошибка активации держит строку в режиме правки
-(`rowEdit.open`). Так устроены предметы, типы работ, классы, пользователи,
+самой кнопке). Кнопки «Отмена» нет (D-074): адрес списка — в
+`data-cancel` на форме, выход — клик вне строки или Escape. Все кнопки
+списков — квадратные иконки с `aria-label` и `title`
+(`IconSubmit`, `IconFormAction`, `AddButton`, `RemoveButton`; классы
+`ButtonIcon{Primary,Secondary,Danger}Class`). Ошибка активации держит
+строку в режиме правки (`rowEdit.open`). Так устроены предметы, типы работ, классы, пользователи,
 замены и оценки на странице урока. Обработчик читает поля через `web.FormValue`
 (с `TrimSpace`), `id` из пути — через `web.PathID` (404 при мусоре), зовёт сервис
 и ветвится: `web.FormErrors(err)` → перерисовать страницу с введённым значением и
@@ -283,7 +287,7 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 запрос — `web.Redirect` на список с сохранением `?inactive=1`
 (`catalogListURL`). Стрелки порядка — своя форма POST; общие куски —
 `components.EditForm`, `CreateForm`, `RowLink`, `ActiveButton`,
-`DeleteButton`, `CancelLink`, `EditIconLink`. Маршруты админа регистрируются в
+`DeleteButton`, `EditIconLink`. Маршруты админа регистрируются в
 `admin.Routes` через `h.admin(fn)`. Образец — `admin/subjects.go` и
 `pages/admin_subjects.templ`; общие компоненты — `components/form.templ`,
 классы полей и кнопок — константы в `components/classes.go`. Классы (D-044)
@@ -452,9 +456,10 @@ multiple>` в `<label>`-кнопке с `hx-trigger="change"` и
 `data-toggle-password` (глаз у `components.PasswordInput`), `hx-confirm` +
 `data-confirm-ok` (окно `components.ConfirmDialog` `#confirm` в `layout.App`,
 `app.js` перехватывает `htmx:confirm`), `data-state` у сайдбара,
-`data-edit-form` на форме правки строки + `data-cancel` на «Отмена»
+`data-edit-form` + `data-cancel="<адрес списка>"` на форме правки строки
 (клик по неинтерактивному месту вне `<li>` строки или Escape в форме
-нажимает «Отмена»). Обработчики
+запрашивает этот адрес через `htmx.ajax` в `hx-target` формы; кнопки
+«Отмена» нет, D-074). Обработчики
 делегированы на `document`, чтобы работать после HTMX-подмен (D-053).
 
 **Статика версионирована**: ссылки в шаблонах только через `static.URL("css/app.css")`

@@ -238,7 +238,8 @@ func TestStudentClassInFormListAndFilter(t *testing.T) {
 	row := edit[strings.Index(edit, `action="`+userPathFor("/admin/students", inA, "")+`"`):]
 	assert.Less(t, strings.Index(row, `name="full_name"`), strings.Index(row, `name="class"`))
 	assert.Less(t, strings.Index(row, `name="class"`), strings.Index(row, `name="login"`))
-	assert.Contains(t, edit, ">Отмена</a>")
+	assert.Contains(t, edit, `data-cancel="/admin/students"`)
+	assert.NotContains(t, edit, `aria-label="Отмена"`)
 	assert.NotContains(t, edit, `value="Петров Иван"`)
 	assert.Equal(t, 1, strings.Count(edit, "ФИО нового пользователя"))
 

@@ -57,10 +57,7 @@ templ ClassStudents(block view.ClassStudentsBlock) {
 					<span class="text-sm text-slate-500">Нет учеников без класса</span>
 				} else {
 					@components.RowSelect("student_id", "Ученик", block.Candidates, "", "flex-1 basis-56")
-					<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>
-						@components.Icon(view.IconPlus, "size-4")
-						<span>Добавить</span>
-					</button>
+					@components.AddButton()
 				}
 			</form>
 		}
@@ -108,7 +105,7 @@ templ ClassAssignments(block view.ClassAssignmentsBlock) {
 				} else {
 					@components.RowSelect("subject_id", "Предмет", block.Subjects, block.Errors["subject"], "flex-1 basis-44")
 					@components.RowSelect("teacher_id", "Учитель", block.Teachers, block.Errors["teacher"], "flex-1 basis-44")
-					<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Назначить</button>
+					@components.IconSubmit(view.IconPlus, "Назначить", components.ButtonIconPrimaryClass)
 				}
 			</form>
 		}
@@ -138,7 +135,7 @@ templ memberName(member view.MemberRow) {
 
 templ removeForm(action, target string) {
 	<form method="post" action={ templ.SafeURL(action) } hx-post={ action } hx-target={ target } hx-swap="outerHTML" class="ml-auto">
-		<button type="submit" class={ components.ButtonDangerClass }>Убрать</button>
+		@components.RemoveButton()
 	</form>
 }
 

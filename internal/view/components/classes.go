@@ -9,6 +9,10 @@ const (
 	ButtonDangerClass    = "inline-flex min-h-11 min-w-36 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-medium text-rose-700 ring-1 ring-rose-300 hover:bg-rose-50 active:bg-rose-100"
 	ButtonActiveClass    = "inline-flex min-h-11 min-w-36 items-center justify-center gap-2 rounded-lg bg-amber-100 px-4 text-sm font-semibold text-amber-800 ring-1 ring-amber-300 hover:bg-amber-200 active:bg-amber-300"
 	ButtonIconClass      = "inline-flex size-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 active:bg-slate-200 disabled:pointer-events-none disabled:opacity-30"
+
+	ButtonIconPrimaryClass   = "inline-flex size-11 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-70"
+	ButtonIconSecondaryClass = "inline-flex size-11 shrink-0 items-center justify-center rounded-lg bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 active:bg-slate-100"
+	ButtonIconDangerClass    = "inline-flex size-11 shrink-0 items-center justify-center rounded-lg bg-white text-rose-700 ring-1 ring-rose-300 hover:bg-rose-50 active:bg-rose-100"
 )
 
 func SelectClassFor(message string) string {

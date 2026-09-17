@@ -54,11 +54,15 @@
   "use strict";
 
   function cancelEdit(form) {
-    var cancel = form.querySelector("[data-cancel]");
-
-    if (cancel) {
-      cancel.click();
+    if (!form.dataset.cancel) {
+      return;
     }
+
+    htmx.ajax("GET", form.dataset.cancel, {
+      source: form,
+      target: form.getAttribute("hx-target"),
+      swap: "outerHTML",
+    });
   }
 
   document.addEventListener("click", function (event) {

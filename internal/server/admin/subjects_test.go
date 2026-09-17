@@ -64,8 +64,8 @@ func TestSubjectsEmptyListAndCreate(t *testing.T) {
 	assert.NotContains(t, list, `value="Алгебра и начала анализа"`)
 	assert.Contains(t, list, `href="/admin/subjects?edit=`+strconv.FormatInt(subjects[0].ID, 10)+`"`)
 	assert.NotContains(t, list, `formaction="`+subjectPath(subjects[0].ID, "/deactivate")+`"`)
-	assert.NotContains(t, list, ">Изменить<")
-	assert.NotContains(t, list, ">Удалить<")
+	assert.NotContains(t, list, `aria-label="Изменить"`)
+	assert.NotContains(t, list, `aria-label="Удалить"`)
 	assert.NotContains(t, list, "Пока нет предметов")
 }
 
@@ -81,9 +81,11 @@ func TestSubjectEditModeShowsFormForOneRow(t *testing.T) {
 	body := servertest.Get(t, env.Handler, "/admin/subjects?edit="+strconv.FormatInt(algebra, 10), admin).Body.String()
 	assert.Contains(t, body, `value="Алгебра"`)
 	assert.Contains(t, body, `action="`+subjectPath(algebra, "")+`"`)
-	assert.Contains(t, body, ">Отмена</a>")
+	assert.NotContains(t, body, `aria-label="Отмена"`)
+	assert.Contains(t, body, `aria-label="Сохранить"`)
+	assert.Contains(t, body, `aria-label="Удалить"`)
 	assert.Contains(t, body, "data-edit-form")
-	assert.Contains(t, body, "data-cancel")
+	assert.Contains(t, body, `data-cancel="/admin/subjects"`)
 	assert.Contains(t, body, `formaction="`+subjectPath(algebra, "/deactivate")+`"`)
 	assert.NotContains(t, body, `value="История"`)
 	assert.NotContains(t, body, `formaction="`+subjectPath(history, "/deactivate")+`"`)
@@ -93,7 +95,7 @@ func TestSubjectEditModeShowsFormForOneRow(t *testing.T) {
 	assert.Equal(t, http.StatusOK, fragment.Code)
 	assert.NotContains(t, fragment.Body.String(), "<html")
 	assert.Contains(t, fragment.Body.String(), `action="`+subjectPath(algebra, "?inactive=1")+`"`)
-	assert.Contains(t, fragment.Body.String(), `href="/admin/subjects?inactive=1"`)
+	assert.Contains(t, fragment.Body.String(), `data-cancel="/admin/subjects?inactive=1"`)
 
 	assert.NotContains(t, servertest.Get(t, env.Handler, "/admin/subjects?edit=abc", admin).Body.String(), `aria-label="Название предмета"`)
 }
@@ -169,7 +171,7 @@ func TestSubjectDeactivateHidesAndFreesName(t *testing.T) {
 	editing := servertest.Get(t, env.Handler, "/admin/subjects?edit="+strconv.FormatInt(id, 10)+"&inactive=1", admin).Body.String()
 	assert.Contains(t, editing, `value="Алгебра"`)
 	assert.Contains(t, editing, `formaction="`+subjectPath(id, "/activate?inactive=1")+`"`)
-	assert.Contains(t, editing, ">Восстановить<")
+	assert.Contains(t, editing, `aria-label="Восстановить"`)
 	assert.NotContains(t, editing, "required")
 
 	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, subjectPath(id, "?inactive=1"), url.Values{"name": {"Алгебра (старая)"}}, []*http.Cookie{admin}, nil), "/admin/subjects?inactive=1")
