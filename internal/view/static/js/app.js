@@ -64,7 +64,13 @@
   document.addEventListener("click", function (event) {
     var form = document.querySelector("form[data-edit-form]");
 
-    if (!form || form.contains(event.target)) {
+    if (!form) {
+      return;
+    }
+
+    var row = form.closest("li") || form;
+
+    if (row.contains(event.target)) {
       return;
     }
 

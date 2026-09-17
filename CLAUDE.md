@@ -261,24 +261,29 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 **SQLite открывается с `SetMaxOpenConns(1)`**, WAL и `_txlock=immediate` —
 писатель один, на это можно опираться, но не менять без причины.
 
-**Формы справочников (D-041, D-043, D-072).** Простые справочники (предметы, типы
-работ) — одна страница: форма добавления и строки текстом, «Изменить» ведёт на
-тот же список с `?edit={id}` (`editingID`), и только эта строка рендерится
-формой; сложные формы — отдельные страницы (D-035). У предметов (D-072)
-кнопок в строке нет: вся строка — `components.RowLink` на `?edit={id}` с
-карандашом, а «Удалить»/«Восстановить» — `components.ActiveButton`
-(`formaction`) внутри `EditForm` через `{ children... }`; ошибка
-активации держит строку в режиме правки (`rowEdit.open`). Остальные
-строчные списки пока по старому образцу с `EditLink` и `ActiveForm`. Обработчик читает поля через `web.FormValue`
+**Формы справочников (D-041, D-043, D-072, D-073).** Простые справочники (предметы, типы
+работ) — одна страница: форма добавления и строки текстом, вся строка —
+ссылка на тот же список с `?edit={id}` (`editingID`), и только эта строка
+рендерится формой; сложные формы — отдельные страницы (D-035). Кнопок в
+строке нет (D-072, D-073): строка — `components.RowLink` на `?edit={id}` с
+карандашом справа (у классов строка ведёт на карточку, а на `?edit=` —
+`EditIconLink`; у типов работ стрелки порядка стоят перед ссылкой), а
+действия живут в форме правки: «Сохранить», `CancelLink` (`data-cancel`),
+«Удалить»/«Восстановить» — `components.ActiveButton` (`formaction`, у
+`EditForm` через `{ children... }`), удаление с подтверждением —
+`components.DeleteButton` (`formaction` + `hx-post` + `hx-confirm` на
+самой кнопке). Ошибка активации держит строку в режиме правки
+(`rowEdit.open`). Так устроены предметы, типы работ, классы, пользователи,
+замены и оценки на странице урока. Обработчик читает поля через `web.FormValue`
 (с `TrimSpace`), `id` из пути — через `web.PathID` (404 при мусоре), зовёт сервис
 и ветвится: `web.FormErrors(err)` → перерисовать страницу с введённым значением и
 ошибкой у своей строки (`rowEdit`, строка остаётся в режиме правки), статус 200; иначе `h.base.HandleServiceError`
 (`ErrNotFound` → 404, прочее → `h.base.ServerError` с логом и 500); успех —
 `subjectsDone`: HTMX получает фрагмент списка (`pages.SubjectsList`), обычный
 запрос — `web.Redirect` на список с сохранением `?inactive=1`
-(`catalogListURL`). Каждое действие строки — своя форма POST (деактивация, стрелки порядка) или
-ссылка с `hx-get` («Изменить», «Отмена»); общие куски — `components.EditForm`,
-`CreateForm`, `ActiveForm`, `EditLink`. Маршруты админа регистрируются в
+(`catalogListURL`). Стрелки порядка — своя форма POST; общие куски —
+`components.EditForm`, `CreateForm`, `RowLink`, `ActiveButton`,
+`DeleteButton`, `CancelLink`, `EditIconLink`. Маршруты админа регистрируются в
 `admin.Routes` через `h.admin(fn)`. Образец — `admin/subjects.go` и
 `pages/admin_subjects.templ`; общие компоненты — `components/form.templ`,
 классы полей и кнопок — константы в `components/classes.go`. Классы (D-044)
@@ -293,8 +298,9 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 `admin/users.go`, параметризованный `userSection` (роль, путь,
 русские подписи); маршруты регистрируются циклом по `userSections` в
 `admin.Routes`. Тот же строчный паттерн, что у предметов: строка добавления
-сверху (`userFields`), `?edit={id}` рендерит одну строку формой (поля в
-том же порядке, что в обычной строке: ФИО, класс, логин); query списка
+сверху (`userFields`), строка — `RowLink` на `?edit={id}`, который рендерит
+её формой (поля в том же порядке, что в обычной строке: ФИО, класс, логин;
+«Удалить»/«Восстановить» — `ActiveButton` в форме); query списка
 (`q`, `class`, `inactive`) — `page.ListQuery`
 в шаблоне и `rawListQuery` в редиректах. HTMX-фрагмент — `pages.UsersPage`,
 контейнер `#users` включает шапку с переключателем «Показать удалённые»,
@@ -446,8 +452,9 @@ multiple>` в `<label>`-кнопке с `hx-trigger="change"` и
 `data-toggle-password` (глаз у `components.PasswordInput`), `hx-confirm` +
 `data-confirm-ok` (окно `components.ConfirmDialog` `#confirm` в `layout.App`,
 `app.js` перехватывает `htmx:confirm`), `data-state` у сайдбара,
-`data-edit-form` + `data-cancel` у `components.EditForm` (клик мимо формы
-по неинтерактивному месту или Escape нажимает «Отмена»). Обработчики
+`data-edit-form` на форме правки строки + `data-cancel` на «Отмена»
+(клик по неинтерактивному месту вне `<li>` строки или Escape в форме
+нажимает «Отмена»). Обработчики
 делегированы на `document`, чтобы работать после HTMX-подмен (D-053).
 
 **Статика версионирована**: ссылки в шаблонах только через `static.URL("css/app.css")`

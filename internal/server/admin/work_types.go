@@ -71,7 +71,7 @@ func (h *Handler) workTypeSetActive(w http.ResponseWriter, r *http.Request, acti
 
 	err := h.school.SetWorkTypeActive(r.Context(), id, active)
 	if errs, ok := web.FormErrors(err); ok {
-		h.renderWorkTypes(w, r, "", "", rowEdit{id: id, message: errs["name"]})
+		h.renderWorkTypes(w, r, "", "", rowEdit{id: id, open: true, message: errs["name"]})
 		return
 	}
 	if err != nil {
@@ -123,7 +123,7 @@ func (h *Handler) renderWorkTypes(w http.ResponseWriter, r *http.Request, newNam
 		return
 	}
 
-	editing := editingID(r, edit.entered, edit.id)
+	editing := editingID(r, edit.entered || edit.open, edit.id)
 
 	rows := make([]view.WorkTypeRow, 0, len(workTypes))
 	for _, workType := range workTypes {

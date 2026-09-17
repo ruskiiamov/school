@@ -63,7 +63,7 @@ templ UsersPage(page view.UsersPage) {
 				<span>Добавить</span>
 			</button>
 		</form>
-		<div class={ components.CardClass }>
+		<div class={ components.CardClass, "overflow-hidden" }>
 			if len(page.Users) == 0 {
 				@components.EmptyState(page.EmptyMessage)
 			} else {
@@ -92,7 +92,7 @@ templ userFields(fields view.UserFields, isNew bool) {
 }
 
 templ userRow(page view.UsersPage, row view.UserRow) {
-	<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+	<li class={ "flex flex-wrap items-center gap-2", templ.KV("p-3 sm:p-4", row.Editing) }>
 		if row.Editing {
 			<form
 				method="post"
@@ -100,51 +100,51 @@ templ userRow(page view.UsersPage, row view.UserRow) {
 				hx-post={ userURL(page.Path, row.ID, "", page.ListQuery) }
 				hx-target={ usersTarget }
 				hx-swap="outerHTML"
+				data-edit-form
 				class="flex flex-1 flex-wrap items-start gap-2"
 			>
 				@userFields(row.Fields, false)
 				<span class="ml-auto flex flex-wrap items-center gap-2">
 					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
-					<a href={ templ.SafeURL(page.Path + page.ListQuery) } hx-get={ page.Path + page.ListQuery } hx-target={ usersTarget } hx-swap="outerHTML" class={ components.ButtonSecondaryClass }>Отмена</a>
+					@components.CancelLink(page.Path+page.ListQuery, usersTarget)
+					@components.ActiveButton(row.Active,
+						userURL(page.Path, row.ID, "/deactivate", page.ListQuery),
+						userURL(page.Path, row.ID, "/activate", page.ListQuery))
 				</span>
 			</form>
 			if row.Children != nil {
 				@childrenBlock(*row.Children)
 			}
 		} else {
-			<span class="flex min-w-0 basis-full items-center gap-2 sm:flex-1 sm:basis-auto">
-				if row.Active {
-					<span class="truncate text-sm font-medium text-slate-900">{ row.FullName }</span>
-				} else {
-					<span class="truncate text-sm text-slate-500">{ row.FullName }</span>
-					@components.InactiveBadge()
+			@components.RowLink(userEditURL(page.Path, page.ListQuery, row.ID), usersTarget) {
+				<span class="flex min-w-0 basis-full items-center gap-2 sm:flex-1 sm:basis-auto">
+					if row.Active {
+						<span class="truncate text-sm font-medium text-slate-900">{ row.FullName }</span>
+					} else {
+						<span class="truncate text-sm text-slate-500">{ row.FullName }</span>
+						@components.InactiveBadge()
+					}
+				</span>
+				if page.ShowClass {
+					<span class="text-sm text-slate-600 sm:w-20">
+						if row.ClassName != "" {
+							{ row.ClassName }
+						} else {
+							<span class="text-slate-400">без класса</span>
+						}
+					</span>
 				}
-			</span>
-			if page.ShowClass {
-				<span class="text-sm text-slate-600 sm:w-20">
-					if row.ClassName != "" {
-						{ row.ClassName }
-					} else {
-						<span class="text-slate-400">без класса</span>
-					}
-				</span>
+				if page.ShowChildren {
+					<span class="min-w-0 basis-full truncate text-sm text-slate-600 sm:flex-1 sm:basis-auto">
+						if row.ChildNames != "" {
+							{ row.ChildNames }
+						} else {
+							<span class="text-slate-400">нет детей</span>
+						}
+					</span>
+				}
+				<span class="font-mono text-sm text-slate-600 sm:w-44 sm:truncate">{ row.Login }</span>
 			}
-			if page.ShowChildren {
-				<span class="min-w-0 basis-full truncate text-sm text-slate-600 sm:flex-1 sm:basis-auto">
-					if row.ChildNames != "" {
-						{ row.ChildNames }
-					} else {
-						<span class="text-slate-400">нет детей</span>
-					}
-				</span>
-			}
-			<span class="font-mono text-sm text-slate-600 sm:w-44 sm:truncate">{ row.Login }</span>
-			<span class="ml-auto flex flex-wrap items-center gap-2">
-				@components.EditLink(userEditURL(page.Path, page.ListQuery, row.ID), usersTarget)
-				@components.ActiveForm(row.Active,
-					userURL(page.Path, row.ID, "/deactivate", page.ListQuery),
-					userURL(page.Path, row.ID, "/activate", page.ListQuery), usersTarget)
-			</span>
 		}
 	</li>
 }

@@ -189,7 +189,7 @@ templ markFields(fields view.MarkFields) {
 }
 
 templ markRow(mark view.MarkRow) {
-	<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+	<li class={ "flex flex-wrap items-center gap-2", templ.KV("p-3 sm:p-4", mark.Editing) }>
 		if mark.Editing {
 			<form
 				method="post"
@@ -197,36 +197,24 @@ templ markRow(mark view.MarkRow) {
 				hx-post={ mark.Action }
 				hx-target={ lessonTarget }
 				hx-swap="outerHTML"
+				data-edit-form
 				class="flex flex-1 flex-wrap items-start gap-2"
 			>
 				@markFields(mark.Fields)
 				<span class="ml-auto flex flex-wrap items-center gap-2">
 					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
-					<a href={ templ.SafeURL(mark.CancelHref) } hx-get={ mark.CancelHref } hx-target={ lessonTarget } hx-swap="outerHTML" class={ components.ButtonSecondaryClass }>Отмена</a>
+					@components.CancelLink(mark.CancelHref, lessonTarget)
+					@components.DeleteButton(mark.DeleteAction, lessonTarget, "Удалить оценку "+mark.Value+" ("+mark.WorkType+")?")
 				</span>
 			</form>
 		} else {
-			<span class="flex min-w-0 basis-full flex-wrap items-center gap-x-3 gap-y-1 sm:flex-1 sm:basis-auto">
+			@components.RowLink(mark.EditHref, lessonTarget) {
 				<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-base font-semibold text-indigo-700">{ mark.Value }</span>
 				<span class="text-sm font-medium text-slate-900">{ mark.WorkType }</span>
 				if mark.Label != "" {
 					<span class="text-sm text-slate-600">{ mark.Label }</span>
 				}
-			</span>
-			<span class="ml-auto flex flex-wrap items-center gap-2">
-				@components.EditLink(mark.EditHref, lessonTarget)
-				<form
-					method="post"
-					action={ templ.SafeURL(mark.DeleteAction) }
-					hx-post={ mark.DeleteAction }
-					hx-target={ lessonTarget }
-					hx-swap="outerHTML"
-					hx-confirm={ "Удалить оценку " + mark.Value + " (" + mark.WorkType + ")?" }
-					data-confirm-ok="Удалить"
-				>
-					<button type="submit" class={ components.ButtonDangerClass }>Удалить</button>
-				</form>
-			</span>
+			}
 		}
 	</li>
 }

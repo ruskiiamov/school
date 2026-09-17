@@ -73,7 +73,8 @@ func TestSubstitutionsCreateEditDelete(t *testing.T) {
 	body = servertest.Get(t, env.Handler, substitutionsPath, admin).Body.String()
 	assert.Contains(t, body, "Кузнецов Виктор")
 	assert.Contains(t, body, today.Format("02.01.2006")+" — до отмены")
-	assert.Contains(t, body, `hx-confirm="Удалить замену Кузнецов Виктор, 7А · Алгебра?"`)
+	assert.NotContains(t, body, "hx-confirm=")
+	assert.Contains(t, body, `href="`+substitutionsPath+`?edit=`+strconv.FormatInt(id, 10)+`"`)
 
 	overlap := servertest.PostForm(t, env.Handler, substitutionsPath, substitutionForm(class, algebra, viktor, today.AddDate(0, 0, 3), today.AddDate(0, 0, 5)), []*http.Cookie{admin}, nil)
 	assert.Equal(t, http.StatusOK, overlap.Code)
@@ -101,6 +102,8 @@ func TestSubstitutionsCreateEditDelete(t *testing.T) {
 	edit := servertest.Get(t, env.Handler, substitutionsPath+"?edit="+strconv.FormatInt(id, 10), admin).Body.String()
 	assert.Contains(t, edit, `name="start_date" value="`+today.Format(validation.DateLayout)+`"`)
 	assert.Contains(t, edit, `action="`+substitutionPath(id, "")+`"`)
+	assert.Contains(t, edit, `hx-confirm="Удалить замену Кузнецов Виктор, 7А · Алгебра?"`)
+	assert.Contains(t, edit, `formaction="`+substitutionPath(id, "/delete")+`"`)
 
 	yesterday := today.AddDate(0, 0, -1)
 	closed := servertest.PostForm(t, env.Handler, substitutionPath(id, ""), url.Values{
@@ -116,7 +119,11 @@ func TestSubstitutionsCreateEditDelete(t *testing.T) {
 	body = servertest.Get(t, env.Handler, substitutionsPath+"?ended=1", admin).Body.String()
 	assert.Contains(t, body, "Кузнецов Виктор")
 	assert.Contains(t, body, "завершена")
-	assert.Contains(t, body, `action="`+substitutionPath(id, "/delete")+`?ended=1"`)
+	assert.NotContains(t, body, `formaction="`+substitutionPath(id, "/delete")+`?ended=1"`)
+	assert.Contains(t, body, `href="`+substitutionsPath+`?edit=`+strconv.FormatInt(id, 10)+`&amp;ended=1"`)
+
+	ended := servertest.Get(t, env.Handler, substitutionsPath+"?edit="+strconv.FormatInt(id, 10)+"&ended=1", admin).Body.String()
+	assert.Contains(t, ended, `formaction="`+substitutionPath(id, "/delete")+`?ended=1"`)
 
 	fragment := servertest.PostForm(t, env.Handler, substitutionsPath, substitutionForm(class, algebra, viktor, today, time.Time{}), []*http.Cookie{admin}, map[string]string{"HX-Request": "true"})
 	assert.Equal(t, http.StatusOK, fragment.Code)

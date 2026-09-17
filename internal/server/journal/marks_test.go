@@ -79,7 +79,7 @@ func TestLessonStudentsAndMarks(t *testing.T) {
 	body = servertest.Get(t, f.env.Handler, lessonPath(id, "")+studentQuery(maria), teacher).Body.String()
 	assert.Contains(t, body, ">5, 4<")
 	assert.Contains(t, body, "у доски")
-	assert.Contains(t, body, `hx-confirm="Удалить оценку 5 (`+answer.Name+`)?"`)
+	assert.NotContains(t, body, `hx-confirm="Удалить оценку 5 (`+answer.Name+`)?"`)
 	assert.Contains(t, body, `href="`+lessonPath(id, "")+studentQuery(maria)+"&amp;mark="+strconv.FormatInt(first, 10)+`"`)
 	assert.NotContains(t, body, `action="`+lessonPath(id, "/delete")+`"`)
 
@@ -106,6 +106,8 @@ func TestLessonStudentsAndMarks(t *testing.T) {
 	edit := servertest.Get(t, f.env.Handler, lessonPath(id, "")+studentQuery(maria)+"&mark="+strconv.FormatInt(first, 10), teacher).Body.String()
 	assert.Contains(t, edit, `action="`+lessonPath(id, "/marks/"+strconv.FormatInt(first, 10))+studentQuery(maria)+`"`)
 	assert.Contains(t, edit, `value="у доски"`)
+	assert.Contains(t, edit, `hx-confirm="Удалить оценку 5 (`+answer.Name+`)?"`)
+	assert.Contains(t, edit, `formaction="`+lessonPath(id, "/marks/"+strconv.FormatInt(first, 10)+"/delete")+studentQuery(maria)+`"`)
 
 	updated := servertest.PostForm(t, f.env.Handler, lessonPath(id, "/marks/"+strconv.FormatInt(first, 10))+studentQuery(maria), markForm(test.ID, 3, "переписал"), []*http.Cookie{teacher}, nil)
 	servertest.AssertRedirect(t, updated, lessonPath(id, "")+studentQuery(maria))
