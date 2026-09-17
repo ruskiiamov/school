@@ -71,7 +71,7 @@ func (h *Handler) classSetActive(w http.ResponseWriter, r *http.Request, active 
 
 	err := h.school.SetClassActive(r.Context(), id, active)
 	if errs, ok := web.FormErrors(err); ok {
-		h.renderClasses(w, r, "", "", rowEdit{id: id, message: errs["name"]})
+		h.renderClasses(w, r, "", "", rowEdit{id: id, open: true, message: errs["name"]})
 		return
 	}
 	if err != nil {
@@ -129,7 +129,7 @@ func (h *Handler) renderClasses(w http.ResponseWriter, r *http.Request, newName,
 		return
 	}
 
-	editing := editingID(r, edit.entered, edit.id)
+	editing := editingID(r, edit.entered || edit.open, edit.id)
 
 	rows := make([]view.ClassRow, 0, len(classes))
 	for _, class := range classes {

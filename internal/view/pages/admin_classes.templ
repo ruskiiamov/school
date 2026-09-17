@@ -36,7 +36,7 @@ templ ClassesList(page view.ClassesPage) {
 		if page.TransferHref != "" {
 			<a href={ templ.SafeURL(page.TransferHref) } class={ components.ButtonSecondaryClass, "self-start" }>Создать классы из прошлого года</a>
 		}
-		<div class={ components.CardClass }>
+		<div class={ components.CardClass, "overflow-hidden" }>
 			if len(page.Classes) == 0 {
 				@components.EmptyState("В " + page.YearName + " пока нет классов")
 			} else {
@@ -59,27 +59,27 @@ templ yearTab(year view.YearOption) {
 }
 
 templ classRow(row view.ClassRow, year int, showInactive bool) {
-	<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+	<li class={ "flex flex-wrap items-center gap-2", templ.KV("p-3 sm:p-4", row.Editing) }>
 		if row.Editing {
 			@components.EditForm(classURL(row.ID, "", year, showInactive),
-				classURL(0, "", year, showInactive), row.Name, "Название класса", row.Error, classesTarget)
+				classURL(0, "", year, showInactive), row.Name, "Название класса", row.Error, classesTarget) {
+				@components.ActiveButton(row.Active,
+					classURL(row.ID, "/deactivate", year, showInactive),
+					classURL(row.ID, "/activate", year, showInactive))
+			}
 		} else {
-			<span class="flex min-w-0 basis-full items-center gap-2 sm:flex-1 sm:basis-auto">
+			<a href={ templ.SafeURL(row.Href) } class="flex min-w-0 flex-1 items-center gap-2 p-3 hover:bg-slate-50 sm:p-4">
 				if row.Active {
-					<a href={ templ.SafeURL(row.Href) } class="min-w-0 truncate text-sm font-medium text-indigo-700 hover:underline">{ row.Name }</a>
+					<span class="min-w-0 truncate text-sm font-medium text-indigo-700">{ row.Name }</span>
 				} else {
-					<a href={ templ.SafeURL(row.Href) } class="min-w-0 truncate text-sm text-slate-500 hover:underline">{ row.Name }</a>
+					<span class="min-w-0 truncate text-sm text-slate-500">{ row.Name }</span>
 					@components.InactiveBadge()
 				}
 				<span class="shrink-0 text-sm text-slate-500">{ row.Students }</span>
+			</a>
+			<span class="pr-2 sm:pr-3">
+				@components.EditIconLink(classEditURL(row.ID, year, showInactive), classesTarget)
 			</span>
-			<span class="ml-auto flex flex-wrap items-center gap-2">
-				@components.EditLink(classEditURL(row.ID, year, showInactive), classesTarget)
-				@components.ActiveForm(row.Active,
-					classURL(row.ID, "/deactivate", year, showInactive),
-					classURL(row.ID, "/activate", year, showInactive), classesTarget)
-			</span>
-			@components.FieldError(row.Error)
 		}
 	</li>
 }

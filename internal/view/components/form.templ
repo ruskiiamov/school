@@ -31,49 +31,48 @@ templ InactiveToggle(href string, showInactive bool) {
 	}
 }
 
-templ EditLink(href, target string) {
-	<a href={ templ.SafeURL(href) } hx-get={ href } hx-target={ target } hx-swap="outerHTML" class={ ButtonSecondaryClass }>Изменить</a>
-}
-
 templ RowLink(href, target string) {
 	<a
 		href={ templ.SafeURL(href) }
 		hx-get={ href }
 		hx-target={ target }
 		hx-swap="outerHTML"
-		class="group flex min-w-0 flex-1 items-center gap-2 p-3 hover:bg-slate-50 sm:p-4"
+		class="group flex min-w-0 flex-1 flex-wrap items-center gap-2 p-3 hover:bg-slate-50 sm:p-4"
 	>
 		{ children... }
-		@Icon(view.IconPencil, "size-4 shrink-0 text-slate-400 group-hover:text-indigo-600")
+		@Icon(view.IconPencil, "ml-auto size-4 shrink-0 text-slate-400 group-hover:text-indigo-600")
 	</a>
 }
 
-templ ActiveForm(active bool, deactivateAction, activateAction, target string) {
-	if active {
-		<form
-			method="post"
-			action={ templ.SafeURL(deactivateAction) }
-			if target != "" {
-				hx-post={ deactivateAction }
-				hx-target={ target }
-				hx-swap="outerHTML"
-			}
-		>
-			<button type="submit" class={ ButtonDangerClass }>Удалить</button>
-		</form>
-	} else {
-		<form
-			method="post"
-			action={ templ.SafeURL(activateAction) }
-			if target != "" {
-				hx-post={ activateAction }
-				hx-target={ target }
-				hx-swap="outerHTML"
-			}
-		>
-			<button type="submit" class={ ButtonSecondaryClass }>Восстановить</button>
-		</form>
-	}
+templ EditIconLink(href, target string) {
+	<a
+		href={ templ.SafeURL(href) }
+		hx-get={ href }
+		hx-target={ target }
+		hx-swap="outerHTML"
+		aria-label="Изменить"
+		title="Изменить"
+		class={ ButtonIconClass }
+	>
+		@Icon(view.IconPencil, "size-5")
+	</a>
+}
+
+templ DeleteButton(action, target, confirm string) {
+	<button
+		type="submit"
+		formaction={ templ.SafeURL(action) }
+		hx-post={ action }
+		hx-target={ target }
+		hx-swap="outerHTML"
+		hx-confirm={ confirm }
+		data-confirm-ok="Удалить"
+		class={ ButtonDangerClass }
+	>Удалить</button>
+}
+
+templ CancelLink(href, target string) {
+	<a href={ templ.SafeURL(href) } hx-get={ href } hx-target={ target } hx-swap="outerHTML" data-cancel class={ ButtonSecondaryClass }>Отмена</a>
 }
 
 templ EditForm(action, cancelHref, name, label, message, target string) {
@@ -98,7 +97,7 @@ templ EditForm(action, cancelHref, name, label, message, target string) {
 		/>
 		<span class="ml-auto flex flex-wrap items-center gap-2">
 			<button type="submit" class={ ButtonPrimaryClass }>Сохранить</button>
-			<a href={ templ.SafeURL(cancelHref) } hx-get={ cancelHref } hx-target={ target } hx-swap="outerHTML" data-cancel class={ ButtonSecondaryClass }>Отмена</a>
+			@CancelLink(cancelHref, target)
 			{ children... }
 		</span>
 		@FieldError(message)

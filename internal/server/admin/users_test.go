@@ -98,8 +98,12 @@ func TestUserSectionsListAndCreate(t *testing.T) {
 		assert.Contains(t, list, "Смирнова Мария Петровна")
 		assert.Contains(t, list, user.Login)
 		assert.Contains(t, list, `href="`+section.path+`?edit=`+strconv.FormatInt(id, 10)+`"`)
-		assert.Contains(t, list, `action="`+userPathFor(section.path, id, "/deactivate")+`"`)
+		assert.NotContains(t, list, `formaction="`+userPathFor(section.path, id, "/deactivate")+`"`)
 		assert.NotContains(t, list, section.empty)
+
+		editing := servertest.Get(t, env.Handler, section.path+"?edit="+strconv.FormatInt(id, 10), admin).Body.String()
+		assert.Contains(t, editing, `formaction="`+userPathFor(section.path, id, "/deactivate")+`"`)
+		assert.Contains(t, editing, "data-edit-form")
 	}
 
 	teachers, err := env.Auth.Users(t.Context(), auth.UserFilter{Role: auth.RoleTeacher})
@@ -296,7 +300,10 @@ func TestUserSearchAndInactiveToggle(t *testing.T) {
 	assert.Contains(t, all, "удалён")
 	assert.Contains(t, all, "Скрыть удалённые")
 	assert.Contains(t, all, `name="inactive" value="1"`)
-	assert.Contains(t, all, `action="`+userPathFor("/admin/teachers", id, "/activate?inactive=1")+`"`)
+	assert.NotContains(t, all, `formaction="`+userPathFor("/admin/teachers", id, "/activate?inactive=1")+`"`)
+
+	restoring := servertest.Get(t, env.Handler, "/admin/teachers?inactive=1&edit="+strconv.FormatInt(id, 10), admin).Body.String()
+	assert.Contains(t, restoring, `formaction="`+userPathFor("/admin/teachers", id, "/activate?inactive=1")+`"`)
 }
 
 func TestUserDeactivateAndActivate(t *testing.T) {

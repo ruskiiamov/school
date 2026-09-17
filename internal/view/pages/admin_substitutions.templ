@@ -52,7 +52,7 @@ templ SubstitutionsList(page view.SubstitutionsPage) {
 				<span class="text-sm text-slate-500">Нужны активные классы текущего года, предметы и учителя</span>
 			</div>
 		}
-		<div class={ components.CardClass }>
+		<div class={ components.CardClass, "overflow-hidden" }>
 			if len(page.Substitutions) == 0 {
 				@components.EmptyState("Пока нет замен")
 			} else {
@@ -67,18 +67,30 @@ templ SubstitutionsList(page view.SubstitutionsPage) {
 }
 
 templ substitutionRow(row view.SubstitutionRow, showEnded bool) {
-	<li class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
-		<span class="flex min-w-0 basis-full flex-wrap items-center gap-x-2 gap-y-1 sm:flex-1 sm:basis-auto">
-			<span class="text-sm font-medium text-slate-900">{ row.Class }</span>
-			<span class="text-sm text-slate-900">{ row.Subject }</span>
-			if !row.SubjectActive {
-				@components.InactiveBadge()
-			}
-			<span class="text-sm text-slate-600">{ row.Teacher }</span>
-			if !row.TeacherActive {
-				@components.InactiveBadge()
-			}
-			if !row.Editing {
+	<li class={ "flex flex-wrap items-center gap-2", templ.KV("p-3 sm:p-4", row.Editing) }>
+		if row.Editing {
+			@substitutionTitle(row)
+			<form
+				method="post"
+				action={ templ.SafeURL(substitutionURL(row.ID, "", showEnded)) }
+				hx-post={ substitutionURL(row.ID, "", showEnded) }
+				hx-target={ substitutionsTarget }
+				hx-swap="outerHTML"
+				data-edit-form
+				class="flex basis-full flex-wrap items-start gap-2"
+			>
+				@components.RowDate("start_date", row.Fields.StartDate, "Дата начала", row.Fields.Errors["start_date"], "flex-1 basis-40")
+				@components.RowDate("end_date", row.Fields.EndDate, "Дата окончания", row.Fields.Errors["end_date"], "flex-1 basis-40")
+				<span class="ml-auto flex flex-wrap items-center gap-2">
+					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
+					@components.CancelLink(substitutionURL(0, "", showEnded), substitutionsTarget)
+					@components.DeleteButton(substitutionURL(row.ID, "/delete", showEnded), substitutionsTarget,
+						"Удалить замену "+row.Teacher+", "+row.Class+" · "+row.Subject+"?")
+				</span>
+			</form>
+		} else {
+			@components.RowLink(substitutionEditURL(row.ID, showEnded), substitutionsTarget) {
+				@substitutionTitle(row)
 				if row.Ended {
 					<span class="text-sm text-slate-500">{ row.Period }</span>
 					<span class="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">завершена</span>
@@ -86,39 +98,18 @@ templ substitutionRow(row view.SubstitutionRow, showEnded bool) {
 					<span class="text-sm text-slate-600">{ row.Period }</span>
 				}
 			}
-		</span>
-		if row.Editing {
-			<form
-				method="post"
-				action={ templ.SafeURL(substitutionURL(row.ID, "", showEnded)) }
-				hx-post={ substitutionURL(row.ID, "", showEnded) }
-				hx-target={ substitutionsTarget }
-				hx-swap="outerHTML"
-				class="flex basis-full flex-wrap items-start gap-2"
-			>
-				@components.RowDate("start_date", row.Fields.StartDate, "Дата начала", row.Fields.Errors["start_date"], "flex-1 basis-40")
-				@components.RowDate("end_date", row.Fields.EndDate, "Дата окончания", row.Fields.Errors["end_date"], "flex-1 basis-40")
-				<span class="ml-auto flex flex-wrap items-center gap-2">
-					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
-					<a href={ templ.SafeURL(substitutionURL(0, "", showEnded)) } hx-get={ substitutionURL(0, "", showEnded) } hx-target={ substitutionsTarget } hx-swap="outerHTML" class={ components.ButtonSecondaryClass }>Отмена</a>
-				</span>
-			</form>
-		} else {
-			<span class="ml-auto flex flex-wrap items-center gap-2">
-				@components.EditLink(substitutionEditURL(row.ID, showEnded), substitutionsTarget)
-				<form
-					method="post"
-					action={ templ.SafeURL(substitutionURL(row.ID, "/delete", showEnded)) }
-					hx-post={ substitutionURL(row.ID, "/delete", showEnded) }
-					hx-target={ substitutionsTarget }
-					hx-swap="outerHTML"
-					hx-confirm={ "Удалить замену " + row.Teacher + ", " + row.Class + " · " + row.Subject + "?" }
-					data-confirm-ok="Удалить"
-				>
-					<button type="submit" class={ components.ButtonDangerClass }>Удалить</button>
-				</form>
-			</span>
-			@components.FieldError(row.Fields.Errors["start_date"])
 		}
 	</li>
+}
+
+templ substitutionTitle(row view.SubstitutionRow) {
+	<span class="text-sm font-medium text-slate-900">{ row.Class }</span>
+	<span class="text-sm text-slate-900">{ row.Subject }</span>
+	if !row.SubjectActive {
+		@components.InactiveBadge()
+	}
+	<span class="text-sm text-slate-600">{ row.Teacher }</span>
+	if !row.TeacherActive {
+		@components.InactiveBadge()
+	}
 }

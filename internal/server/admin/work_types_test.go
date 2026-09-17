@@ -151,7 +151,12 @@ func TestWorkTypeMoveSkipsInactiveNeighbour(t *testing.T) {
 
 	body := servertest.Get(t, env.Handler, "/admin/work-types?inactive=1", admin).Body.String()
 	assert.NotContains(t, body, `formaction="`+workTypePath(classwork.ID, "/up?inactive=1")+`"`)
-	assert.Contains(t, body, `action="`+workTypePath(classwork.ID, "/activate?inactive=1")+`"`)
+	assert.NotContains(t, body, `formaction="`+workTypePath(classwork.ID, "/activate?inactive=1")+`"`)
+	assert.Contains(t, body, `href="/admin/work-types?edit=`+strconv.FormatInt(classwork.ID, 10)+`&amp;inactive=1"`)
+
+	editing := servertest.Get(t, env.Handler, "/admin/work-types?edit="+strconv.FormatInt(classwork.ID, 10)+"&inactive=1", admin).Body.String()
+	assert.Contains(t, editing, `formaction="`+workTypePath(classwork.ID, "/activate?inactive=1")+`"`)
+	assert.NotContains(t, editing, `formaction="`+workTypePath(classwork.ID, "/up?inactive=1")+`"`)
 }
 
 func TestWorkTypeRenameAndValidation(t *testing.T) {

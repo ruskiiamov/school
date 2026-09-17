@@ -97,7 +97,7 @@ func TestClassesPastYearIsReadOnly(t *testing.T) {
 	assert.NotContains(t, body, "6А")
 
 	pastPage := servertest.Get(t, env.Handler, classesURL(current-1, ""), admin).Body.String()
-	assert.Contains(t, pastPage, ">6А</a>")
+	assert.Contains(t, pastPage, ">6А</span>")
 	assert.NotContains(t, pastPage, `action="`+classesURL(current-1, "")+`"`)
 	assert.NotContains(t, pastPage, "Новый класс")
 	assert.Contains(t, pastPage, `href="`+classesURL(current-1, "&amp;edit="+strconv.FormatInt(past, 10))+`"`)
@@ -143,16 +143,19 @@ func TestClassCreateInSelectedYear(t *testing.T) {
 
 	list := servertest.Get(t, env.Handler, classesURL(current, ""), admin).Body.String()
 	assert.Contains(t, list, `href="`+classPathFor(id, "")+`"`)
-	assert.Contains(t, list, ">7 А</a>")
+	assert.Contains(t, list, ">7 А</span>")
 	assert.Contains(t, list, `href="`+classesURL(current, "&amp;edit="+strconv.FormatInt(id, 10))+`"`)
-	assert.Contains(t, list, `action="`+classPathFor(id, "/deactivate?year="+strconv.Itoa(current))+`"`)
+	assert.NotContains(t, list, `formaction="`+classPathFor(id, "/deactivate?year="+strconv.Itoa(current))+`"`)
 	assert.NotContains(t, list, "пока нет классов")
+
+	editing := servertest.Get(t, env.Handler, classesURL(current, "&edit="+strconv.FormatInt(id, 10)), admin).Body.String()
+	assert.Contains(t, editing, `formaction="`+classPathFor(id, "/deactivate?year="+strconv.Itoa(current))+`"`)
 
 	past := createPastClass(t, env, current-1, "7 А")
 	assert.NotEqual(t, id, past)
 
 	other := servertest.Get(t, env.Handler, classesURL(current-1, ""), admin).Body.String()
-	assert.Contains(t, other, ">7 А</a>")
+	assert.Contains(t, other, ">7 А</span>")
 	assert.NotContains(t, other, `href="`+classPathFor(id, "")+`"`)
 }
 
@@ -252,7 +255,7 @@ func TestClassRenameAndValidation(t *testing.T) {
 	assert.Equal(t, http.StatusOK, taken.Code)
 	assert.Contains(t, taken.Body.String(), "Такой класс в этом году уже есть")
 	assert.Equal(t, 1, strings.Count(taken.Body.String(), `value="7Б"`))
-	assert.Contains(t, taken.Body.String(), ">7Б</a>")
+	assert.Contains(t, taken.Body.String(), ">7Б</span>")
 
 	blank := servertest.PostForm(t, env.Handler, classPathFor(id, "?year="+strconv.Itoa(current)), url.Values{"name": {""}}, []*http.Cookie{admin}, nil)
 	assert.Equal(t, http.StatusOK, blank.Code)
@@ -284,8 +287,12 @@ func TestClassDeactivateHidesButKeepsName(t *testing.T) {
 	assert.Contains(t, all, "удалён")
 	assert.Contains(t, all, "Скрыть удалённые")
 	assert.Contains(t, all, `href="`+classesURL(current, "")+`"`)
-	assert.Contains(t, all, `action="`+classPathFor(id, "/activate?year="+year+"&amp;inactive=1")+`"`)
+	assert.NotContains(t, all, `formaction="`+classPathFor(id, "/activate?year="+year+"&amp;inactive=1")+`"`)
 	assert.Contains(t, all, `action="`+classesURL(current, "&amp;inactive=1")+`"`)
+
+	restoring := servertest.Get(t, env.Handler, classesURL(current, "&inactive=1&edit="+strconv.FormatInt(id, 10)), admin).Body.String()
+	assert.Contains(t, restoring, `formaction="`+classPathFor(id, "/activate?year="+year+"&amp;inactive=1")+`"`)
+	assert.Contains(t, restoring, ">Восстановить<")
 
 	card := servertest.Get(t, env.Handler, classPathFor(id, ""), admin).Body.String()
 	assert.Contains(t, card, "удалён")
@@ -313,7 +320,7 @@ func TestClassHtmxRequestsGetListFragment(t *testing.T) {
 	assert.Equal(t, http.StatusOK, created.Code)
 	assert.NotContains(t, created.Body.String(), "<html")
 	assert.Contains(t, created.Body.String(), `id="classes"`)
-	assert.Contains(t, created.Body.String(), ">7А</a>")
+	assert.Contains(t, created.Body.String(), ">7А</span>")
 
 	duplicate := servertest.PostForm(t, env.Handler, classesURL(current, ""), url.Values{"name": {"7А"}}, []*http.Cookie{admin}, htmx)
 	assert.Equal(t, http.StatusOK, duplicate.Code)
@@ -416,7 +423,7 @@ func TestClassesSortedNaturallyWithStudentCounts(t *testing.T) {
 	body := servertest.Get(t, env.Handler, "/admin/classes", admin).Body.String()
 	assert.Contains(t, body, ">2 ученика<")
 	assert.Contains(t, body, ">0 учеников<")
-	assert.Less(t, strings.Index(body, ">2Б</a>"), strings.Index(body, ">10А</a>"))
+	assert.Less(t, strings.Index(body, ">2Б</span>"), strings.Index(body, ">10А</span>"))
 }
 
 func TestClassesNextYearTabIsEmptyAndReadOnly(t *testing.T) {
