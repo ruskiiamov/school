@@ -6,8 +6,11 @@ CSS_IN           := internal/view/static/css/input.css
 CSS_OUT          := internal/view/static/css/app.css
 HTMX             := internal/view/static/js/htmx.min.js
 CONFIG           ?= config.yaml
+VERSION          ?= $(shell git describe --tags --always --dirty)
+DIST             := dist
+ARCHES           := amd64 arm64
 
-.PHONY: all tools generate css build run watch test lint fmt check clean
+.PHONY: all tools generate css build run watch test lint fmt check clean dist
 
 all: build
 
@@ -51,6 +54,18 @@ check: generate css
 	go tool golangci-lint run
 	go test -race ./...
 
+dist: generate css
+	rm -rf $(DIST)
+	for arch in $(ARCHES); do \
+		name=school-$(VERSION)-linux-$$arch; \
+		mkdir -p $(DIST)/$$name; \
+		CGO_ENABLED=0 GOOS=linux GOARCH=$$arch go build -trimpath -ldflags='-s -w' -o $(DIST)/$$name/server ./cmd/server || exit 1; \
+		cp -r LICENSE deploy $(DIST)/$$name/; \
+		tar -C $(DIST) -czf $(DIST)/$$name.tar.gz $$name; \
+		rm -r $(DIST)/$$name; \
+	done
+	cd $(DIST) && sha256sum *.tar.gz > SHA256SUMS
+
 clean:
-	rm -rf $(BIN) $(CSS_OUT)
+	rm -rf $(BIN) $(CSS_OUT) $(DIST)
 	find . -name '*_templ.go' -delete

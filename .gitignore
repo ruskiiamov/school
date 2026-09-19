@@ -4,3 +4,4 @@
 /config.yaml
 *_templ.go
 /internal/view/static/css/app.css
+/dist/
