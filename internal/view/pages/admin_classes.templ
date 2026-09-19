@@ -17,6 +17,12 @@ templ Classes(page view.ClassesPage) {
 			@components.PageHeader("Классы") {
 				@components.InactiveToggle(page.ToggleHref, page.ShowInactive)
 			}
+			@components.PageHint(hintClasses)
+			@components.PageHelp("Как устроены классы") {
+				<p>Каждый учебный год — свои классы: седьмой класс этого года и восьмой следующего — разные классы с отдельными журналами. Вкладки сверху переключают годы.</p>
+				<p>В начале нового года нажмите «Создать классы из прошлого года»: приложение предложит новые названия и перенесёт учеников.</p>
+				<p>Пока в карточке класса учителю не назначен предмет, этого класса нет в его журнале. Класс, в котором есть ученики, удалить нельзя.</p>
+			}
 			<nav aria-label="Учебный год" class="flex flex-wrap gap-1">
 				for _, year := range page.Years {
 					@yearTab(year)

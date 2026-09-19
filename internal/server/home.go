@@ -39,8 +39,21 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	parents, err := s.auth.CountActiveUsers(r.Context(), auth.RoleParent)
+	if err != nil {
+		s.base.ServerError(w, r, "count parents", err)
+		return
+	}
+
 	page.YearName = school.YearName(stats.Year)
-	page.NoClasses = stats.Classes == 0
+	page.Setup = view.AdminSetup(view.SetupCounts{
+		Subjects:    stats.Subjects,
+		Classes:     stats.Classes,
+		Teachers:    teachers,
+		Students:    stats.Students,
+		Assignments: stats.Assignments,
+		Parents:     parents,
+	})
 	page.Stats = view.AdminStats(stats.Classes, stats.Students, teachers, stats.Subjects)
 
 	s.base.Render(w, r, pages.Home(page))

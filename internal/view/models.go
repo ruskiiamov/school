@@ -42,6 +42,7 @@ type NavItem struct {
 	Title  string
 	Href   string
 	Icon   Icon
+	Group  string
 	Active bool
 }
 
@@ -65,11 +66,28 @@ type LoginPage struct {
 	Error      string
 }
 
+type SetupStep struct {
+	Title    string
+	Note     string
+	Href     string
+	Done     bool
+	Optional bool
+}
+
+type SetupCounts struct {
+	Subjects    int
+	Classes     int
+	Teachers    int
+	Students    int
+	Assignments int
+	Parents     int
+}
+
 type HomePage struct {
 	Shell       Shell
 	Today       string
 	YearName    string
-	NoClasses   bool
+	Setup       []SetupStep
 	Stats       []Stat
 	Section     NavItem
 	SectionNote string
@@ -322,6 +340,7 @@ type UserRow struct {
 type UsersPage struct {
 	Shell        Shell
 	Title        string
+	Hint         string
 	Path         string
 	ListQuery    string
 	Query        string

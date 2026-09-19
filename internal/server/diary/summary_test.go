@@ -36,6 +36,7 @@ func TestStudentMarksSummary(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	assert.Contains(t, body, `href="/diary/summary" aria-current="page"`)
 	assert.Contains(t, body, "Оценок за период нет")
+	assert.Contains(t, body, "простое среднее, без весов и четвертей")
 	assert.Contains(t, body, ">Этот месяц<")
 
 	algebra := f.openLesson(t, f.class, f.algebra, f.today)

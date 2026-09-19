@@ -107,3 +107,16 @@ func (r *AssignmentRepo) IsAssigned(ctx context.Context, classID, subjectID, tea
 
 	return assigned, nil
 }
+
+func (r *AssignmentRepo) CountByYear(ctx context.Context, year int) (int, error) {
+	const query = `SELECT COUNT(*) FROM teaching_assignments a
+		JOIN classes c ON c.id = a.class_id
+		WHERE c.year = ? AND c.active = 1`
+
+	var count int
+	if err := r.db.QueryRowContext(ctx, query, year).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count assignments: %w", err)
+	}
+
+	return count, nil
+}

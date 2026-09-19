@@ -17,6 +17,7 @@ templ Subjects(page view.SubjectsPage) {
 			@components.PageHeader("Предметы") {
 				@components.InactiveToggle(inactiveToggleURL(subjectsBase, page.ShowInactive), page.ShowInactive)
 			}
+			@components.PageHint(hintSubjects)
 			@SubjectsList(page)
 		</div>
 	}

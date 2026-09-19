@@ -17,6 +17,7 @@ templ DiarySearch(page view.DiarySearchPage) {
 templ DiarySearchPage(page view.DiarySearchPage) {
 	<div id="diary-search" class="flex flex-col gap-4 lg:gap-6">
 		@components.PageHeader("Дневники")
+		@components.PageHint(hintAdminDiary)
 		<form
 			method="get"
 			action={ templ.SafeURL(page.Path) }
