@@ -2,26 +2,35 @@ package admin
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/backup"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/web"
 )
 
 type Handler struct {
-	base    *web.Base
-	auth    *auth.Service
-	school  *school.Service
-	created *credentialsStore
+	base            *web.Base
+	auth            *auth.Service
+	school          *school.Service
+	backup          *backup.Service
+	transferTimeout time.Duration
+	log             *slog.Logger
+	created         *credentialsStore
 }
 
-func New(base *web.Base, authService *auth.Service, schoolService *school.Service) *Handler {
+func New(base *web.Base, authService *auth.Service, schoolService *school.Service, backupService *backup.Service, transferTimeout time.Duration, log *slog.Logger) *Handler {
 	return &Handler{
-		base:    base,
-		auth:    authService,
-		school:  schoolService,
-		created: newCredentialsStore(),
+		base:            base,
+		auth:            authService,
+		school:          schoolService,
+		backup:          backupService,
+		transferTimeout: transferTimeout,
+		log:             log,
+		created:         newCredentialsStore(),
 	}
 }
 
@@ -54,6 +63,9 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET "+passwordResetPath, h.admin(h.passwordResetList))
 	mux.Handle("POST "+passwordResetPath+"/{id}", h.admin(h.passwordReset))
 	mux.Handle("GET "+passwordResetPath+"/{id}/created", h.admin(h.passwordResetCreated))
+
+	mux.Handle("GET "+backupPath, h.admin(h.backupShow))
+	mux.Handle("GET "+backupDownloadPath, h.admin(h.backupDownload))
 
 	mux.Handle("GET "+substitutionsPath, h.admin(h.substitutionsList))
 	mux.Handle("POST "+substitutionsPath, h.admin(h.substitutionCreate))

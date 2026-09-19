@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/backup"
 	"github.com/ruskiiamov/school/internal/config"
 	"github.com/ruskiiamov/school/internal/files"
 	"github.com/ruskiiamov/school/internal/journal"
@@ -69,7 +70,8 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 	store, err := files.NewStore(cfg.Files.Dir)
 	require.NoError(t, err)
 
-	db, err := storage.Open(t.Context(), config.DB{Path: filepath.Join(t.TempDir(), "test.db")})
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	db, err := storage.Open(t.Context(), config.DB{Path: dbPath})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	require.NoError(t, storage.Migrate(t.Context(), db))
@@ -88,7 +90,7 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 		store, journal.FileLimits{MaxFileSize: cfg.Files.MaxFileSize(), MaxPerLesson: cfg.Files.MaxPerLesson}, log)
 
 	return &Env{
-		Handler: server.New(cfg, authService, schoolService, journalService, log).Handler(),
+		Handler: server.New(cfg, authService, schoolService, journalService, backup.New(dbPath, store), log).Handler(),
 		DB:      db,
 		Auth:    authService,
 		School:  schoolService,

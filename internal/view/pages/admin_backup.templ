@@ -1,0 +1,36 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+templ Backup(page view.BackupPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader("Резервная копия")
+			<div class={ components.CardClass, "flex flex-col gap-4 p-4 sm:p-6" }>
+				<p class="text-sm text-slate-700">
+					Архив содержит базу данных (пользователи, классы, уроки, оценки, домашние задания)
+					и файлы домашних заданий: { page.Files }.
+					Пароли хранятся в виде хешей, но в архиве есть персональные данные — храните его в защищённом месте.
+				</p>
+				<p class="text-sm text-slate-700">
+					Копию можно снимать на работающем сервере. Скачивайте её регулярно и держите не только на этом сервере.
+				</p>
+				<div>
+					<a href={ templ.SafeURL(page.DownloadPath) } class={ components.ButtonPrimaryClass }>Скачать архив</a>
+				</div>
+			</div>
+			<div class={ components.CardClass, "flex flex-col gap-3 p-4 sm:p-6" }>
+				<h2 class="text-base font-semibold text-slate-900">Как восстановить</h2>
+				<ol class="list-decimal space-y-2 pl-5 text-sm text-slate-700">
+					<li>Остановите сервер.</li>
+					<li>Распакуйте архив: файл <code class="font-mono">school.db</code> положите по пути <code class="font-mono">db.path</code> из конфига, содержимое каталога <code class="font-mono">files</code> — в <code class="font-mono">files.dir</code>.</li>
+					<li>Запустите сервер той же или более новой версии приложения.</li>
+				</ol>
+			</div>
+		</div>
+	}
+}

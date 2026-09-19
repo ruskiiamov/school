@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/backup"
 	"github.com/ruskiiamov/school/internal/config"
 	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
@@ -35,7 +36,7 @@ type Server struct {
 	insecureCookieWarned sync.Once
 }
 
-func New(cfg *config.Config, authService *auth.Service, schoolService *school.Service, journalService *journal.Service, log *slog.Logger) *Server {
+func New(cfg *config.Config, authService *auth.Service, schoolService *school.Service, journalService *journal.Service, backupService *backup.Service, log *slog.Logger) *Server {
 	base := web.New(cfg, authService, log)
 
 	return &Server{
@@ -43,7 +44,7 @@ func New(cfg *config.Config, authService *auth.Service, schoolService *school.Se
 		auth:     authService,
 		school:   schoolService,
 		account:  account.New(base, authService, log),
-		admin:    admin.New(base, authService, schoolService),
+		admin:    admin.New(base, authService, schoolService, backupService, cfg.Files.TransferTimeout, log),
 		journal:  journalpages.New(base, authService, schoolService, journalService, cfg.Files),
 		diary:    diary.New(base, authService, schoolService, journalService),
 		files:    filepages.New(base, schoolService, journalService, cfg.Files.TransferTimeout, log),
