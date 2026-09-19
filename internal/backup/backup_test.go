@@ -56,7 +56,8 @@ func TestArchiveContainsDatabaseCopyAndFiles(t *testing.T) {
 	assert.Equal(t, int64(buf.Len()), written)
 
 	entries := untar(t, &buf)
-	require.Len(t, entries, 2)
+	require.Len(t, entries, 3)
+	assert.Contains(t, entries, backup.FilesDir+"/")
 	assert.Equal(t, "Упр. 12", string(entries[backup.FilesDir+"/"+saved.ID]))
 
 	copyPath := filepath.Join(t.TempDir(), "copy.db")

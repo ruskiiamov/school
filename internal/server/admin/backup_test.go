@@ -62,7 +62,8 @@ func TestBackupDownload(t *testing.T) {
 		entries[header.Name] = header.Size
 	}
 
-	require.Len(t, entries, 2)
+	require.Len(t, entries, 3)
+	assert.Contains(t, entries, backup.FilesDir+"/")
 	assert.Positive(t, entries[backup.DatabaseName])
 	assert.Equal(t, saved.Size, entries[backup.FilesDir+"/"+saved.ID])
 }

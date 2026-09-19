@@ -1,0 +1,233 @@
+# Школьный электронный журнал
+
+Открытое приложение для одной школы: журнал учителя, дневник ученика и
+родителя, справочники администратора, домашние задания с файлами, сводки
+оценок. Интерфейс на русском, одинаково работает на телефоне и на компьютере.
+
+Один статический бинарник без внешних зависимостей, данные в SQLite, файлы
+на диске. Школа ставит его у себя сама: на арендованном VPS или на своём
+сервере с Linux. Инструкция ниже рассчитана на человека, который умеет
+зайти на сервер по SSH и отредактировать текстовый файл.
+
+Лицензия — MIT.
+
+## Что понадобится
+
+- Сервер с Linux (x86_64 или ARM64), 1 процессор и 1 ГБ памяти достаточно.
+  Место на диске определяют файлы домашних заданий: по умолчанию до 10 МБ
+  на файл и 10 файлов на урок.
+- Домен, который указывает на этот сервер, например `school.example.org`.
+  Без домена не получить сертификат, а без HTTPS приложение нельзя
+  безопасно открывать из интернета. Имя вида `vm12345.provider.example`
+  из письма хостинга часто только подпись сервера и в DNS не заведено.
+  Проверьте до установки: `ping school.example.org` должен показать IP
+  вашего сервера. Если имя не находится, заведите у регистратора домена
+  A-запись на IP сервера. Для пробной установки без своего домена подойдёт
+  бесплатное имя вида `203-0-113-10.sslip.io`, где цифры — IP сервера
+  через дефис: оно всегда указывает на этот IP.
+- Открытые порты 80 и 443.
+- Обратный прокси с TLS: Caddy (проще, сертификат получает сам) или nginx.
+
+Дальше все команды выполняются от `root` (или через `sudo`).
+
+## Установка
+
+### 1. Пользователь и каталоги
+
+```sh
+useradd --system --home /opt/school --shell /usr/sbin/nologin school
+mkdir -p /opt/school/data /opt/school/logs
+```
+
+### 2. Скачать сборку
+
+Последняя версия — на странице
+[Releases](https://github.com/ruskiiamov/school/releases). Подставьте её
+номер и архитектуру сервера (`uname -m`: `x86_64` → `amd64`,
+`aarch64` → `arm64`):
+
+```sh
+VERSION=v0.1.0
+ARCH=amd64
+cd /tmp
+curl -sSfLO https://github.com/ruskiiamov/school/releases/download/$VERSION/school-$VERSION-linux-$ARCH.tar.gz
+curl -sSfLO https://github.com/ruskiiamov/school/releases/download/$VERSION/SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS
+tar -xzf school-$VERSION-linux-$ARCH.tar.gz
+```
+
+В архиве бинарник `server`, каталог `deploy/` с примерами настроек,
+`README.md`, `CHANGELOG.md` и `LICENSE`.
+
+```sh
+cp school-$VERSION-linux-$ARCH/server /opt/school/server
+cp school-$VERSION-linux-$ARCH/deploy/config.yaml /opt/school/config.yaml
+/opt/school/server -version
+```
+
+### 3. Настроить
+
+Откройте `/opt/school/config.yaml` и поправьте:
+
+- `school.name` — название школы, показывается в шапке и на странице входа;
+- `timezone` — часовой пояс школы, по нему считается «сегодня»;
+- `school.year_start_month` — месяц начала учебного года (по умолчанию 8);
+- `admin.password` — пароль администратора. С заглушкой `change-me`
+  сервер не запустится.
+
+Остальное в этом файле уже настроено для работы за прокси: приложение
+слушает только `127.0.0.1:8080`, cookie помечена как защищённая, лог пишется
+в `/opt/school/logs/app.log`. Пути в конфиге считаются от каталога самого
+файла.
+
+Конфиг содержит пароль, закройте его от чужих глаз:
+
+```sh
+chown -R school:school /opt/school
+chmod 600 /opt/school/config.yaml
+```
+
+### 4. Запустить как службу
+
+```sh
+cp school-$VERSION-linux-$ARCH/deploy/school.service /etc/systemd/system/school.service
+systemctl daemon-reload
+systemctl enable --now school
+systemctl status school
+curl http://127.0.0.1:8080/healthz
+```
+
+Ответ `ok` значит, что приложение работает. Если служба не поднялась,
+причина в `journalctl -u school` (ошибки конфига) или в
+`/opt/school/logs/app.log`.
+
+### 5. Прокси и HTTPS
+
+**Caddy.** Установите по
+[инструкции Caddy](https://caddyserver.com/docs/install), затем:
+
+```sh
+cp school-$VERSION-linux-$ARCH/deploy/Caddyfile /etc/caddy/Caddyfile
+```
+
+Замените в файле `school.example.org` на свой домен и выполните
+`systemctl reload caddy`. Сертификат Caddy получит сам в течение минуты.
+Если сайт не открывается, смотрите `journalctl -u caddy`: чаще всего домен
+не указывает на сервер или закрыты порты 80 и 443.
+
+**nginx.** Если nginx уже стоит, возьмите `deploy/nginx.conf`: скопируйте в
+`/etc/nginx/sites-available/school`, замените домен, включите ссылкой в
+`sites-enabled`, получите сертификат командой
+`certbot --nginx -d school.example.org` и перезагрузите nginx. В файле
+уже выставлены лимит размера запроса под загрузку файлов, заголовки для
+приложения и таймауты.
+
+### 6. Первый вход
+
+Откройте `https://school.example.org`. Логин `admin`, пароль из конфига.
+Дальше в меню администратора по порядку: «Предметы», «Типы работ»,
+«Классы» (и состав класса в карточке), «Учителя», «Ученики», «Родители».
+При создании пользователя приложение само придумывает логин и одноразовый
+пароль и показывает их один раз — передайте их человеку. На карточке
+класса назначается, какой учитель ведёт какой предмет; после этого у
+учителя появляется журнал.
+
+## Эксплуатация
+
+### Резервная копия
+
+В меню администратора пункт «Резервная копия». Кнопка «Скачать архив»
+отдаёт `school-backup-ГГГГ-ММ-ДД.tar.gz` с базой данных и файлами домашних
+заданий. Копию можно снимать на работающем сервере. Скачивайте её регулярно
+и храните не на этом же сервере: в архиве персональные данные, обращайтесь
+с ним соответственно.
+
+**Восстановление.** Остановите службу, распакуйте архив, положите файлы на
+место, верните владельца и запустите:
+
+```sh
+systemctl stop school
+mkdir -p /tmp/restore
+tar -xzf school-backup-2026-09-19.tar.gz -C /tmp/restore
+cp /tmp/restore/school.db /opt/school/data/school.db
+rm -f /opt/school/data/school.db-wal /opt/school/data/school.db-shm
+rm -rf /opt/school/data/files && cp -r /tmp/restore/files /opt/school/data/files
+chown -R school:school /opt/school/data
+systemctl start school
+```
+
+Восстанавливайте на той же или более новой версии приложения, чем та, на
+которой снята копия.
+
+### Обновление
+
+1. Скачайте резервную копию (см. выше).
+2. Скачайте и проверьте новый архив, как при установке (шаг 2).
+3. Замените бинарник и перезапустите:
+
+```sh
+systemctl stop school
+cp school-$VERSION-linux-$ARCH/server /opt/school/server
+systemctl start school
+/opt/school/server -version
+```
+
+Изменения схемы базы применяются автоматически при старте и только вперёд.
+Откатиться на прошлую версию можно только восстановлением из резервной
+копии, снятой до обновления. Что изменилось в версии — в `CHANGELOG.md` и в
+описании релиза.
+
+### Пароль администратора
+
+Хранится в конфиге и применяется при каждом старте: смените
+`admin.password` в `/opt/school/config.yaml` и выполните
+`systemctl restart school`. Открытые сессии администратора при этом
+закрываются. Пароли остальных пользователей меняет администратор на
+странице «Сброс пароля» или сами пользователи через «Сменить пароль».
+
+### Логи и проверка
+
+- `/opt/school/logs/app.log` — JSON-лог приложения с ротацией, размер и
+  срок хранения задаются в секции `log` конфига.
+- `journalctl -u school` — старт, остановка и ошибки конфига.
+- `GET /healthz` отвечает `ok`, пока приложение живо; на него удобно
+  повесить внешний мониторинг доступности.
+- Если в логе появилось предупреждение `session.secure is false`, значит
+  приложение работает за HTTPS, а в конфиге не включён `session.secure`.
+
+## Конфигурация
+
+| Ключ | Что задаёт | По умолчанию |
+|---|---|---|
+| `school.name` | название школы | `Школа` |
+| `school.year_start_month` | месяц начала учебного года, 1–12 | `8` |
+| `timezone` | часовой пояс для «сегодня» | `Europe/Moscow` |
+| `http.addr` | адрес и порт | `:8080` |
+| `http.*_timeout` | таймауты HTTP-сервера | см. `deploy/config.yaml` |
+| `db.path` | файл SQLite | — |
+| `log.file`, `log.level`, `log.stdout` | файл лога, уровень, дублировать ли в stdout | уровень `info` |
+| `log.max_size_mb`, `log.max_backups`, `log.max_age_days`, `log.compress` | ротация лога | `10`, `5`, `30`, `false` |
+| `session.cookie_name`, `session.ttl`, `session.secure` | cookie сессии; `secure: true` за HTTPS | `sid`, `12h`, `false` |
+| `session.cleanup_interval`, `journal.cleanup_interval` | периодическая уборка | `1h`, `24h` |
+| `files.dir` | каталог файлов домашних заданий | — |
+| `files.max_file_size_mb`, `files.max_per_lesson` | лимиты файлов | `10`, `10` |
+| `files.transfer_timeout` | сколько может длиться загрузка или скачивание | `5m` |
+| `admin.login`, `admin.password`, `admin.full_name` | администратор | — |
+
+Относительные пути считаются от каталога файла конфига. Путь к конфигу
+задаётся флагом `-config` или переменной `CONFIG_PATH`.
+
+## Разработка
+
+Нужен Go (версия из `go.mod`); Tailwind и HTMX скачиваются командой
+`make tools`.
+
+```sh
+make tools   # инструменты
+make run     # сборка и запуск с ./config.yaml (шаблон — config.example.yaml)
+make check   # форматирование, линтер, тесты
+make dist    # архивы релиза
+```
+
+Проектные документы — в `docs/`: доменная модель, журнал решений, план
+итераций. Указания для работы с кодом — в `CLAUDE.md`.

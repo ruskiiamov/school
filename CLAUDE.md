@@ -23,7 +23,10 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 доменная модель — `docs/domain.md`, план итераций — `docs/roadmap.md`. Перед
 реализацией сверяться с ними; новое решение — новая запись в `decisions.md`.
 
-Лицензия — MIT (`LICENSE`). CI — `.github/workflows/check.yml`: `make tools`
+Для школы: `README.md` — установка и эксплуатация (единственный документ,
+который читает школьный айтишник; править при любом изменении конфига,
+установки, бэкапа или обновления), `SECURITY.md`, `CHANGELOG.md` (раздел
+на версию до тега). Лицензия — MIT (`LICENSE`). CI — `.github/workflows/check.yml`: `make tools`
 и `make check` на каждый push и pull request; `release.yml` по тегу `v*`
 собирает `make dist VERSION=<тег>` и публикует GitHub Release с текстом
 раздела `## <тег>` из `CHANGELOG.md` (раздел заводить до тега, D-079 —

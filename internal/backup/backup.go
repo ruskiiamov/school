@@ -127,6 +127,10 @@ func (a *Archive) write(tw *tar.Writer) error {
 		return err
 	}
 
+	if err := tw.WriteHeader(&tar.Header{Name: FilesDir + "/", Typeflag: tar.TypeDir, Mode: 0o700}); err != nil {
+		return fmt.Errorf("write header %s: %w", FilesDir, err)
+	}
+
 	ids, err := a.files.IDs()
 	if err != nil {
 		return err
