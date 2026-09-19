@@ -1,0 +1,8 @@
+# Пример для Caddy 2: сертификат Let's Encrypt получает и продлевает сам.
+# Скопируйте в /etc/caddy/Caddyfile, замените домен, затем: systemctl reload caddy
+# Домен должен указывать на этот сервер, порты 80 и 443 открыты.
+
+school.example.org {
+	encode gzip
+	reverse_proxy 127.0.0.1:8080
+}

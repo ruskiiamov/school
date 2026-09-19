@@ -1,0 +1,52 @@
+# Конфиг для сервера за обратным прокси (Caddy или nginx) с TLS.
+# Скопируйте в /opt/school/config.yaml и поправьте school.name, timezone и admin.
+# Относительные пути считаются от каталога этого файла.
+
+school:
+  name: "Школа №1"
+  year_start_month: 8
+
+timezone: Europe/Moscow
+
+http:
+  # Только локальный адрес: снаружи приложение видно через прокси
+  addr: "127.0.0.1:8080"
+  read_timeout: 5s
+  write_timeout: 10s
+  idle_timeout: 60s
+  shutdown_timeout: 10s
+
+db:
+  path: ./data/school.db
+
+log:
+  file: ./logs/app.log
+  level: info
+  # Под systemd stdout уходит в journald и дублирует файл — выключено
+  stdout: false
+  max_size_mb: 10
+  max_backups: 5
+  max_age_days: 30
+  compress: true
+
+session:
+  cookie_name: sid
+  ttl: 12h
+  # За прокси с TLS обязательно true: cookie не уйдёт по http
+  secure: true
+  cleanup_interval: 1h
+
+journal:
+  cleanup_interval: 24h
+
+files:
+  dir: ./data/files
+  max_file_size_mb: 10
+  max_per_lesson: 10
+  transfer_timeout: 5m
+
+admin:
+  login: admin
+  # обязательно замените: с этим значением сервер не запустится
+  password: change-me
+  full_name: Администратор

@@ -24,7 +24,11 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 реализацией сверяться с ними; новое решение — новая запись в `decisions.md`.
 
 Лицензия — MIT (`LICENSE`). CI — `.github/workflows/check.yml`: `make tools`
-и `make check` на каждый push и pull request.
+и `make check` на каждый push и pull request. Примеры для установки в
+школе — `deploy/` (D-075): `school.service`, `config.yaml` для работы за
+прокси, `Caddyfile`, `nginx.conf`; их правят вместе с конфигом и лимитами
+(`client_max_body_size` в nginx = `max_file_size_mb × max_per_lesson` с
+запасом, таймауты прокси ≥ `transfer_timeout`).
 
 ## Команды
 
