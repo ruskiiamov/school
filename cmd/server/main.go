@@ -24,7 +24,14 @@ func main() {
 
 func run() error {
 	configPath := flag.String("config", configPathDefault(), "path to the YAML configuration file")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(buildVersion())
+
+		return nil
+	}
 
 	cfg, err := config.Load(*configPath)
 	if err != nil {
@@ -44,6 +51,8 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	context.AfterFunc(ctx, stop)
+
+	log.InfoContext(ctx, "server starting", slog.String("version", buildVersion()))
 
 	application, err := app.New(ctx, cfg, log)
 	if err != nil {
