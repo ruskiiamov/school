@@ -16,6 +16,7 @@ const (
 	msgDateInvalid         = "Неверная дата"
 	msgEndBeforeStart      = "Дата окончания раньше начала"
 	msgSubstitutionOverlap = "Период пересекается с другой заменой"
+	msgSubstitutionUsed    = "По замене уже проведены уроки: вместо удаления укажите дату окончания"
 )
 
 type Substitution struct {
@@ -143,6 +144,15 @@ func (s *Service) UpdateSubstitutionPeriod(ctx context.Context, id int64, period
 }
 
 func (s *Service) DeleteSubstitution(ctx context.Context, id int64) error {
+	used, err := s.substitutions.HasLessons(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if used {
+		return validation.Errors{"end_date": msgSubstitutionUsed}
+	}
+
 	if err := s.substitutions.Delete(ctx, id); errors.Is(err, storage.ErrNotFound) {
 		return ErrNotFound
 	} else if err != nil {

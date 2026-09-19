@@ -199,3 +199,17 @@ func (r *SubstitutionRepo) CoversDate(ctx context.Context, classID, subjectID, t
 
 	return covers, nil
 }
+
+func (r *SubstitutionRepo) HasLessons(ctx context.Context, id int64) (bool, error) {
+	const query = `SELECT EXISTS (
+		SELECT 1 FROM lessons l
+		JOIN substitutions s ON s.class_id = l.class_id AND s.subject_id = l.subject_id AND s.teacher_id = l.teacher_id
+		WHERE s.id = ? AND l.date >= s.start_date AND (s.end_date IS NULL OR l.date <= s.end_date))`
+
+	var exists bool
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check substitution lessons: %w", err)
+	}
+
+	return exists, nil
+}

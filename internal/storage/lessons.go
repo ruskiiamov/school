@@ -51,16 +51,29 @@ func (r *LessonRepo) Find(ctx context.Context, classID, subjectID int64, date ti
 	return lesson, nil
 }
 
-func (r *LessonRepo) ListVisible(ctx context.Context, teacherID int64, year, limit int) ([]Lesson, error) {
-	const query = "SELECT " + lessonColumns + ` FROM lessons
+const visibleLessons = ` FROM lessons
 		WHERE class_id IN (SELECT id FROM classes WHERE year = ?)
 			AND (teacher_id = ? OR EXISTS (
 				SELECT 1 FROM teaching_assignments a
-				WHERE a.class_id = lessons.class_id AND a.subject_id = lessons.subject_id AND a.teacher_id = ?))
-		ORDER BY date DESC, id DESC
-		LIMIT ?`
+				WHERE a.class_id = lessons.class_id AND a.subject_id = lessons.subject_id AND a.teacher_id = ?))`
 
-	rows, err := r.db.QueryContext(ctx, query, year, teacherID, teacherID, limit)
+func (r *LessonRepo) CountVisible(ctx context.Context, teacherID int64, year int) (int, error) {
+	const query = "SELECT COUNT(*)" + visibleLessons
+
+	var count int
+	if err := r.db.QueryRowContext(ctx, query, year, teacherID, teacherID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count lessons: %w", err)
+	}
+
+	return count, nil
+}
+
+func (r *LessonRepo) ListVisible(ctx context.Context, teacherID int64, year, limit, offset int) ([]Lesson, error) {
+	const query = "SELECT " + lessonColumns + visibleLessons + `
+		ORDER BY date DESC, id DESC
+		LIMIT ? OFFSET ?`
+
+	rows, err := r.db.QueryContext(ctx, query, year, teacherID, teacherID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("select lessons: %w", err)
 	}

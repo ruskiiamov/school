@@ -93,9 +93,9 @@ templ diaryLinkTo(href, label string, active bool, target string) {
 		hx-push-url="true"
 		if active {
 			aria-current="page"
-			class="inline-flex min-h-11 items-center rounded-lg bg-indigo-50 px-4 text-sm font-medium text-indigo-700"
+			class={ components.TabActiveClass }
 		} else {
-			class="inline-flex min-h-11 items-center rounded-lg px-4 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+			class={ components.TabClass }
 		}
 	>{ label }</a>
 }

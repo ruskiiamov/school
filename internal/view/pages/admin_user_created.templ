@@ -19,11 +19,8 @@ templ UserCreated(page view.UserCreatedPage) {
 					<dd class="font-mono text-slate-900">{ page.Password }</dd>
 				</dl>
 				<p class="text-sm text-slate-500">{ page.Note }</p>
-				<div class="flex flex-wrap justify-end gap-2 pt-2">
-					<a href={ templ.SafeURL(page.ListHref) } class={ components.ButtonSecondaryClass }>{ page.ListTitle }</a>
-					if page.NewHref != "" {
-						<a href={ templ.SafeURL(page.NewHref) } class={ components.ButtonPrimaryClass }>{ page.NewTitle }</a>
-					}
+				<div class="flex justify-center pt-2">
+					<a href={ templ.SafeURL(page.ListHref) } class={ components.ButtonPrimaryClass }>{ page.ListTitle }</a>
 				</div>
 			</div>
 		</div>

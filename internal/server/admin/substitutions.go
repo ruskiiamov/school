@@ -21,6 +21,7 @@ type substitutionEdit struct {
 	id      int64
 	period  school.Period
 	entered bool
+	open    bool
 	errs    validation.Errors
 }
 
@@ -97,7 +98,12 @@ func (h *Handler) substitutionDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.school.DeleteSubstitution(r.Context(), id); err != nil {
+	err := h.school.DeleteSubstitution(r.Context(), id)
+	if errs, ok := web.FormErrors(err); ok {
+		h.renderSubstitutions(w, r, view.SubstitutionFields{}, substitutionEdit{id: id, open: true, errs: errs})
+		return
+	}
+	if err != nil {
 		h.base.HandleServiceError(w, r, "delete substitution", err)
 		return
 	}
@@ -169,7 +175,7 @@ func (h *Handler) renderSubstitutions(w http.ResponseWriter, r *http.Request, ne
 		teacherByID[teacher.ID] = teacher
 	}
 
-	editing := editingID(r, edit.entered, edit.id)
+	editing := editingID(r, edit.entered || edit.open, edit.id)
 	today := h.school.Today()
 
 	rows := make([]view.SubstitutionRow, 0, len(substitutions))

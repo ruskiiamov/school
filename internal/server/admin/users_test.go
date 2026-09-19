@@ -160,7 +160,9 @@ func TestUserCreatedPageShowsPasswordOnce(t *testing.T) {
 	created := servertest.Get(t, env.Handler, createdPath, admin)
 	require.Equal(t, http.StatusOK, created.Code)
 	assert.Contains(t, created.Body.String(), ">sidorova.a<")
-	assert.Contains(t, created.Body.String(), "Ещё учителя")
+	assert.Equal(t, 1, strings.Count(created.Body.String(), `href="/admin/teachers" class="inline-flex`))
+	assert.Contains(t, created.Body.String(), "К списку")
+	assert.NotContains(t, created.Body.String(), "Ещё учителя")
 
 	values := credentialValue.FindAllStringSubmatch(created.Body.String(), -1)
 	require.Len(t, values, 2)

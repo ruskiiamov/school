@@ -84,13 +84,30 @@ type SetupCounts struct {
 }
 
 type HomePage struct {
-	Shell       Shell
-	Today       string
-	YearName    string
-	Setup       []SetupStep
-	Stats       []Stat
-	Section     NavItem
-	SectionNote string
+	Shell      Shell
+	Today      string
+	YearName   string
+	Setup      []SetupStep
+	Stats      []Stat
+	Teacher    *TeacherDashboard
+	Children   []DiaryChild
+	Student    *StudentDashboard
+	NoChildren bool
+}
+
+type TeacherDashboard struct {
+	Action      string
+	Date        string
+	JournalHref string
+	Pairs       []PairOption
+	Lessons     []LessonRow
+}
+
+type StudentDashboard struct {
+	DiaryHref string
+	MarksHref string
+	Lessons   []DiaryLessonItem
+	Subjects  []SubjectMarksRow
 }
 
 type PasswordPage struct {
@@ -363,8 +380,6 @@ type UserCreatedPage struct {
 	Note      string
 	ListHref  string
 	ListTitle string
-	NewHref   string
-	NewTitle  string
 }
 
 type PasswordResetRow struct {
@@ -439,6 +454,14 @@ type JournalPage struct {
 	Date    string
 	Errors  map[string]string
 	Lessons []LessonRow
+	Pager   Pager
+}
+
+type Pager struct {
+	Label     string
+	Pages     int
+	NewerHref string
+	OlderHref string
 }
 
 type PeriodForm struct {

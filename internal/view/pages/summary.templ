@@ -81,13 +81,13 @@ templ summaryGrid(grid view.Grid) {
 			<thead>
 				<tr>
 					<th scope="col" class="sticky left-0 z-10 border-b border-slate-200 bg-white px-3 py-2 text-left font-semibold text-slate-900">Ученик</th>
+					<th scope="col" class="border-b border-slate-200 px-2 py-2 text-center font-semibold whitespace-nowrap text-slate-900">Средний</th>
+					<th scope="col" class="border-b border-slate-200 px-2 py-2 text-center font-semibold text-slate-900">Н</th>
 					for _, column := range grid.Columns {
 						<th scope="col" class="border-b border-slate-200 px-2 py-2 text-center font-medium whitespace-nowrap text-slate-600">
 							<a href={ templ.SafeURL(column.Href) } class="text-indigo-700 hover:underline">{ column.Date }</a>
 						</th>
 					}
-					<th scope="col" class="border-b border-slate-200 px-2 py-2 text-center font-semibold text-slate-900">Н</th>
-					<th scope="col" class="border-b border-slate-200 px-2 py-2 text-center font-semibold whitespace-nowrap text-slate-900">Средний</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -105,6 +105,8 @@ templ summaryGrid(grid view.Grid) {
 								}
 							</span>
 						</td>
+						<td class="border-b border-slate-100 px-2 py-2 text-center font-semibold text-slate-900">{ row.Average }</td>
+						<td class="border-b border-slate-100 px-2 py-2 text-center text-slate-700">{ row.Absences }</td>
 						for _, cell := range row.Cells {
 							<td class="border-b border-slate-100 px-1 py-1 text-center whitespace-nowrap">
 								if cell.Text != "" {
@@ -114,8 +116,6 @@ templ summaryGrid(grid view.Grid) {
 								}
 							</td>
 						}
-						<td class="border-b border-slate-100 px-2 py-2 text-center text-slate-700">{ row.Absences }</td>
-						<td class="border-b border-slate-100 px-2 py-2 text-center font-semibold text-slate-900">{ row.Average }</td>
 					</tr>
 				}
 			</tbody>

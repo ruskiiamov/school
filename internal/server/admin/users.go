@@ -28,28 +28,27 @@ type userSection struct {
 	created   string
 	recipient string
 	empty     string
-	more      string
 	hint      string
 }
 
 var userSections = []userSection{
 	{
 		role: auth.RoleTeacher, path: "/admin/teachers", title: "Учителя",
-		created: "Учитель создан", recipient: "учителю", empty: "Пока нет учителей", more: "Ещё учителя",
-		hint: "Логин и одноразовый пароль приложение придумывает само и показывает один раз после создания. Какие классы и предметы ведёт учитель, задаётся в карточке класса.",
+		created: "Учитель создан", recipient: "учителю", empty: "Пока нет учителей",
+		hint: "Логин и одноразовый пароль приложение придумывает само и показывает один раз после создания. Какие классы и предметы ведёт учитель, задаётся в карточке класса",
 	},
 	{
 		role: auth.RoleStudent, path: "/admin/students", title: "Ученики",
-		created: "Ученик создан", recipient: "ученику", empty: "Пока нет учеников", more: "Ещё ученика",
-		hint: "Логин и одноразовый пароль приложение придумывает само и показывает один раз после создания. Класс ученика можно указать сразу или позже, в строке правки.",
+		created: "Ученик создан", recipient: "ученику", empty: "Пока нет учеников",
+		hint: "Логин и одноразовый пароль приложение придумывает само и показывает один раз после создания. Класс ученика можно указать сразу или позже, в строке правки",
 	},
 	parentsSection,
 }
 
 var parentsSection = userSection{
 	role: auth.RoleParent, path: "/admin/parents", title: "Родители",
-	created: "Родитель создан", recipient: "родителю", empty: "Пока нет родителей", more: "Ещё родителя",
-	hint: "Родитель видит дневники и оценки своих детей. Детей привязывают в строке правки: нажмите на строку родителя и найдите ученика по ФИО.",
+	created: "Родитель создан", recipient: "родителю", empty: "Пока нет родителей",
+	hint: "Родитель видит дневники и оценки своих детей. Детей привязывают в строке правки: нажмите на строку родителя и найдите ученика по ФИО",
 }
 
 func (sec userSection) hasClass() bool {
@@ -150,11 +149,9 @@ func (h *Handler) userCreated(sec userSection) http.HandlerFunc {
 			FullName:  user.FullName,
 			Login:     entry.login,
 			Password:  entry.password,
-			Note:      "Пароль показан один раз. Передайте данные " + sec.recipient + ".",
+			Note:      "Пароль показан один раз. Передайте данные " + sec.recipient,
 			ListHref:  sec.path,
 			ListTitle: "К списку",
-			NewHref:   sec.path,
-			NewTitle:  sec.more,
 		}
 
 		h.base.Render(w, r, pages.UserCreated(page))
