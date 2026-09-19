@@ -17,6 +17,7 @@ templ WorkTypes(page view.WorkTypesPage) {
 			@components.PageHeader("Типы работ") {
 				@components.InactiveToggle(inactiveToggleURL(workTypesBase, page.ShowInactive), page.ShowInactive)
 			}
+			@components.PageHint(hintWorkTypes)
 			@WorkTypesList(page)
 		</div>
 	}

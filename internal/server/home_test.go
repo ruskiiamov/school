@@ -3,6 +3,7 @@ package server_test
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,19 +14,53 @@ import (
 	"github.com/ruskiiamov/school/internal/server/servertest"
 )
 
-func TestHomeShowsNoClassesBannerForAdmin(t *testing.T) {
+func TestHomeShowsSetupStepsForAdmin(t *testing.T) {
 	t.Parallel()
 
 	env := servertest.New(t)
 	admin := servertest.Login(t, env.Handler)
+	ctx := t.Context()
 
 	body := servertest.Get(t, env.Handler, "/", admin).Body.String()
 	yearName := school.YearName(env.School.CurrentYear())
 
-	assert.Contains(t, body, "В "+yearName+" ещё нет классов")
-	assert.Contains(t, body, "Создать класс")
+	assert.Contains(t, body, "Начало работы")
+	assert.Contains(t, body, "Кто что ведёт")
+	assert.Equal(t, 6, strings.Count(body, "Не сделано"))
 	assert.Contains(t, body, "Учебный год "+yearName)
-	assert.NotContains(t, body, "Раздел в разработке")
+
+	_, err := env.School.CreateSubject(ctx, school.SubjectInput{Name: "Алгебра"})
+	require.NoError(t, err)
+
+	body = servertest.Get(t, env.Handler, "/", admin).Body.String()
+	assert.Equal(t, 5, strings.Count(body, "Не сделано"))
+	assert.Equal(t, 1, strings.Count(body, "Готово"))
+}
+
+func TestHomeHidesSetupWhenRequiredStepsDone(t *testing.T) {
+	t.Parallel()
+
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	ctx := t.Context()
+
+	classID, err := env.School.CreateClass(ctx, "7А")
+	require.NoError(t, err)
+	subjectID, err := env.School.CreateSubject(ctx, school.SubjectInput{Name: "Алгебра"})
+	require.NoError(t, err)
+	teacher, err := env.Auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleTeacher, FullName: "Сидорова Анна"})
+	require.NoError(t, err)
+	student, err := env.Auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleStudent, FullName: "Козлов Пётр"})
+	require.NoError(t, err)
+	require.NoError(t, env.School.SetStudentClass(ctx, student.User.ID, classID))
+
+	body := servertest.Get(t, env.Handler, "/", admin).Body.String()
+	assert.Contains(t, body, "Начало работы")
+
+	require.NoError(t, env.School.AssignTeacher(ctx, classID, subjectID, teacher.User.ID))
+
+	body = servertest.Get(t, env.Handler, "/", admin).Body.String()
+	assert.NotContains(t, body, "Начало работы")
 }
 
 func TestHomeCountsCurrentYearForAdmin(t *testing.T) {
@@ -75,7 +110,7 @@ func TestHomeCountsCurrentYearForAdmin(t *testing.T) {
 
 	body := servertest.Get(t, env.Handler, "/", admin).Body.String()
 
-	assert.NotContains(t, body, "ещё нет классов")
+	assert.Contains(t, body, "Начало работы")
 	assertStat(t, body, "Классы", 2)
 	assertStat(t, body, "Ученики", 2)
 	assertStat(t, body, "Учителя", 2)

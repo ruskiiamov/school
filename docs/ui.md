@@ -8,7 +8,7 @@
 
 | Роль | Пункты |
 |---|---|
-| admin | Дашборд `/`, Классы `/admin/classes`, Предметы `/admin/subjects`, Учителя `/admin/teachers`, Ученики `/admin/students`, Родители `/admin/parents`, Типы работ `/admin/work-types`, Замены `/admin/substitutions` (итерация 3), Дневники `/admin/diary` (итерация 4), Сброс пароля `/admin/password-reset`, Резервная копия `/admin/backup` (итерация 8) |
+| admin | Дашборд `/`; **Школа**: Классы `/admin/classes`, Учителя `/admin/teachers`, Ученики `/admin/students`, Родители `/admin/parents`, Замены `/admin/substitutions`; **Справочники**: Предметы `/admin/subjects`, Типы работ `/admin/work-types`; **Просмотр**: Журналы `/admin/journal`, Дневники `/admin/diary`; **Служебное**: Сброс пароля `/admin/password-reset`, Резервная копия `/admin/backup` (группы — D-080) |
 | teacher | Дашборд `/`, Журнал `/journal` (итерация 3), Сменить пароль `/account/password` |
 | student, parent | Дашборд `/`, Дневник `/diary` (итерация 4), Сменить пароль `/account/password` |
 

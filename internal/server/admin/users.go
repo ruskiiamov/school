@@ -29,16 +29,19 @@ type userSection struct {
 	recipient string
 	empty     string
 	more      string
+	hint      string
 }
 
 var userSections = []userSection{
 	{
 		role: auth.RoleTeacher, path: "/admin/teachers", title: "Учителя",
 		created: "Учитель создан", recipient: "учителю", empty: "Пока нет учителей", more: "Ещё учителя",
+		hint: "Логин и одноразовый пароль приложение придумывает само и показывает один раз после создания. Какие классы и предметы ведёт учитель, задаётся в карточке класса.",
 	},
 	{
 		role: auth.RoleStudent, path: "/admin/students", title: "Ученики",
 		created: "Ученик создан", recipient: "ученику", empty: "Пока нет учеников", more: "Ещё ученика",
+		hint: "Логин и одноразовый пароль приложение придумывает само и показывает один раз после создания. Класс ученика можно указать сразу или позже, в строке правки.",
 	},
 	parentsSection,
 }
@@ -46,6 +49,7 @@ var userSections = []userSection{
 var parentsSection = userSection{
 	role: auth.RoleParent, path: "/admin/parents", title: "Родители",
 	created: "Родитель создан", recipient: "родителю", empty: "Пока нет родителей", more: "Ещё родителя",
+	hint: "Родитель видит дневники и оценки своих детей. Детей привязывают в строке правки: нажмите на строку родителя и найдите ученика по ФИО.",
 }
 
 func (sec userSection) hasClass() bool {
@@ -263,6 +267,7 @@ func (h *Handler) renderUsers(w http.ResponseWriter, r *http.Request, sec userSe
 	page := view.UsersPage{
 		Shell:        h.base.Shell(r, sec.title, sec.path),
 		Title:        sec.title,
+		Hint:         sec.hint,
 		Path:         sec.path,
 		ListQuery:    listQuery(query, classID, inactive),
 		Query:        query,

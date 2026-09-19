@@ -24,6 +24,7 @@ func TestStudentDiaryDayAndLesson(t *testing.T) {
 	code, body := get(t, f.env, "/diary", student, false)
 	require.Equal(t, http.StatusOK, code)
 	assert.Contains(t, body, "Уроков в этот день нет")
+	assert.Contains(t, body, "Урок появляется, когда учитель открыл его в журнале")
 	assert.Contains(t, body, view.FormatDate(f.today))
 	assert.Contains(t, body, `name="date" value="`+f.today.Format("2006-01-02")+`"`)
 	assert.Contains(t, body, `href="`+diaryURL("/diary", f.today.AddDate(0, 0, -1), nil)+`"`)

@@ -15,12 +15,8 @@ templ Home(page view.HomePage) {
 				</h1>
 				<p class="mt-1 text-sm text-slate-500">Сегодня { page.Today }</p>
 			</div>
-			if page.NoClasses {
-				<div class="flex flex-wrap items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
-					@components.Icon(view.IconAlert, "size-5 shrink-0 text-amber-600")
-					<span class="flex-1">В { page.YearName } ещё нет классов</span>
-					<a href="/admin/classes" class={ components.ButtonPrimaryClass }>Создать класс</a>
-				</div>
+			if len(page.Setup) > 0 {
+				@setupCard(page.Setup)
 			}
 			if len(page.Stats) > 0 {
 				<section class="flex flex-col gap-3">
@@ -48,4 +44,33 @@ templ Home(page view.HomePage) {
 			}
 		</div>
 	}
+}
+
+templ setupCard(steps []view.SetupStep) {
+	<section class={ components.CardClass, "flex flex-col gap-1 p-4 sm:p-5" }>
+		<h2 class="text-base font-semibold text-slate-900">Начало работы</h2>
+		<p class="text-sm text-slate-500">Пройдите шаги по порядку. Когда обязательные будут выполнены, этот блок исчезнет.</p>
+		<ol class="mt-2 divide-y divide-slate-100">
+			for _, step := range steps {
+				<li>
+					<a href={ templ.SafeURL(step.Href) } class="flex items-start gap-3 rounded-lg py-3 hover:bg-slate-50 active:bg-slate-100">
+						if step.Done {
+							<span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+								@components.Icon(view.IconCheck, "size-4")
+								<span class="sr-only">Готово</span>
+							</span>
+						} else {
+							<span class="size-6 shrink-0 rounded-full ring-2 ring-inset ring-slate-300">
+								<span class="sr-only">Не сделано</span>
+							</span>
+						}
+						<span class="flex min-w-0 flex-col">
+							<span class="text-sm font-medium text-slate-900">{ step.Title }</span>
+							<span class="text-sm text-slate-500">{ step.Note }</span>
+						</span>
+					</a>
+				</li>
+			}
+		</ol>
+	</section>
 }

@@ -16,6 +16,7 @@ templ Marks(page view.MarksPage) {
 					<a href={ templ.SafeURL(page.BackHref) } class={ components.ButtonSecondaryClass }>К дневнику</a>
 				}
 			}
+			@components.PageHint(hintMarks)
 			@MarksContent(page)
 		</div>
 	}

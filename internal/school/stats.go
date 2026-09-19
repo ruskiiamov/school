@@ -3,10 +3,11 @@ package school
 import "context"
 
 type Stats struct {
-	Year     int
-	Classes  int
-	Students int
-	Subjects int
+	Year        int
+	Classes     int
+	Students    int
+	Subjects    int
+	Assignments int
 }
 
 func (s *Service) Stats(ctx context.Context) (Stats, error) {
@@ -27,5 +28,10 @@ func (s *Service) Stats(ctx context.Context) (Stats, error) {
 		return Stats{}, err
 	}
 
-	return Stats{Year: year, Classes: classes, Students: students, Subjects: subjects}, nil
+	assignments, err := s.assignments.CountByYear(ctx, year)
+	if err != nil {
+		return Stats{}, err
+	}
+
+	return Stats{Year: year, Classes: classes, Students: students, Subjects: subjects, Assignments: assignments}, nil
 }

@@ -20,7 +20,10 @@ templ Sidebar(items []view.NavItem) {
 			<span class="text-sm font-semibold text-slate-900">Школа</span>
 		</div>
 		<nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3" aria-label="Разделы">
-			for _, item := range items {
+			for i, item := range items {
+				if item.Group != "" && (i == 0 || items[i-1].Group != item.Group) {
+					<p class="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">{ item.Group }</p>
+				}
 				@navLink(item)
 			}
 		</nav>

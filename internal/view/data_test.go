@@ -14,7 +14,7 @@ func TestNavItemsDependOnRole(t *testing.T) {
 		role   string
 		titles []string
 	}{
-		{"admin", []string{"Дашборд", "Классы", "Предметы", "Учителя", "Ученики", "Родители", "Типы работ", "Замены", "Журналы", "Дневники", "Сброс пароля", "Резервная копия"}},
+		{"admin", []string{"Дашборд", "Классы", "Учителя", "Ученики", "Родители", "Замены", "Предметы", "Типы работ", "Журналы", "Дневники", "Сброс пароля", "Резервная копия"}},
 		{"teacher", []string{"Дашборд", "Журнал", "Сводка", "Сменить пароль"}},
 		{"student", []string{"Дашборд", "Дневник", "Оценки", "Сменить пароль"}},
 		{"parent", []string{"Дашборд", "Дневник", "Оценки", "Сменить пароль"}},
@@ -43,4 +43,37 @@ func TestNavItemsMarkActiveByHref(t *testing.T) {
 
 	assert.False(t, items[0].Active)
 	assert.True(t, items[1].Active)
+}
+
+func TestNavItemsGroupAdminSections(t *testing.T) {
+	t.Parallel()
+
+	groups := map[string][]string{}
+	for _, item := range NavItems("admin", "/") {
+		groups[item.Group] = append(groups[item.Group], item.Title)
+	}
+
+	assert.Equal(t, map[string][]string{
+		"":            {"Дашборд"},
+		"Школа":       {"Классы", "Учителя", "Ученики", "Родители", "Замены"},
+		"Справочники": {"Предметы", "Типы работ"},
+		"Просмотр":    {"Журналы", "Дневники"},
+		"Служебное":   {"Сброс пароля", "Резервная копия"},
+	}, groups)
+
+	for _, item := range NavItems("teacher", "/") {
+		assert.Empty(t, item.Group, item.Title)
+	}
+}
+
+func TestAdminSetupHidesWhenRequiredStepsDone(t *testing.T) {
+	t.Parallel()
+
+	steps := AdminSetup(SetupCounts{Subjects: 1})
+	require.Len(t, steps, 6)
+	assert.True(t, steps[0].Done)
+	assert.False(t, steps[1].Done)
+	assert.True(t, steps[5].Optional)
+
+	assert.Nil(t, AdminSetup(SetupCounts{Subjects: 1, Classes: 1, Teachers: 1, Students: 1, Assignments: 1}))
 }

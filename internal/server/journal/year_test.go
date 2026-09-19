@@ -66,6 +66,7 @@ func TestTeacherSummaryPastYear(t *testing.T) {
 	assert.Contains(t, body, `<option value="`+strconv.Itoa(current)+`" selected>`+school.YearName(current)+`</option>`)
 	assert.Contains(t, body, `<option value="`+strconv.Itoa(f.past)+`">`+school.YearName(f.past)+`</option>`)
 	assert.Contains(t, body, "7А · Алгебра")
+	assert.Contains(t, body, "Ячейка ведёт на урок")
 	assert.NotContains(t, body, "6А · Алгебра")
 
 	query := url.Values{"year": {strconv.Itoa(f.past)}}

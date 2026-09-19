@@ -23,6 +23,7 @@ func TestJournalOpenLessonTopicDelete(t *testing.T) {
 	body := servertest.Get(t, f.env.Handler, "/journal", teacher).Body.String()
 	assert.Contains(t, body, "Вам пока не назначены классы и предметы")
 	assert.Contains(t, body, "Пока нет уроков")
+	assert.Contains(t, body, "Расписания нет")
 	assert.NotContains(t, body, `name="pair"`)
 
 	require.NoError(t, f.env.School.AssignTeacher(t.Context(), f.class, f.subject, f.teacher))
