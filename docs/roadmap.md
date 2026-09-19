@@ -217,10 +217,15 @@ README без участия автора. Срезы идут по порядк
    `/admin/backup` с кнопкой «Скачать архив», размером файлов и порядком
    восстановления, `GET /admin/backup/download`, пункт меню «Резервная
    копия»; тесты `backup` и `admin`.
-3. **`deploy/`** — `school.service` (пользователь `school`,
-   `/opt/school`, `ProtectSystem=strict`, `ReadWritePaths` на `data` и
-   `logs`, `Restart=on-failure`), `Caddyfile`, `nginx.conf`. Скрипт
-   бэкапа для cron появится вместе с `server backup` (D-077).
+3. **`deploy/`** — готов (2026-09-19): `school.service` (пользователь
+   `school`, `/opt/school`, `ProtectSystem=strict`, `ReadWritePaths` на
+   `data` и `logs`, `Restart=on-failure`, `systemd-analyze verify`
+   проходит), `config.yaml` для работы за прокси (`127.0.0.1:8080`,
+   `secure: true`, `stdout: false`, пароль-заглушка, которую сервер
+   отвергает), `Caddyfile`, `nginx.conf` (`client_max_body_size` под
+   лимит загрузки, `X-Forwarded-Proto`, без буферизации, таймауты не
+   меньше `transfer_timeout`). Скрипт бэкапа для cron появится вместе с
+   `server backup` (D-077).
 4. **Релизы** — workflow `release.yml` по тегу `v*`: сборка
    `linux/amd64` и `linux/arm64`, `SHA256SUMS`, GitHub Release с текстом
    из `CHANGELOG.md`; первый тег `v0.1.0`.

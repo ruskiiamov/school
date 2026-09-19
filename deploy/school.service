@@ -1,0 +1,44 @@
+# Пример unit-файла systemd. Скопируйте в /etc/systemd/system/school.service,
+# затем: systemctl daemon-reload && systemctl enable --now school
+#
+# Ожидаемая раскладка (см. README):
+#   /opt/school/server       бинарник из GitHub Releases
+#   /opt/school/config.yaml  конфиг (права 0600, владелец school)
+#   /opt/school/data/        база данных и файлы домашних заданий
+#   /opt/school/logs/        лог приложения
+# Пользователь: useradd --system --home /opt/school --shell /usr/sbin/nologin school
+
+[Unit]
+Description=Школьный электронный журнал
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=school
+Group=school
+WorkingDirectory=/opt/school
+ExecStart=/opt/school/server -config /opt/school/config.yaml
+Restart=on-failure
+RestartSec=5s
+
+# Штатная остановка: SIGTERM, приложение ждёт открытые запросы http.shutdown_timeout
+KillSignal=SIGTERM
+TimeoutStopSec=30s
+
+# Изоляция: вся файловая система только для чтения, кроме data и logs
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/school/data /opt/school/logs
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictRealtime=true
+LockPersonality=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
