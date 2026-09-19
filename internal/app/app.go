@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/backup"
 	"github.com/ruskiiamov/school/internal/config"
 	"github.com/ruskiiamov/school/internal/files"
 	"github.com/ruskiiamov/school/internal/journal"
@@ -95,7 +96,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		journal: journalService,
 		http: &http.Server{
 			Addr:         cfg.HTTP.Addr,
-			Handler:      server.New(cfg, authService, schoolService, journalService, log).Handler(),
+			Handler:      server.New(cfg, authService, schoolService, journalService, backup.New(cfg.DB.Path, store), log).Handler(),
 			ReadTimeout:  cfg.HTTP.ReadTimeout,
 			WriteTimeout: cfg.HTTP.WriteTimeout,
 			IdleTimeout:  cfg.HTTP.IdleTimeout,

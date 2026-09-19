@@ -209,12 +209,14 @@ README без участия автора. Срезы идут по порядк
    комментарий об этом); middleware `warnInsecureCookie` на внешнем mux
    один раз пишет `WARN`, если `session.secure: false`, а запрос пришёл с
    `X-Forwarded-Proto: https`; тесты `config` и `server`.
-2. **Резервная копия** — D-077: `internal/backup` (архив `tar.gz`:
-   `school.db` через `VACUUM INTO` отдельным соединением только на чтение
-   + каталог файлов ДЗ, стримом в `io.Writer`), страница `/admin/backup` с
-   кнопкой «Скачать», размером файлов и порядком восстановления, пункт
-   меню «Резервная копия»; тесты: архив с живой БД разворачивается и
-   открывается, чужой роли 404.
+2. **Резервная копия** — готов (2026-09-19, S-8.1, S-8.2, D-077):
+   `storage.BackupDatabase` (`VACUUM INTO` отдельным соединением
+   `mode=ro`), `internal/backup` (`Service.Usage`, `Prepare` → `Archive`
+   с копией БД во временном файле рядом с БД, `WriteTo` стримит `tar.gz`
+   с `school.db` и `files/<id>`, `Close` удаляет копию), страница
+   `/admin/backup` с кнопкой «Скачать архив», размером файлов и порядком
+   восстановления, `GET /admin/backup/download`, пункт меню «Резервная
+   копия»; тесты `backup` и `admin`.
 3. **`deploy/`** — `school.service` (пользователь `school`,
    `/opt/school`, `ProtectSystem=strict`, `ReadWritePaths` на `data` и
    `logs`, `Restart=on-failure`), `Caddyfile`, `nginx.conf`. Скрипт

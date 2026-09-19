@@ -30,6 +30,7 @@ const (
 	IconTrash     Icon = "trash"
 	IconSave      Icon = "save"
 	IconRestore   Icon = "restore"
+	IconArchive   Icon = "archive"
 )
 
 type User struct {
@@ -354,6 +355,12 @@ type PasswordResetRow struct {
 	ClassName string
 	Login     string
 	Action    string
+}
+
+type BackupPage struct {
+	Shell        Shell
+	DownloadPath string
+	Files        string
 }
 
 type PasswordResetPage struct {

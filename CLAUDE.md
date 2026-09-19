@@ -60,8 +60,9 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 Зависимости идут строго в одну сторону: `cmd/server` → `internal/app` →
 `internal/server` → {`server/admin`, `server/account`, `server/journal`,
 `server/diary`, `server/files`} → `server/web` → {`internal/auth`,
-`internal/school`, `internal/journal`} → {`internal/storage`,
-`internal/files`}. `auth`, `school` и `journal` друг о друге не знают;
+`internal/school`, `internal/journal`, `internal/backup`} →
+{`internal/storage`, `internal/files`}. `auth`, `school`, `journal` и
+`backup` друг о друге не знают;
 `internal/view` не знает ни о `server`, ни о сервисах; `storage` и `files`
 не знают о HTTP.
 
@@ -128,9 +129,14 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
     `activeUser`), по файлу на раздел (`classes.go`, `class_card.go`,
     `subjects.go`, `work_types.go`, `users.go`, `parent_children.go`,
     `password_reset.go`, `substitutions.go`, `transfer.go` — перевод
-    классов `/admin/classes/transfer`, обычная форма без HTMX), общие для
-    строчных списков `catalog.go` (`rowEdit`, `editingID`, `catalogListURL`)
-    и одноразовые пароли `created.go`.
+    классов `/admin/classes/transfer`, обычная форма без HTMX,
+    `backup.go` — страница `/admin/backup` и скачивание
+    `/admin/backup/download`: `backup.Prepare` до заголовков, чтобы ошибка
+    копии БД ушла как 500, затем `Content-Disposition: attachment` и
+    `Archive.WriteTo` в ответ с продлением дедлайна на
+    `files.transfer_timeout`; ошибка на середине потока только логируется),
+    общие для строчных списков `catalog.go` (`rowEdit`, `editingID`,
+    `catalogListURL`) и одноразовые пароли `created.go`.
   - `server/account` — вход, выход и свой пароль (`login.go`, `password.go`);
     `Routes` сам оборачивает `/account/password` в `RequireAuth` +
     `RequireRole` трёх ролей.
@@ -228,6 +234,13 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
   `*storage.*Repo`; ФИО учеников не знает — их подставляет обработчик из
   `auth.Users`. «Нет доступа» — `journal.ErrForbidden`, «не найдено» —
   `journal.ErrNotFound`; обработчик на оба отвечает 404.
+- `internal/backup` — резервная копия (D-077): `Service.Usage` (число и
+  размер файлов ДЗ через `files.Store.IDs`/`Open`), `Prepare(ctx)` снимает
+  копию БД во временный файл `backup-*.db` рядом с БД через
+  `storage.BackupDatabase` и возвращает `Archive`; `Archive.WriteTo`
+  стримит `tar.gz` с `school.db` и `files/<id>` (файлы, исчезнувшие между
+  `IDs` и `Open`, пропускаются), `Close` удаляет копию. CLI-подкоманды
+  `backup`/`restore` отложены; восстановление — руками по README.
 - `internal/validation` — `Errors map[string]string` (реализует `error`),
   `NormalizeSpaces`, `NormalizeLines` (многострочный текст: пробелы в
   строках схлопнуты, не больше одной пустой строки подряд),
@@ -245,7 +258,10 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
   `SetMaxOpenConns(1)` обращение к `db` изнутри транзакции повиснет.
   Календарные даты — `TEXT` `YYYY-MM-DD` через `toDate`/`fromDate`
   (`time.go`), открытый конец замены — NULL (`toNullDate`); в Go —
-  `time.Time` в UTC-полночь.
+  `time.Time` в UTC-полночь. `BackupDatabase(ctx, path, dst)`
+  (`backup.go`) открывает БД вторым соединением `mode=ro` и делает
+  `VACUUM INTO dst` — читатель в WAL не мешает писателю и не занимает
+  единственное соединение пула (D-077, D-078).
 - `internal/view` — view-модели (`models.go`), данные для них (`data.go`), форматирование
   (`format.go`); templ-шаблоны в `layout/`, `pages/`, `components/`; статика в
   `static/` через `embed.FS`.
@@ -309,6 +325,14 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 `CurrentYear()`, форма добавления только на вкладке текущего года
 (`CanCreate`), карточка `/admin/classes/{id}` — отдельная страница;
 образец — `admin/classes.go`.
+
+**Резервная копия (D-077).** `/admin/backup` — единственная страница
+админа без формы: текст о содержимом архива, размер файлов ДЗ
+(`view.Plural` + `view.FormatFileSize`), ссылка-кнопка «Скачать архив»
+на `GET /admin/backup/download` и порядок восстановления. Имя файла —
+`school-backup-YYYY-MM-DD.tar.gz` по `school.Today()`. Конфиг в архив не
+кладётся. `server.New` и `admin.New` принимают `*backup.Service`
+(собирается в `app` и `servertest` из `cfg.DB.Path` и `files.Store`).
 
 **Пользователи (D-045…D-048, D-056).** Три раздела
 `/admin/{teachers|students|parents}` обслуживает один набор обработчиков в

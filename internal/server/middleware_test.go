@@ -21,7 +21,7 @@ func TestPanicInPageIsLoggedAsRequest(t *testing.T) {
 
 	buf := &bytes.Buffer{}
 	log := slog.New(logger.NewContextHandler(slog.NewJSONHandler(buf, nil)))
-	s := New(&config.Config{}, nil, nil, nil, log)
+	s := New(&config.Config{}, nil, nil, nil, nil, log)
 
 	handler := chain(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		panic("boom")
@@ -69,7 +69,7 @@ func TestInsecureCookieWarnedOnceBehindHTTPSProxy(t *testing.T) {
 
 			buf := &bytes.Buffer{}
 			log := slog.New(slog.NewJSONHandler(buf, nil))
-			s := New(&config.Config{Session: config.Session{Secure: tt.secure}}, nil, nil, nil, log)
+			s := New(&config.Config{Session: config.Session{Secure: tt.secure}}, nil, nil, nil, nil, log)
 
 			handler := s.warnInsecureCookie(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNoContent)
