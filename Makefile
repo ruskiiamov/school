@@ -60,7 +60,7 @@ dist: generate css
 		name=school-$(VERSION)-linux-$$arch; \
 		mkdir -p $(DIST)/$$name; \
 		CGO_ENABLED=0 GOOS=linux GOARCH=$$arch go build -trimpath -ldflags='-s -w' -o $(DIST)/$$name/server ./cmd/server || exit 1; \
-		cp -r LICENSE deploy $(DIST)/$$name/; \
+		cp -r LICENSE README.md CHANGELOG.md deploy $(DIST)/$$name/; \
 		tar -C $(DIST) -czf $(DIST)/$$name.tar.gz $$name; \
 		rm -r $(DIST)/$$name; \
 	done
