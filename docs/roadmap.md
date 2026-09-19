@@ -226,9 +226,15 @@ README без участия автора. Срезы идут по порядк
    лимит загрузки, `X-Forwarded-Proto`, без буферизации, таймауты не
    меньше `transfer_timeout`). Скрипт бэкапа для cron появится вместе с
    `server backup` (D-077).
-4. **Релизы** — workflow `release.yml` по тегу `v*`: сборка
-   `linux/amd64` и `linux/arm64`, `SHA256SUMS`, GitHub Release с текстом
-   из `CHANGELOG.md`; первый тег `v0.1.0`.
+4. **Релизы** — готов (2026-09-19): `make dist` собирает
+   `dist/school-<версия>-linux-{amd64,arm64}.tar.gz` (`server`, `deploy/`,
+   `LICENSE`; `-trimpath -ldflags='-s -w'`) и `SHA256SUMS`; workflow
+   `release.yml` по тегу `v*` делает checkout с историей и тегами,
+   падает на грязном дереве (иначе версия `+dirty`), гонит `make check`,
+   `make dist VERSION=<тег>` и публикует GitHub Release через
+   `softprops/action-gh-release` с текстом раздела `## <тег>` из
+   `CHANGELOG.md`. Первый тег `v0.1.0` ставит пользователь после среза 5,
+   заменив «не выпущено» на дату.
 5. **Документы** — `README.md` (что это, требования, установка под
    systemd, прокси и TLS, первый вход, обновление, бэкап кнопкой,
    восстановление руками из архива, смена пароля админа), `SECURITY.md`, `CHANGELOG.md`, сверка `CLAUDE.md`

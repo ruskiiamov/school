@@ -24,7 +24,10 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 реализацией сверяться с ними; новое решение — новая запись в `decisions.md`.
 
 Лицензия — MIT (`LICENSE`). CI — `.github/workflows/check.yml`: `make tools`
-и `make check` на каждый push и pull request. Примеры для установки в
+и `make check` на каждый push и pull request; `release.yml` по тегу `v*`
+собирает `make dist VERSION=<тег>` и публикует GitHub Release с текстом
+раздела `## <тег>` из `CHANGELOG.md` (раздел заводить до тега, D-079 —
+версия бинарника берётся из тега сама). Примеры для установки в
 школе — `deploy/` (D-075): `school.service`, `config.yaml` для работы за
 прокси, `Caddyfile`, `nginx.conf`; их правят вместе с конфигом и лимитами
 (`client_max_body_size` в nginx = `max_file_size_mb × max_per_lesson` с
@@ -41,6 +44,7 @@ make test      # generate + go test -race ./...
 make lint      # generate + go tool golangci-lint run
 make fmt       # go tool golangci-lint fmt
 make check     # fmt --diff + lint + test (прогонять перед коммитом)
+make dist      # архивы релиза под linux/amd64 и arm64 + SHA256SUMS в dist/
 ```
 
 Один тест: `make generate` (один раз, если `*_templ.go` отсутствуют), затем
@@ -53,7 +57,7 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
 ## Генерируемые файлы
 
 Не редактировать и не коммитить: `internal/view/**/*_templ.go`,
-`internal/view/static/css/app.css`, `bin/`, `data/`, `logs/`, `config.yaml`
+`internal/view/static/css/app.css`, `bin/`, `dist/`, `data/`, `logs/`, `config.yaml`
 (шаблон — `config.example.yaml`). Правки идут в `.templ` и `css/input.css`;
 `make generate` / `make css` пересобирают остальное. Tailwind сканирует классы
 через `@source "../../../view"` в `input.css` — это значит и `.templ`, и

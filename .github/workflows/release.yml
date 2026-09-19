@@ -1,0 +1,40 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: make bin/tailwindcss
+      - name: Fail on a dirty tree (the binary would get a +dirty version)
+        run: |
+          git status --porcelain
+          test -z "$(git status --porcelain)"
+      - run: make check
+      - run: make dist VERSION=${{ github.ref_name }}
+      - name: Release notes from CHANGELOG.md
+        run: |
+          awk -v tag="${{ github.ref_name }}" '
+            /^## / { printing = index($0, "## " tag) == 1 }
+            printing && !/^## / { print }
+          ' CHANGELOG.md > dist/notes.md
+          test -s dist/notes.md || echo "См. CHANGELOG.md." > dist/notes.md
+          cat dist/notes.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: dist/notes.md
+          files: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
