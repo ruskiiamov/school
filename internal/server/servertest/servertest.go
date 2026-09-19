@@ -63,7 +63,7 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 		School:   config.School{Name: "Школа №1", YearStartMonth: time.August},
 		Session:  config.Session{CookieName: "sid", TTL: time.Hour},
 		Files:    config.Files{Dir: t.TempDir(), MaxFileSizeMB: 1, MaxPerLesson: 3, TransferTimeout: time.Minute},
-		Admin:    config.Admin{Login: AdminLogin, Password: AdminPassword, FullName: "Иванова Мария Петровна"},
+		Admin:    config.Admin{Login: AdminLogin, Password: AdminPassword, LastName: "Иванова", FirstName: "Мария", MiddleName: "Петровна"},
 		Location: time.UTC,
 	}
 
@@ -105,14 +105,43 @@ func (env *Env) CreateUser(t *testing.T, role auth.Role, login, fullName string)
 	hash, err := bcrypt.GenerateFromPassword([]byte(login+"-password"), bcrypt.MinCost)
 	require.NoError(t, err)
 
+	name := Name(fullName)
+
 	_, err = storage.NewUserRepo(env.DB).Create(t.Context(), storage.User{
 		Login:        login,
 		PasswordHash: string(hash),
-		FullName:     fullName,
+		LastName:     name.Last,
+		FirstName:    name.First,
+		MiddleName:   name.Middle,
 		Role:         string(role),
 		Active:       true,
 	})
 	require.NoError(t, err)
+}
+
+func Name(fullName string) auth.Name {
+	parts := strings.Fields(fullName)
+	name := auth.Name{}
+
+	if len(parts) > 0 {
+		name.Last = parts[0]
+	}
+
+	if len(parts) > 1 {
+		name.First = parts[1]
+	}
+
+	if len(parts) > 2 {
+		name.Middle = strings.Join(parts[2:], " ")
+	}
+
+	return name
+}
+
+func NameForm(fullName string) url.Values {
+	name := Name(fullName)
+
+	return url.Values{"last_name": {name.Last}, "first_name": {name.First}, "middle_name": {name.Middle}}
 }
 
 func (env *Env) LoginAs(t *testing.T, login string) *http.Cookie {

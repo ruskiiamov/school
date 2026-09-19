@@ -33,11 +33,11 @@ func TestClassAssignmentsAssignReplaceRemove(t *testing.T) {
 	history := createSubject(t, env, admin, "История")
 	drawing := createSubject(t, env, admin, "Черчение")
 	require.NoError(t, env.School.SetSubjectActive(t.Context(), drawing, false))
-	anna, _ := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Сидорова Анна"}})
-	viktor, _ := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Кузнецов Виктор"}})
-	gone, _ := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Ушедший Учитель"}})
+	anna, _ := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Сидорова Анна"))
+	viktor, _ := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Кузнецов Виктор"))
+	gone, _ := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Ушедший Учитель"))
 	require.NoError(t, env.Auth.SetUserActive(t.Context(), gone, false))
-	student, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Кузнецов Олег"}})
+	student, _ := createUserVia(t, env, admin, "/admin/students", servertest.NameForm("Кузнецов Олег"))
 
 	card := servertest.Get(t, env.Handler, classPathFor(class, ""), admin).Body.String()
 	assert.Contains(t, card, "Предметы пока не назначены")
@@ -134,7 +134,7 @@ func TestClassAssignmentsHtmxFragment(t *testing.T) {
 
 	class := createClass(t, env, admin, current, "7А")
 	algebra := createSubject(t, env, admin, "Алгебра")
-	anna, _ := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Сидорова Анна"}})
+	anna, _ := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Сидорова Анна"))
 
 	assigned := servertest.PostForm(t, env.Handler, classPathFor(class, "/assignments"), assignForm(algebra, anna), []*http.Cookie{admin}, htmx)
 	assert.Equal(t, http.StatusOK, assigned.Code)
@@ -168,7 +168,7 @@ func TestClassAssignmentsNeedSubjectsAndTeachers(t *testing.T) {
 	card = servertest.Get(t, env.Handler, classPathFor(class, ""), admin).Body.String()
 	assert.Contains(t, card, "Нужны активные предметы и учителя")
 
-	createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Сидорова Анна"}})
+	createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Сидорова Анна"))
 
 	card = servertest.Get(t, env.Handler, classPathFor(class, ""), admin).Body.String()
 	assert.NotContains(t, card, "Нужны активные предметы и учителя")

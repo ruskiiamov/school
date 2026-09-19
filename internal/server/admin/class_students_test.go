@@ -27,11 +27,11 @@ func TestClassStudentsAddAndRemove(t *testing.T) {
 
 	classA := createClass(t, env, admin, current, "7А")
 	classB := createClass(t, env, admin, current, "7Б")
-	free, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Кузнецов Олег"}})
-	inB, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Петров Иван"}, "class": {strconv.FormatInt(classB, 10)}})
-	gone, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Смирнова Мария"}})
+	free, _ := createUserVia(t, env, admin, "/admin/students", servertest.NameForm("Кузнецов Олег"))
+	inB, _ := createUserVia(t, env, admin, "/admin/students", withNameFields(url.Values{"full_name": {"Петров Иван"}, "class": {strconv.FormatInt(classB, 10)}}))
+	gone, _ := createUserVia(t, env, admin, "/admin/students", servertest.NameForm("Смирнова Мария"))
 	require.NoError(t, env.Auth.SetUserActive(t.Context(), gone, false))
-	teacher, _ := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Сидорова Анна"}})
+	teacher, _ := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Сидорова Анна"))
 
 	card := servertest.Get(t, env.Handler, classPathFor(classA, ""), admin)
 	require.Equal(t, http.StatusOK, card.Code)
@@ -104,8 +104,8 @@ func TestClassStudentsHtmxFragment(t *testing.T) {
 
 	classA := createClass(t, env, admin, current, "7А")
 	classB := createClass(t, env, admin, current, "7Б")
-	free, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Кузнецов Олег"}})
-	inB, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Петров Иван"}, "class": {strconv.FormatInt(classB, 10)}})
+	free, _ := createUserVia(t, env, admin, "/admin/students", servertest.NameForm("Кузнецов Олег"))
+	inB, _ := createUserVia(t, env, admin, "/admin/students", withNameFields(url.Values{"full_name": {"Петров Иван"}, "class": {strconv.FormatInt(classB, 10)}}))
 
 	added := servertest.PostForm(t, env.Handler, classPathFor(classA, "/students"), studentForm(free), []*http.Cookie{admin}, htmx)
 	assert.Equal(t, http.StatusOK, added.Code)
@@ -136,7 +136,7 @@ func TestClassStudentsReadOnlyOutsideCurrentYear(t *testing.T) {
 	past := createPastClass(t, env, current-1, "6А")
 	closed := createClass(t, env, admin, current, "7А")
 	require.NoError(t, env.School.SetClassActive(t.Context(), closed, false))
-	student, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Кузнецов Олег"}})
+	student, _ := createUserVia(t, env, admin, "/admin/students", servertest.NameForm("Кузнецов Олег"))
 	require.NoError(t, storage.NewClassStudentRepo(env.DB).Add(t.Context(), past, student))
 
 	for _, id := range []int64{past, closed} {
@@ -175,7 +175,7 @@ func TestClassCardActionsHiddenFromOtherRoles(t *testing.T) {
 	current := env.School.CurrentYear()
 
 	class := createClass(t, env, admin, current, "7А")
-	student, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Кузнецов Олег"}})
+	student, _ := createUserVia(t, env, admin, "/admin/students", servertest.NameForm("Кузнецов Олег"))
 
 	for _, path := range []string{
 		classPathFor(class, "/students"),

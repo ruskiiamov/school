@@ -77,15 +77,19 @@ templ UsersPage(page view.UsersPage) {
 
 templ userFields(fields view.UserFields, isNew bool) {
 	if isNew {
-		@components.RowInput("full_name", fields.FullName, "ФИО нового пользователя", "ФИО", fields.Errors["full_name"], "flex-1 basis-56")
+		@components.RowInput("last_name", fields.LastName, "Фамилия", "Фамилия", fields.Errors["last_name"], "flex-1 basis-40")
+		@components.RowInput("first_name", fields.FirstName, "Имя", "Имя", fields.Errors["first_name"], "flex-1 basis-36")
+		@components.RowInput("middle_name", fields.MiddleName, "Отчество (необязательно)", "Отчество", fields.Errors["middle_name"], "flex-1 basis-52")
 	} else {
-		@components.RowInput("full_name", fields.FullName, "ФИО", "ФИО", fields.Errors["full_name"], "flex-1 basis-52")
+		@components.RowInput("last_name", fields.LastName, "Фамилия", "Фамилия", fields.Errors["last_name"], "flex-1 basis-32")
+		@components.RowInput("first_name", fields.FirstName, "Имя", "Имя", fields.Errors["first_name"], "flex-1 basis-28")
+		@components.RowInput("middle_name", fields.MiddleName, "Отчество", "Отчество", fields.Errors["middle_name"], "flex-1 basis-36")
 	}
 	if len(fields.Classes) > 0 {
 		@components.RowSelect("class", "Класс", fields.Classes, fields.Errors["class"], "basis-36 shrink-0")
 	}
 	if !isNew {
-		@components.RowInput("login", fields.Login, "Логин", "Логин", fields.Errors["login"], "flex-1 basis-44")
+		@components.RowInput("login", fields.Login, "Логин", "Логин", fields.Errors["login"], "flex-1 basis-36")
 	}
 }
 

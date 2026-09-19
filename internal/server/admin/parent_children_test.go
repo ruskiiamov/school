@@ -39,12 +39,12 @@ func TestParentChildrenInEditRow(t *testing.T) {
 	current := env.School.CurrentYear()
 
 	class := createClass(t, env, admin, current, "7А")
-	parent, _ := createUserVia(t, env, admin, "/admin/parents", url.Values{"full_name": {"Иванова Мария"}})
-	other, _ := createUserVia(t, env, admin, "/admin/parents", url.Values{"full_name": {"Иванов Сергей"}})
-	petr, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Иванов Пётр"}, "class": {strconv.FormatInt(class, 10)}})
-	anna, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Иванова Анна"}})
-	createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Петров Иван"}})
-	teacher, _ := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Сидорова Анна"}})
+	parent, _ := createUserVia(t, env, admin, "/admin/parents", servertest.NameForm("Иванова Мария"))
+	other, _ := createUserVia(t, env, admin, "/admin/parents", servertest.NameForm("Иванов Сергей"))
+	petr, _ := createUserVia(t, env, admin, "/admin/students", withNameFields(url.Values{"full_name": {"Иванов Пётр"}, "class": {strconv.FormatInt(class, 10)}}))
+	anna, _ := createUserVia(t, env, admin, "/admin/students", servertest.NameForm("Иванова Анна"))
+	createUserVia(t, env, admin, "/admin/students", servertest.NameForm("Петров Иван"))
+	teacher, _ := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Сидорова Анна"))
 
 	list := servertest.Get(t, env.Handler, "/admin/parents", admin).Body.String()
 	assert.Contains(t, list, "нет детей")
@@ -56,7 +56,7 @@ func TestParentChildrenInEditRow(t *testing.T) {
 	assert.Contains(t, edit, `id="child-search" hx-preserve`)
 	assert.Contains(t, edit, `name="edit" value="`+strconv.FormatInt(parent, 10)+`"`)
 	assert.Contains(t, edit, `action="/admin/parents" hx-get="/admin/parents"`)
-	assert.Contains(t, edit, `value="Иванова Мария"`)
+	assert.Contains(t, edit, `name="last_name" value="Иванова"`)
 	assert.NotContains(t, edit, "Ничего не найдено")
 	assert.Equal(t, 1, strings.Count(edit, "Дети</h3>"))
 
@@ -104,7 +104,7 @@ func TestParentChildrenInEditRow(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rejected.Code, name)
 		assert.Contains(t, rejected.Body.String(), "<html", name)
 		assert.Contains(t, rejected.Body.String(), "Такого ученика нет", name)
-		assert.Contains(t, rejected.Body.String(), `value="Иванова Мария"`, name)
+		assert.Contains(t, rejected.Body.String(), `name="last_name" value="Иванова"`, name)
 	}
 
 	remove := childrenPath(parent, "/"+strconv.FormatInt(petr, 10)+"/remove", "")
@@ -125,8 +125,8 @@ func TestParentChildrenHtmxFragment(t *testing.T) {
 	admin := servertest.Login(t, env.Handler)
 	htmx := map[string]string{"HX-Request": "true"}
 
-	parent, _ := createUserVia(t, env, admin, "/admin/parents", url.Values{"full_name": {"Иванова Мария"}})
-	petr, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Иванов Пётр"}})
+	parent, _ := createUserVia(t, env, admin, "/admin/parents", servertest.NameForm("Иванова Мария"))
+	petr, _ := createUserVia(t, env, admin, "/admin/students", servertest.NameForm("Иванов Пётр"))
 
 	added := servertest.PostForm(t, env.Handler, childrenPath(parent, "", ""), studentForm(petr), []*http.Cookie{admin}, htmx)
 	assert.Equal(t, http.StatusOK, added.Code)
@@ -154,8 +154,8 @@ func TestParentChildrenRejectForeignSectionsAndRoles(t *testing.T) {
 	env.CreateUser(t, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
 	teacher := env.LoginAs(t, "teacher")
 
-	parent, _ := createUserVia(t, env, admin, "/admin/parents", url.Values{"full_name": {"Иванова Мария"}})
-	petr, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Иванов Пётр"}})
+	parent, _ := createUserVia(t, env, admin, "/admin/parents", servertest.NameForm("Иванова Мария"))
+	petr, _ := createUserVia(t, env, admin, "/admin/students", servertest.NameForm("Иванов Пётр"))
 
 	for _, path := range []string{
 		userPathFor("/admin/teachers", parent, "/children"),

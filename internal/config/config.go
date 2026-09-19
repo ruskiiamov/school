@@ -80,9 +80,11 @@ func (f Files) MaxFileSize() int64 {
 }
 
 type Admin struct {
-	Login    string `yaml:"login"`
-	Password string `yaml:"password"`
-	FullName string `yaml:"full_name"`
+	Login      string `yaml:"login"`
+	Password   string `yaml:"password"`
+	LastName   string `yaml:"last_name"`
+	FirstName  string `yaml:"first_name"`
+	MiddleName string `yaml:"middle_name"`
 }
 
 type Level slog.Level
@@ -190,7 +192,8 @@ func (c *Config) validate() error {
 	require(c.Admin.Login != "", "admin.login is empty")
 	require(c.Admin.Password != "", "admin.password is empty")
 	require(c.Admin.Password != adminExampleValue, "admin.password is the example value, set your own")
-	require(c.Admin.FullName != "", "admin.full_name is empty")
+	require(c.Admin.LastName != "", "admin.last_name is empty")
+	require(c.Admin.FirstName != "", "admin.first_name is empty")
 
 	return errors.Join(problems...)
 }

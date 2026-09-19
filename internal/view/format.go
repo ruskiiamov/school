@@ -53,9 +53,14 @@ func ShortName(fullName string) string {
 		return fullName
 	}
 
-	initial, _ := utf8.DecodeRuneInString(parts[1])
+	short := parts[0]
 
-	return parts[0] + " " + string(initial) + "."
+	for _, part := range parts[1:] {
+		initial, _ := utf8.DecodeRuneInString(part)
+		short += " " + string(initial) + "."
+	}
+
+	return short
 }
 
 func RoleTitle(role string) string {

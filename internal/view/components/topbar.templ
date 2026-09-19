@@ -18,7 +18,7 @@ templ Topbar(schoolName string, user view.User) {
 			<span class="truncate text-base font-semibold text-slate-900 lg:text-lg">{ schoolName }</span>
 			<div class="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
 				<span class="hidden flex-col text-right leading-tight sm:flex">
-					<span class="text-sm font-medium text-slate-900">{ user.FullName }</span>
+					<span class="text-sm font-medium text-slate-900">{ user.ShortName }</span>
 					<span class="text-xs text-slate-500">{ user.Role }</span>
 				</span>
 				<form method="post" action="/logout" hx-post="/logout">

@@ -31,7 +31,7 @@ func newTestService(t *testing.T, ttl time.Duration) (*Service, *sql.DB) {
 }
 
 func adminConfig() config.Admin {
-	return config.Admin{Login: "admin", Password: "secret", FullName: "Администратор"}
+	return config.Admin{Login: "admin", Password: "secret", LastName: "Иванова", FirstName: "Мария", MiddleName: "Петровна"}
 }
 
 func TestEnsureAdminCreatesUser(t *testing.T) {
@@ -50,7 +50,7 @@ func TestEnsureAdminCreatesUser(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "admin", user.Login)
 	assert.Equal(t, RoleAdmin, user.Role)
-	assert.Equal(t, "Администратор", user.FullName)
+	assert.Equal(t, "Иванова Мария Петровна", user.FullName)
 }
 
 func TestEnsureAdminUpdatesPasswordAndDropsSessions(t *testing.T) {
@@ -224,4 +224,25 @@ func countSessions(t *testing.T, db *sql.DB) int {
 	require.NoError(t, db.QueryRow("SELECT count(*) FROM sessions").Scan(&count))
 
 	return count
+}
+
+func TestEnsureAdminUpdatesNameFromConfig(t *testing.T) {
+	t.Parallel()
+
+	svc, _ := newTestService(t, time.Hour)
+	ctx := t.Context()
+
+	cfg := adminConfig()
+	require.NoError(t, svc.EnsureAdmin(ctx, cfg))
+
+	cfg.LastName, cfg.MiddleName = "Петрова", ""
+	require.NoError(t, svc.EnsureAdmin(ctx, cfg))
+
+	session, err := svc.Login(ctx, cfg.Login, cfg.Password)
+	require.NoError(t, err)
+
+	user, err := svc.Authenticate(ctx, session.ID)
+	require.NoError(t, err)
+	assert.Equal(t, Name{Last: "Петрова", First: "Мария"}, user.Name)
+	assert.Equal(t, "Петрова Мария", user.FullName)
 }

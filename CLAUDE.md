@@ -95,7 +95,9 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
   от рабочего каталога (D-076); `admin.password` со значением из
   `config.example.yaml` (`change-me`) отвергается — сервер не стартует. Профилей окружения (`app.env`,
   `dev`/`prod`) нет и не вводить: каждое поведение — отдельное явное поле конфига.
-  `timezone` проверяется через `time.LoadLocation` и отдаётся как `Config.Location`;
+  ФИО админа — `admin.last_name`, `admin.first_name` (обязательны) и
+  `admin.middle_name`; `EnsureAdmin` при старте приводит к ним ФИО в БД,
+  как и пароль (D-084). `timezone` проверяется через `time.LoadLocation` и отдаётся как `Config.Location`;
   `cmd/server` импортирует `time/tzdata`, чтобы статический бинарник не зависел
   от системных zoneinfo. `school.year_start_month` — номер месяца (1–12), год начинается с его первого числа.
   `journal.cleanup_interval` — период уборки осиротевших строк журнала.
@@ -283,6 +285,13 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
 
 **Три отдельных типа пользователя.** `storage.User` (строка таблицы, с хешем пароля),
 `auth.User` (домен, с типизированной `Role`), `view.User` (только то, что рисуется).
+ФИО — три поля (D-084): `last_name`, `first_name`, необязательное
+`middle_name`; в домене `auth.Name{Last, First, Middle}` и производное
+`auth.User.FullName` (`Name.Full()`), в `view.User` — `ShortName`
+(«Сидорова А. А.», `view.ShortName` даёт инициалы всех слов после первого)
+и `Greeting` («Анна Андреевна», без имени — полное ФИО). Формы
+пользователей шлют `last_name`/`first_name`/`middle_name`, ключи ошибок те
+же; в тестах — `servertest.Name("Ф И О")` и `servertest.NameForm`.
 Конвертация на границах: `auth.toUser`, `web.toViewUser` (внутри `Shell`). Не протаскивать
 `storage.User` в шаблоны и не добавлять в `view.*` поля, которых не должно быть в HTML.
 Русские подписи ролей — в `view.RoleTitle`, `auth.Role` знает только коды.

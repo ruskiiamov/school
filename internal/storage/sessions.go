@@ -37,7 +37,7 @@ func (r *SessionRepo) Create(ctx context.Context, session Session) error {
 
 func (r *SessionRepo) ByID(ctx context.Context, id string) (Session, User, error) {
 	const query = `SELECT s.id, s.user_id, s.created_at, s.expires_at,
-		u.id, u.login, u.password_hash, u.full_name, u.role, u.active, u.created_at, u.updated_at
+		u.id, u.login, u.password_hash, u.last_name, u.first_name, u.middle_name, u.role, u.active, u.created_at, u.updated_at
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.id = ?`
 
@@ -52,7 +52,7 @@ func (r *SessionRepo) ByID(ctx context.Context, id string) (Session, User, error
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&session.ID, &session.UserID, &sessionCreatedAt, &expiresAt,
-		&user.ID, &user.Login, &user.PasswordHash, &user.FullName, &user.Role, &user.Active,
+		&user.ID, &user.Login, &user.PasswordHash, &user.LastName, &user.FirstName, &user.MiddleName, &user.Role, &user.Active,
 		&userCreatedAt, &userUpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {

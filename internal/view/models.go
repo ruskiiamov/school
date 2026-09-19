@@ -34,8 +34,9 @@ const (
 )
 
 type User struct {
-	FullName string
-	Role     string
+	ShortName string
+	Greeting  string
+	Role      string
 }
 
 type NavItem struct {
@@ -325,10 +326,12 @@ type Option struct {
 }
 
 type UserFields struct {
-	FullName string
-	Login    string
-	Classes  []Option
-	Errors   map[string]string
+	LastName   string
+	FirstName  string
+	MiddleName string
+	Login      string
+	Classes    []Option
+	Errors     map[string]string
 }
 
 type ChildrenBlock struct {

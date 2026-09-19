@@ -47,8 +47,18 @@ func (b *Base) Shell(r *http.Request, title, active string) view.Shell {
 }
 
 func toViewUser(user auth.User) view.User {
+	greeting := user.Name.First
+	if user.Name.Middle != "" {
+		greeting += " " + user.Name.Middle
+	}
+
+	if greeting == "" {
+		greeting = user.FullName
+	}
+
 	return view.User{
-		FullName: user.FullName,
-		Role:     view.RoleTitle(string(user.Role)),
+		ShortName: view.ShortName(user.FullName),
+		Greeting:  greeting,
+		Role:      view.RoleTitle(string(user.Role)),
 	}
 }

@@ -45,7 +45,8 @@ func TestHomeRendersDashboardForAuthenticatedUser(t *testing.T) {
 	body := recorder.Body.String()
 
 	assert.Equal(t, http.StatusOK, recorder.Code)
-	assert.Contains(t, body, "Здравствуйте, Иванова Мария Петровна")
+	assert.Contains(t, body, "Здравствуйте, Мария Петровна")
+	assert.Contains(t, body, "Иванова М. П.")
 	assert.Contains(t, body, "Администратор")
 	assert.Contains(t, body, `href="/admin/classes"`)
 	assert.Contains(t, body, "Типы работ")
