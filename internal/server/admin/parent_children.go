@@ -77,7 +77,7 @@ func (h *Handler) childrenDone(w http.ResponseWriter, r *http.Request, parentID 
 func (h *Handler) renderChildrenError(w http.ResponseWriter, r *http.Request, parent auth.User, errs validation.Errors) {
 	edit := userEdit{
 		id:      parent.ID,
-		form:    userForm{fullName: parent.FullName, login: parent.Login},
+		form:    userForm{name: parent.Name, login: parent.Login},
 		entered: true,
 		errs:    errs,
 	}

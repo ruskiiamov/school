@@ -41,3 +41,21 @@ func TestPlural(t *testing.T) {
 	assert.Equal(t, "22 файла", Plural(22, "файл", "файла", "файлов"))
 	assert.Equal(t, "5 файлов", Plural(5, "файл", "файла", "файлов"))
 }
+
+func TestShortNameKeepsSurnameAndInitials(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		fullName string
+		want     string
+	}{
+		{"Сидорова Анна Андреевна", "Сидорова А. А."},
+		{"Петров Иван", "Петров И."},
+		{"Администратор", "Администратор"},
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, ShortName(tt.fullName))
+	}
+}

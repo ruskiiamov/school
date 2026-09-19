@@ -24,15 +24,11 @@ var (
 	}
 )
 
-func SuggestLogin(fullName string) string {
-	parts := strings.Fields(fullName)
-	if len(parts) == 0 {
-		return fallbackLogin
-	}
+func SuggestLogin(name Name) string {
+	login := translit(name.Last)
 
-	login := translit(parts[0])
-	if len(parts) > 1 {
-		first, _ := utf8.DecodeRuneInString(parts[1])
+	if name.First != "" {
+		first, _ := utf8.DecodeRuneInString(name.First)
 		if initial := translit(string(first)); initial != "" {
 			login += "." + initial
 		}

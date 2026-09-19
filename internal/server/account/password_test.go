@@ -152,6 +152,6 @@ func TestAccountPasswordIsHiddenFromAdminAndAnonymous(t *testing.T) {
 
 	home := servertest.Get(t, env.Handler, "/", admin).Body.String()
 	assert.NotContains(t, home, `href="/account/password"`)
-	assert.Contains(t, home, "Иванова Мария Петровна")
+	assert.Contains(t, home, "Иванова М. П.")
 	assert.Contains(t, home, "Администратор")
 }

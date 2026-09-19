@@ -12,7 +12,9 @@ type User struct {
 	ID           int64
 	Login        string
 	PasswordHash string
-	FullName     string
+	LastName     string
+	FirstName    string
+	MiddleName   string
 	Role         string
 	Active       bool
 	CreatedAt    time.Time
@@ -27,7 +29,7 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 	return &UserRepo{db: db}
 }
 
-const userColumns = "id, login, password_hash, full_name, role, active, created_at, updated_at"
+const userColumns = "id, login, password_hash, last_name, first_name, middle_name, role, active, created_at, updated_at"
 
 func (r *UserRepo) ByLogin(ctx context.Context, login string) (User, error) {
 	const query = "SELECT " + userColumns + " FROM users WHERE login = ?"
@@ -41,13 +43,13 @@ func (r *UserRepo) ByLogin(ctx context.Context, login string) (User, error) {
 }
 
 func (r *UserRepo) Create(ctx context.Context, user User) (int64, error) {
-	const query = `INSERT INTO users (login, password_hash, full_name, role, active, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`
+	const query = `INSERT INTO users (login, password_hash, last_name, first_name, middle_name, role, active, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	now := toMillis(time.Now())
 
 	result, err := r.db.ExecContext(ctx, query,
-		user.Login, user.PasswordHash, user.FullName, user.Role, user.Active, now, now)
+		user.Login, user.PasswordHash, user.LastName, user.FirstName, user.MiddleName, user.Role, user.Active, now, now)
 	if err != nil {
 		return 0, fmt.Errorf("insert user: %w", err)
 	}
@@ -87,7 +89,7 @@ func (r *UserRepo) ListByRole(ctx context.Context, role string, includeInactive 
 		query += " AND active = 1"
 	}
 
-	query += " ORDER BY full_name, id"
+	query += " ORDER BY last_name, first_name, middle_name, id"
 
 	rows, err := r.db.QueryContext(ctx, query, role)
 	if err != nil {
@@ -113,10 +115,12 @@ func (r *UserRepo) ListByRole(ctx context.Context, role string, includeInactive 
 	return users, nil
 }
 
-func (r *UserRepo) Update(ctx context.Context, id int64, login, fullName string) error {
-	const query = "UPDATE users SET login = ?, full_name = ?, updated_at = ? WHERE id = ?"
+func (r *UserRepo) Update(ctx context.Context, user User) error {
+	const query = `UPDATE users SET login = ?, last_name = ?, first_name = ?, middle_name = ?, updated_at = ?
+		WHERE id = ?`
 
-	result, err := r.db.ExecContext(ctx, query, login, fullName, toMillis(time.Now()), id)
+	result, err := r.db.ExecContext(ctx, query,
+		user.Login, user.LastName, user.FirstName, user.MiddleName, toMillis(time.Now()), user.ID)
 	if err != nil {
 		return fmt.Errorf("update user: %w", err)
 	}
@@ -195,8 +199,8 @@ func scanUser(row scanner) (User, error) {
 		updatedAt int64
 	)
 
-	err := row.Scan(&user.ID, &user.Login, &user.PasswordHash, &user.FullName, &user.Role, &user.Active,
-		&createdAt, &updatedAt)
+	err := row.Scan(&user.ID, &user.Login, &user.PasswordHash, &user.LastName, &user.FirstName, &user.MiddleName,
+		&user.Role, &user.Active, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, ErrNotFound
 	}

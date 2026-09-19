@@ -42,4 +42,7 @@ admin:
   login: admin
   # обязательно замените: с этим значением сервер не запустится
   password: change-me
-  full_name: Администратор
+  last_name: Иванова
+  first_name: Мария
+  # отчество можно не указывать
+  middle_name: Петровна

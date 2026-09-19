@@ -64,7 +64,7 @@ func TestLoadKeepsAbsolutePaths(t *testing.T) {
 	t.Parallel()
 
 	logFile := filepath.Join(t.TempDir(), "elsewhere", "app.log")
-	cfg, err := Load(writeConfig(t, "db:\n  path: ./x.db\nlog:\n  file: "+logFile+"\nfiles:\n  dir: ./x\nadmin:\n  login: a\n  password: p\n  full_name: n\n"))
+	cfg, err := Load(writeConfig(t, "db:\n  path: ./x.db\nlog:\n  file: "+logFile+"\nfiles:\n  dir: ./x\nadmin:\n  login: a\n  password: p\n  last_name: l\n  first_name: f\n"))
 	require.NoError(t, err)
 
 	assert.Equal(t, logFile, cfg.Log.File)
@@ -75,7 +75,7 @@ func TestLoadKeepsAbsolutePaths(t *testing.T) {
 func TestLoadYearStartMonth(t *testing.T) {
 	t.Parallel()
 
-	cfg, err := Load(writeConfig(t, "school:\n  year_start_month: 9\ndb:\n  path: ./x.db\nlog:\n  file: ./x.log\nfiles:\n  dir: ./x\nadmin:\n  login: a\n  password: p\n  full_name: n\n"))
+	cfg, err := Load(writeConfig(t, "school:\n  year_start_month: 9\ndb:\n  path: ./x.db\nlog:\n  file: ./x.log\nfiles:\n  dir: ./x\nadmin:\n  login: a\n  password: p\n  last_name: l\n  first_name: f\n"))
 	require.NoError(t, err)
 
 	assert.Equal(t, time.September, cfg.School.YearStartMonth)
@@ -91,12 +91,12 @@ func TestLoadInvalid(t *testing.T) {
 	}{
 		{
 			name: "missing admin login",
-			body: "db:\n  path: ./x.db\nlog:\n  file: ./x.log\nadmin:\n  password: p\n  full_name: n\n",
+			body: "db:\n  path: ./x.db\nlog:\n  file: ./x.log\nadmin:\n  password: p\n  last_name: l\n  first_name: f\n",
 			want: "admin.login is empty",
 		},
 		{
 			name: "zero session ttl",
-			body: "db:\n  path: ./x.db\nlog:\n  file: ./x.log\nsession:\n  ttl: 0s\nadmin:\n  login: a\n  password: p\n  full_name: n\n",
+			body: "db:\n  path: ./x.db\nlog:\n  file: ./x.log\nsession:\n  ttl: 0s\nadmin:\n  login: a\n  password: p\n  last_name: l\n  first_name: f\n",
 			want: "session.ttl must be positive",
 		},
 		{
@@ -116,7 +116,7 @@ func TestLoadInvalid(t *testing.T) {
 		},
 		{
 			name: "missing files dir",
-			body: "db:\n  path: ./x.db\nlog:\n  file: ./x.log\nadmin:\n  login: a\n  password: p\n  full_name: n\n",
+			body: "db:\n  path: ./x.db\nlog:\n  file: ./x.log\nadmin:\n  login: a\n  password: p\n  last_name: l\n  first_name: f\n",
 			want: "files.dir is empty",
 		},
 		{
@@ -126,7 +126,7 @@ func TestLoadInvalid(t *testing.T) {
 		},
 		{
 			name: "example admin password",
-			body: "db:\n  path: ./x.db\nlog:\n  file: ./x.log\nfiles:\n  dir: ./x\nadmin:\n  login: a\n  password: change-me\n  full_name: n\n",
+			body: "db:\n  path: ./x.db\nlog:\n  file: ./x.log\nfiles:\n  dir: ./x\nadmin:\n  login: a\n  password: change-me\n  last_name: l\n  first_name: f\n",
 			want: "admin.password is the example value, set your own",
 		},
 		{

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -16,7 +17,7 @@ func TestCreateUserGeneratesLoginAndPassword(t *testing.T) {
 	svc, _ := newTestService(t, time.Hour)
 	ctx := t.Context()
 
-	first, err := svc.CreateUser(ctx, NewUser{Role: RoleStudent, FullName: " Иванова   Мария Петровна "})
+	first, err := svc.CreateUser(ctx, NewUser{Role: RoleStudent, Name: Name{Last: "Иванова", First: "Мария", Middle: "Петровна"}})
 	require.NoError(t, err)
 	assert.Equal(t, "ivanova.m", first.User.Login)
 	assert.Equal(t, "Иванова Мария Петровна", first.User.FullName)
@@ -25,11 +26,11 @@ func TestCreateUserGeneratesLoginAndPassword(t *testing.T) {
 	assert.Len(t, first.Password, generatedPasswordLength)
 	assert.Regexp(t, "^[a-zA-Z0-9]+$", first.Password)
 
-	second, err := svc.CreateUser(ctx, NewUser{Role: RoleParent, FullName: "Иванова Марина"})
+	second, err := svc.CreateUser(ctx, NewUser{Role: RoleParent, Name: Name{Last: "Иванова", First: "Марина"}})
 	require.NoError(t, err)
 	assert.Equal(t, "ivanova.m2", second.User.Login)
 
-	third, err := svc.CreateUser(ctx, NewUser{Role: RoleTeacher, FullName: "Иванова Мария"})
+	third, err := svc.CreateUser(ctx, NewUser{Role: RoleTeacher, Name: Name{Last: "Иванова", First: "Мария"}})
 	require.NoError(t, err)
 	assert.Equal(t, "ivanova.m3", third.User.Login)
 	assert.NotEqual(t, first.Password, third.Password)
@@ -42,32 +43,41 @@ func TestCreateUserGeneratesLoginAndPassword(t *testing.T) {
 	assert.Equal(t, first.User.ID, user.ID)
 }
 
-func TestCreateUserValidatesFullName(t *testing.T) {
+func TestCreateUserValidatesName(t *testing.T) {
 	t.Parallel()
 
 	svc, _ := newTestService(t, time.Hour)
 	ctx := t.Context()
+	long := strings.Repeat("я", 51)
 
 	tests := []struct {
-		name     string
-		fullName string
-		msg      string
+		name  string
+		input Name
+		field string
+		msg   string
 	}{
-		{"empty", "  ", msgFullNameRequired},
-		{"too long", string(make([]rune, 101)), msgFullNameTooLong},
+		{"empty last name", Name{Last: "  ", First: "Анна"}, "last_name", msgLastNameRequired},
+		{"empty first name", Name{Last: "Сидорова"}, "first_name", msgFirstNameRequired},
+		{"long last name", Name{Last: long, First: "Анна"}, "last_name", msgNamePartTooLong},
+		{"long middle name", Name{Last: "Сидорова", First: "Анна", Middle: long}, "middle_name", msgNamePartTooLong},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := svc.CreateUser(t.Context(), NewUser{Role: RoleTeacher, FullName: tt.fullName})
+			_, err := svc.CreateUser(t.Context(), NewUser{Role: RoleTeacher, Name: tt.input})
 
 			var errs validation.Errors
 			require.ErrorAs(t, err, &errs)
-			assert.Equal(t, tt.msg, errs["full_name"])
+			assert.Equal(t, tt.msg, errs[tt.field])
 		})
 	}
+
+	created, err := svc.CreateUser(ctx, NewUser{Role: RoleParent, Name: Name{Last: " Петров ", First: "Иван"}})
+	require.NoError(t, err)
+	assert.Equal(t, "Петров Иван", created.User.FullName)
+	assert.Empty(t, created.User.Name.Middle)
 
 	users, err := svc.Users(ctx, UserFilter{Role: RoleTeacher, IncludeInactive: true})
 	require.NoError(t, err)
@@ -80,10 +90,10 @@ func TestUpdateUserValidatesLogin(t *testing.T) {
 	svc, _ := newTestService(t, time.Hour)
 	ctx := t.Context()
 
-	created, err := svc.CreateUser(ctx, NewUser{Role: RoleTeacher, FullName: "Сидорова Анна"})
+	created, err := svc.CreateUser(ctx, NewUser{Role: RoleTeacher, Name: Name{Last: "Сидорова", First: "Анна"}})
 	require.NoError(t, err)
 
-	other, err := svc.CreateUser(ctx, NewUser{Role: RoleParent, FullName: "Петров Иван"})
+	other, err := svc.CreateUser(ctx, NewUser{Role: RoleParent, Name: Name{Last: "Петров", First: "Иван"}})
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -92,11 +102,11 @@ func TestUpdateUserValidatesLogin(t *testing.T) {
 		field string
 		msg   string
 	}{
-		{"empty name", UserInput{FullName: " ", Login: "anna"}, "full_name", msgFullNameRequired},
-		{"empty login", UserInput{FullName: "Сидорова Анна", Login: ""}, "login", msgLoginRequired},
-		{"cyrillic login", UserInput{FullName: "Сидорова Анна", Login: "анна"}, "login", msgLoginInvalid},
-		{"login with space", UserInput{FullName: "Сидорова Анна", Login: "an na"}, "login", msgLoginInvalid},
-		{"taken login", UserInput{FullName: "Сидорова Анна", Login: "PETROV.I"}, "login", msgLoginTaken},
+		{"empty name", UserInput{Name: Name{}, Login: "anna"}, "last_name", msgLastNameRequired},
+		{"empty login", UserInput{Name: Name{Last: "Сидорова", First: "Анна"}, Login: ""}, "login", msgLoginRequired},
+		{"cyrillic login", UserInput{Name: Name{Last: "Сидорова", First: "Анна"}, Login: "анна"}, "login", msgLoginInvalid},
+		{"login with space", UserInput{Name: Name{Last: "Сидорова", First: "Анна"}, Login: "an na"}, "login", msgLoginInvalid},
+		{"taken login", UserInput{Name: Name{Last: "Сидорова", First: "Анна"}, Login: "PETROV.I"}, "login", msgLoginTaken},
 	}
 
 	for _, tt := range tests {
@@ -111,7 +121,7 @@ func TestUpdateUserValidatesLogin(t *testing.T) {
 		})
 	}
 
-	require.NoError(t, svc.UpdateUser(ctx, created.User.ID, UserInput{FullName: "Сидорова Анна Андреевна", Login: "Anna"}))
+	require.NoError(t, svc.UpdateUser(ctx, created.User.ID, UserInput{Name: Name{Last: "Сидорова", First: "Анна", Middle: "Андреевна"}, Login: "Anna"}))
 
 	user, err := svc.UserByID(ctx, created.User.ID)
 	require.NoError(t, err)
@@ -122,7 +132,7 @@ func TestUpdateUserValidatesLogin(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "petrov.i", untouched.Login)
 
-	assert.ErrorIs(t, svc.UpdateUser(ctx, 999, UserInput{FullName: "X", Login: "x"}), ErrNotFound)
+	assert.ErrorIs(t, svc.UpdateUser(ctx, 999, UserInput{Name: Name{Last: "X", First: "Y"}, Login: "x"}), ErrNotFound)
 
 	_, err = svc.UserByID(ctx, 999)
 	assert.ErrorIs(t, err, ErrNotFound)
@@ -134,7 +144,7 @@ func TestResetPasswordDropsSessions(t *testing.T) {
 	svc, db := newTestService(t, time.Hour)
 	ctx := t.Context()
 
-	created, err := svc.CreateUser(ctx, NewUser{Role: RoleTeacher, FullName: "Сидорова Анна"})
+	created, err := svc.CreateUser(ctx, NewUser{Role: RoleTeacher, Name: Name{Last: "Сидорова", First: "Анна"}})
 	require.NoError(t, err)
 
 	session, err := svc.Login(ctx, created.User.Login, created.Password)
@@ -165,7 +175,7 @@ func TestSetUserActiveDropsSessionsAndBlocksLogin(t *testing.T) {
 	svc, db := newTestService(t, time.Hour)
 	ctx := t.Context()
 
-	created, err := svc.CreateUser(ctx, NewUser{Role: RoleTeacher, FullName: "Сидорова Анна"})
+	created, err := svc.CreateUser(ctx, NewUser{Role: RoleTeacher, Name: Name{Last: "Сидорова", First: "Анна"}})
 	require.NoError(t, err)
 
 	session, err := svc.Login(ctx, created.User.Login, created.Password)
@@ -203,12 +213,12 @@ func TestUsersFilterIsCaseInsensitive(t *testing.T) {
 	svc, _ := newTestService(t, time.Hour)
 	ctx := t.Context()
 
-	for _, name := range []string{"Иванова Мария", "Петров Иван", "Сидорова Анна"} {
-		_, err := svc.CreateUser(ctx, NewUser{Role: RoleStudent, FullName: name})
+	for _, name := range []Name{{Last: "Иванова", First: "Мария"}, {Last: "Петров", First: "Иван"}, {Last: "Сидорова", First: "Анна"}} {
+		_, err := svc.CreateUser(ctx, NewUser{Role: RoleStudent, Name: name})
 		require.NoError(t, err)
 	}
 
-	_, err := svc.CreateUser(ctx, NewUser{Role: RoleTeacher, FullName: "Иванов Пётр"})
+	_, err := svc.CreateUser(ctx, NewUser{Role: RoleTeacher, Name: Name{Last: "Иванов", First: "Пётр"}})
 	require.NoError(t, err)
 
 	found, err := svc.Users(ctx, UserFilter{Role: RoleStudent, Query: " иВаН "})

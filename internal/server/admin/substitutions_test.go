@@ -50,8 +50,8 @@ func TestSubstitutionsCreateEditDelete(t *testing.T) {
 	class := createClass(t, env, admin, current, "7А")
 	past := createPastClass(t, env, current-1, "6А")
 	algebra := createSubject(t, env, admin, "Алгебра")
-	viktor, _ := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Кузнецов Виктор"}})
-	gone, _ := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Ушедший Учитель"}})
+	viktor, _ := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Кузнецов Виктор"))
+	gone, _ := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Ушедший Учитель"))
 	require.NoError(t, env.Auth.SetUserActive(t.Context(), gone, false))
 
 	body := servertest.Get(t, env.Handler, substitutionsPath, admin).Body.String()
@@ -154,7 +154,7 @@ func TestSubstitutionWithLessonsCannotBeDeleted(t *testing.T) {
 
 	class := createClass(t, env, admin, env.School.CurrentYear(), "7А")
 	algebra := createSubject(t, env, admin, "Алгебра")
-	viktor, _ := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Кузнецов Виктор"}})
+	viktor, _ := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Кузнецов Виктор"))
 
 	id, err := env.School.CreateSubstitution(ctx, school.SubstitutionInput{
 		ClassID: class, SubjectID: algebra, TeacherID: viktor, StartDate: today.Format(validation.DateLayout),

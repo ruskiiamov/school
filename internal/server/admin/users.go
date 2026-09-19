@@ -60,9 +60,9 @@ func (sec userSection) userPath(id int64, suffix string) string {
 }
 
 type userForm struct {
-	fullName string
-	login    string
-	classID  int64
+	name    auth.Name
+	login   string
+	classID int64
 }
 
 type userEdit struct {
@@ -74,9 +74,13 @@ type userEdit struct {
 
 func readUserForm(r *http.Request) userForm {
 	return userForm{
-		fullName: web.FormValue(r, "full_name"),
-		login:    web.FormValue(r, "login"),
-		classID:  web.FormInt64(r, "class"),
+		name: auth.Name{
+			Last:   web.FormValue(r, "last_name"),
+			First:  web.FormValue(r, "first_name"),
+			Middle: web.FormValue(r, "middle_name"),
+		},
+		login:   web.FormValue(r, "login"),
+		classID: web.FormInt64(r, "class"),
 	}
 }
 
@@ -102,7 +106,7 @@ func (h *Handler) userCreate(sec userSection) http.HandlerFunc {
 			}
 		}
 
-		credentials, err := h.auth.CreateUser(r.Context(), auth.NewUser{Role: sec.role, FullName: form.fullName})
+		credentials, err := h.auth.CreateUser(r.Context(), auth.NewUser{Role: sec.role, Name: form.name})
 		if errs, ok := web.FormErrors(err); ok {
 			h.renderUsers(w, r, sec, form, errs, userEdit{})
 			return
@@ -182,7 +186,7 @@ func (h *Handler) userUpdate(sec userSection) http.HandlerFunc {
 			}
 		}
 
-		err := h.auth.UpdateUser(r.Context(), user.ID, auth.UserInput{FullName: form.fullName, Login: form.login})
+		err := h.auth.UpdateUser(r.Context(), user.ID, auth.UserInput{Name: form.name, Login: form.login})
 		if errs, ok := web.FormErrors(err); ok {
 			edit.errs = errs
 			h.renderUsers(w, r, sec, userForm{}, nil, edit)
@@ -271,7 +275,7 @@ func (h *Handler) renderUsers(w http.ResponseWriter, r *http.Request, sec userSe
 		ShowClass:    sec.hasClass(),
 		ShowInactive: inactive,
 		ToggleHref:   sec.path + listQuery(query, classID, !inactive),
-		New:          view.UserFields{FullName: newForm.fullName, Errors: newErrs},
+		New:          userFieldsView(newForm, newErrs),
 		EmptyMessage: sec.empty,
 	}
 
@@ -334,12 +338,12 @@ func (h *Handler) renderUsers(w http.ResponseWriter, r *http.Request, sec userSe
 		}
 
 		if row.Editing {
-			form := userForm{fullName: user.FullName, login: user.Login, classID: class.ID}
+			form := userForm{name: user.Name, login: user.Login, classID: class.ID}
 			if edit.entered {
 				form = edit.form
 			}
 
-			row.Fields = view.UserFields{FullName: form.fullName, Login: form.login, Errors: edit.errs}
+			row.Fields = userFieldsView(form, edit.errs)
 			if sec.hasClass() {
 				row.Fields.Classes = classOptions(classes, form.classID, noClassOption)
 			}
@@ -362,6 +366,16 @@ func (h *Handler) renderUsers(w http.ResponseWriter, r *http.Request, sec userSe
 	}
 
 	h.base.Render(w, r, pages.Users(page))
+}
+
+func userFieldsView(form userForm, errs validation.Errors) view.UserFields {
+	return view.UserFields{
+		LastName:   form.name.Last,
+		FirstName:  form.name.First,
+		MiddleName: form.name.Middle,
+		Login:      form.login,
+		Errors:     errs,
+	}
 }
 
 func classOptions(classes []school.Class, selected int64, first string) []view.Option {

@@ -371,7 +371,7 @@ func TestClassWithStudentsCannotBeDeactivated(t *testing.T) {
 
 	id := createClass(t, env, admin, current, "7А")
 
-	student, err := env.Auth.CreateUser(t.Context(), auth.NewUser{Role: auth.RoleStudent, FullName: "Козлов Пётр Ильич"})
+	student, err := env.Auth.CreateUser(t.Context(), auth.NewUser{Role: auth.RoleStudent, Name: auth.Name{Last: "Козлов", First: "Пётр", Middle: "Ильич"}})
 	require.NoError(t, err)
 	require.NoError(t, env.School.SetStudentClass(t.Context(), student.User.ID, id))
 

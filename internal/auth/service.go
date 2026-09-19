@@ -24,7 +24,7 @@ type userRepo interface {
 	ListByRole(ctx context.Context, role string, includeInactive bool) ([]storage.User, error)
 	CountActiveByRole(ctx context.Context, role string) (int, error)
 	Create(ctx context.Context, user storage.User) (int64, error)
-	Update(ctx context.Context, id int64, login, fullName string) error
+	Update(ctx context.Context, user storage.User) error
 	UpdatePasswordHash(ctx context.Context, id int64, hash string) error
 	SetActive(ctx context.Context, id int64, active bool) error
 	LoginExists(ctx context.Context, login string, excludeID int64) (bool, error)
@@ -120,6 +120,10 @@ func (s *Service) EnsureAdmin(ctx context.Context, cfg config.Admin) error {
 		return err
 	}
 
+	if err := s.syncAdminName(ctx, stored, cfg); err != nil {
+		return err
+	}
+
 	if bcrypt.CompareHashAndPassword([]byte(stored.PasswordHash), []byte(cfg.Password)) == nil {
 		return nil
 	}
@@ -158,6 +162,22 @@ func (s *Service) RunSessionCleanup(ctx context.Context, every time.Duration) {
 	}
 }
 
+func (s *Service) syncAdminName(ctx context.Context, stored storage.User, cfg config.Admin) error {
+	if stored.LastName == cfg.LastName && stored.FirstName == cfg.FirstName && stored.MiddleName == cfg.MiddleName {
+		return nil
+	}
+
+	stored.LastName, stored.FirstName, stored.MiddleName = cfg.LastName, cfg.FirstName, cfg.MiddleName
+
+	if err := s.users.Update(ctx, stored); err != nil {
+		return err
+	}
+
+	s.log.InfoContext(ctx, "admin name updated from config", slog.String("login", cfg.Login))
+
+	return nil
+}
+
 func (s *Service) createAdmin(ctx context.Context, cfg config.Admin) error {
 	hash, err := hashPassword(cfg.Password)
 	if err != nil {
@@ -167,7 +187,9 @@ func (s *Service) createAdmin(ctx context.Context, cfg config.Admin) error {
 	id, err := s.users.Create(ctx, storage.User{
 		Login:        cfg.Login,
 		PasswordHash: hash,
-		FullName:     cfg.FullName,
+		LastName:     cfg.LastName,
+		FirstName:    cfg.FirstName,
+		MiddleName:   cfg.MiddleName,
 		Role:         string(RoleAdmin),
 		Active:       true,
 	})
@@ -224,10 +246,13 @@ func toUser(stored storage.User) (User, error) {
 		return User{}, fmt.Errorf("user %d: %w", stored.ID, err)
 	}
 
+	name := Name{Last: stored.LastName, First: stored.FirstName, Middle: stored.MiddleName}
+
 	return User{
 		ID:       stored.ID,
 		Login:    stored.Login,
-		FullName: stored.FullName,
+		Name:     name,
+		FullName: name.Full(),
 		Role:     role,
 		Active:   stored.Active,
 	}, nil

@@ -17,7 +17,7 @@ func TestChangePasswordKeepsCurrentSessionOnly(t *testing.T) {
 	svc, _ := newTestService(t, time.Hour)
 	ctx := t.Context()
 
-	created, err := svc.CreateUser(ctx, NewUser{Role: RoleTeacher, FullName: "Сидорова Анна Андреевна"})
+	created, err := svc.CreateUser(ctx, NewUser{Role: RoleTeacher, Name: Name{Last: "Сидорова", First: "Анна", Middle: "Андреевна"}})
 	require.NoError(t, err)
 
 	current, err := svc.Login(ctx, created.User.Login, created.Password)
@@ -50,7 +50,7 @@ func TestChangePasswordValidatesInput(t *testing.T) {
 	svc, _ := newTestService(t, time.Hour)
 	ctx := t.Context()
 
-	created, err := svc.CreateUser(ctx, NewUser{Role: RoleStudent, FullName: "Козлов Пётр Ильич"})
+	created, err := svc.CreateUser(ctx, NewUser{Role: RoleStudent, Name: Name{Last: "Козлов", First: "Пётр", Middle: "Ильич"}})
 	require.NoError(t, err)
 
 	session, err := svc.Login(ctx, created.User.Login, created.Password)

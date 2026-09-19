@@ -20,7 +20,7 @@ var createdLocation = regexp.MustCompile(`^(/admin/[a-z]+)/(\d+)/created$`)
 func createUserVia(t *testing.T, env *servertest.Env, admin *http.Cookie, path string, form url.Values) (int64, string) {
 	t.Helper()
 
-	recorder := servertest.PostForm(t, env.Handler, path, form, []*http.Cookie{admin}, nil)
+	recorder := servertest.PostForm(t, env.Handler, path, withNameFields(form), []*http.Cookie{admin}, nil)
 	require.Equal(t, http.StatusSeeOther, recorder.Code, recorder.Body.String())
 
 	match := createdLocation.FindStringSubmatch(recorder.Header().Get("Location"))
@@ -30,6 +30,23 @@ func createUserVia(t *testing.T, env *servertest.Env, admin *http.Cookie, path s
 	require.NoError(t, err)
 
 	return id, match[0]
+}
+
+func withNameFields(form url.Values) url.Values {
+	fullName := form.Get("full_name")
+	if fullName == "" {
+		return form
+	}
+
+	result := servertest.NameForm(fullName)
+
+	for key, values := range form {
+		if key != "full_name" {
+			result[key] = values
+		}
+	}
+
+	return result
 }
 
 var credentialValue = regexp.MustCompile(`<dd class="font-mono text-slate-900">([^<]+)</dd>`)
@@ -70,14 +87,14 @@ func TestUserSectionsListAndCreate(t *testing.T) {
 		require.Equal(t, http.StatusOK, empty.Code)
 		assert.Contains(t, empty.Body.String(), section.empty)
 		assert.Contains(t, empty.Body.String(), `action="`+section.path+`"`)
-		assert.Contains(t, empty.Body.String(), "ФИО нового пользователя")
+		assert.Contains(t, empty.Body.String(), `placeholder="Отчество (необязательно)"`)
 		assert.NotContains(t, empty.Body.String(), `name="login"`)
 		assert.NotContains(t, empty.Body.String(), `name="password"`)
 		assert.Contains(t, empty.Body.String(), `id="users-search" hx-preserve`)
 		assert.Contains(t, empty.Body.String(), `href="`+section.path+`?inactive=1"`)
 		assert.NotContains(t, empty.Body.String(), "required")
 
-		id, createdPath := createUserVia(t, env, admin, section.path, url.Values{"full_name": {"Смирнова Мария Петровна"}})
+		id, createdPath := createUserVia(t, env, admin, section.path, servertest.NameForm("Смирнова Мария Петровна"))
 
 		user, err := env.Auth.UserByID(t.Context(), id)
 		require.NoError(t, err)
@@ -123,25 +140,27 @@ func TestUserCreateValidationKeepsInput(t *testing.T) {
 	env := servertest.New(t)
 	admin := servertest.Login(t, env.Handler)
 
-	blank := servertest.PostForm(t, env.Handler, "/admin/teachers", url.Values{"full_name": {" "}}, []*http.Cookie{admin}, nil)
+	blank := servertest.PostForm(t, env.Handler, "/admin/teachers", servertest.NameForm(" "), []*http.Cookie{admin}, nil)
 	assert.Equal(t, http.StatusOK, blank.Code)
 	assert.Contains(t, blank.Body.String(), "<html")
-	assert.Contains(t, blank.Body.String(), "Укажите ФИО")
+	assert.Contains(t, blank.Body.String(), "Укажите фамилию")
+	assert.Contains(t, blank.Body.String(), "Укажите имя")
 
 	htmx := map[string]string{"HX-Request": "true"}
 
-	long := servertest.PostForm(t, env.Handler, "/admin/parents", url.Values{"full_name": {strings.Repeat("Я", 101)}}, []*http.Cookie{admin}, htmx)
+	long := servertest.PostForm(t, env.Handler, "/admin/parents", withNameFields(url.Values{"last_name": {strings.Repeat("Я", 51)}, "first_name": {"Анна"}}), []*http.Cookie{admin}, htmx)
 	assert.Equal(t, http.StatusOK, long.Code)
 	assert.NotContains(t, long.Body.String(), "<html")
 	assert.Contains(t, long.Body.String(), `id="users"`)
-	assert.Contains(t, long.Body.String(), "ФИО длиннее 100 символов")
-	assert.Contains(t, long.Body.String(), `value="`+strings.Repeat("Я", 101)+`"`)
+	assert.Contains(t, long.Body.String(), "Не длиннее 50 символов")
+	assert.Contains(t, long.Body.String(), `value="`+strings.Repeat("Я", 51)+`"`)
+	assert.Contains(t, long.Body.String(), `value="Анна"`)
 
 	users, err := env.Auth.Users(t.Context(), auth.UserFilter{Role: auth.RoleParent, IncludeInactive: true})
 	require.NoError(t, err)
 	assert.Empty(t, users)
 
-	created := servertest.PostForm(t, env.Handler, "/admin/parents", url.Values{"full_name": {"Петров Пётр"}}, []*http.Cookie{admin}, htmx)
+	created := servertest.PostForm(t, env.Handler, "/admin/parents", servertest.NameForm("Петров Пётр"), []*http.Cookie{admin}, htmx)
 	assert.Equal(t, http.StatusNoContent, created.Code)
 	assert.Regexp(t, createdLocation, created.Header().Get("HX-Redirect"))
 }
@@ -152,7 +171,7 @@ func TestUserCreatedPageShowsPasswordOnce(t *testing.T) {
 	env := servertest.New(t)
 	admin := servertest.Login(t, env.Handler)
 
-	_, createdPath := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Сидорова Анна"}})
+	_, createdPath := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Сидорова Анна"))
 
 	other := servertest.Login(t, env.Handler)
 	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, createdPath, other), "/admin/teachers")
@@ -196,18 +215,19 @@ func TestStudentClassInFormListAndFilter(t *testing.T) {
 	assert.Contains(t, form, `value="`+a+`">7А<`)
 	assert.NotContains(t, form, "6А")
 
-	forged := servertest.PostForm(t, env.Handler, "/admin/students", url.Values{"full_name": {"Смирнова Мария"}, "class": {strconv.FormatInt(past, 10)}}, []*http.Cookie{admin}, nil)
+	forged := servertest.PostForm(t, env.Handler, "/admin/students", withNameFields(url.Values{"full_name": {"Смирнова Мария"}, "class": {strconv.FormatInt(past, 10)}}), []*http.Cookie{admin}, nil)
 	assert.Equal(t, http.StatusOK, forged.Code)
 	assert.Contains(t, forged.Body.String(), "Такого класса нет в текущем году")
-	assert.Contains(t, forged.Body.String(), `value="Смирнова Мария"`)
+	assert.Contains(t, forged.Body.String(), `name="last_name" value="Смирнова"`)
+	assert.Contains(t, forged.Body.String(), `name="first_name" value="Мария"`)
 
 	none, err := env.Auth.Users(t.Context(), auth.UserFilter{Role: auth.RoleStudent, IncludeInactive: true})
 	require.NoError(t, err)
 	assert.Empty(t, none)
 
-	inA, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Смирнова Мария"}, "class": {a}})
-	inB, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Петров Иван"}, "class": {b}})
-	free, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Кузнецов Олег"}})
+	inA, _ := createUserVia(t, env, admin, "/admin/students", withNameFields(url.Values{"full_name": {"Смирнова Мария"}, "class": {a}}))
+	inB, _ := createUserVia(t, env, admin, "/admin/students", withNameFields(url.Values{"full_name": {"Петров Иван"}, "class": {b}}))
+	free, _ := createUserVia(t, env, admin, "/admin/students", servertest.NameForm("Кузнецов Олег"))
 
 	class, found, err := env.School.StudentClass(t.Context(), inA)
 	require.NoError(t, err)
@@ -234,25 +254,26 @@ func TestStudentClassInFormListAndFilter(t *testing.T) {
 
 	edit := servertest.Get(t, env.Handler, "/admin/students?edit="+strconv.FormatInt(inA, 10), admin).Body.String()
 	assert.Contains(t, edit, `value="`+a+`" selected>7А<`)
-	assert.Contains(t, edit, `value="Смирнова Мария"`)
+	assert.Contains(t, edit, `name="last_name" value="Смирнова"`)
+	assert.Contains(t, edit, `name="first_name" value="Мария"`)
 	assert.Contains(t, edit, `action="`+userPathFor("/admin/students", inA, "")+`"`)
 	assert.NotContains(t, edit, "Сменить пароль")
 	row := edit[strings.Index(edit, `action="`+userPathFor("/admin/students", inA, "")+`"`):]
-	assert.Less(t, strings.Index(row, `name="full_name"`), strings.Index(row, `name="class"`))
+	assert.Less(t, strings.Index(row, `name="middle_name"`), strings.Index(row, `name="class"`))
 	assert.Less(t, strings.Index(row, `name="class"`), strings.Index(row, `name="login"`))
 	assert.Contains(t, edit, `data-cancel="/admin/students"`)
 	assert.NotContains(t, edit, `aria-label="Отмена"`)
 	assert.NotContains(t, edit, `value="Петров Иван"`)
-	assert.Equal(t, 1, strings.Count(edit, "ФИО нового пользователя"))
+	assert.Equal(t, 2, strings.Count(edit, `name="last_name"`))
 
-	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, userPathFor("/admin/students", inA, ""), url.Values{"full_name": {"Смирнова Мария"}, "login": {"smirnova.m"}, "class": {b}}, []*http.Cookie{admin}, nil), "/admin/students")
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, userPathFor("/admin/students", inA, ""), withNameFields(url.Values{"full_name": {"Смирнова Мария"}, "login": {"smirnova.m"}, "class": {b}}), []*http.Cookie{admin}, nil), "/admin/students")
 
 	class, found, err = env.School.StudentClass(t.Context(), inA)
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, classB, class.ID)
 
-	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, userPathFor("/admin/students", inA, "?class="+b), url.Values{"full_name": {"Смирнова Мария"}, "login": {"smirnova.m"}, "class": {"0"}}, []*http.Cookie{admin}, nil), "/admin/students?class="+b)
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, userPathFor("/admin/students", inA, "?class="+b), withNameFields(url.Values{"full_name": {"Смирнова Мария"}, "login": {"smirnova.m"}, "class": {"0"}}), []*http.Cookie{admin}, nil), "/admin/students?class="+b)
 
 	_, found, err = env.School.StudentClass(t.Context(), inA)
 	require.NoError(t, err)
@@ -270,8 +291,8 @@ func TestUserSearchAndInactiveToggle(t *testing.T) {
 	env := servertest.New(t)
 	admin := servertest.Login(t, env.Handler)
 
-	id, _ := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Смирнова Мария"}})
-	createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Сидорова Анна"}})
+	id, _ := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Смирнова Мария"))
+	createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Сидорова Анна"))
 
 	const query = "%D0%BC%D0%98%D0%A0%D0%BD"
 
@@ -316,7 +337,7 @@ func TestUserDeactivateAndActivate(t *testing.T) {
 	admin := servertest.Login(t, env.Handler)
 	htmx := map[string]string{"HX-Request": "true"}
 
-	id, createdPath := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Смирнова Мария"}})
+	id, createdPath := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Смирнова Мария"))
 	_, password := takeCredentials(t, env, admin, createdPath)
 	teacher := servertest.LoginWith(t, env.Handler, "smirnova.m", password)
 	assert.Equal(t, http.StatusOK, servertest.Get(t, env.Handler, "/journal", teacher).Code)
@@ -342,24 +363,24 @@ func TestUserUpdateValidationAndRename(t *testing.T) {
 	env := servertest.New(t)
 	admin := servertest.Login(t, env.Handler)
 
-	id, _ := createUserVia(t, env, admin, "/admin/parents", url.Values{"full_name": {"Смирнова Мария"}})
-	createUserVia(t, env, admin, "/admin/parents", url.Values{"full_name": {"Сидорова Анна"}})
+	id, _ := createUserVia(t, env, admin, "/admin/parents", servertest.NameForm("Смирнова Мария"))
+	createUserVia(t, env, admin, "/admin/parents", servertest.NameForm("Сидорова Анна"))
 
 	path := userPathFor("/admin/parents", id, "")
 
-	taken := servertest.PostForm(t, env.Handler, path, url.Values{"full_name": {"Смирнова Мария"}, "login": {"sidorova.a"}}, []*http.Cookie{admin}, nil)
+	taken := servertest.PostForm(t, env.Handler, path, withNameFields(url.Values{"full_name": {"Смирнова Мария"}, "login": {"sidorova.a"}}), []*http.Cookie{admin}, nil)
 	assert.Equal(t, http.StatusOK, taken.Code)
 	assert.Contains(t, taken.Body.String(), "Такой логин уже есть")
 	assert.Contains(t, taken.Body.String(), `action="`+path+`"`)
 	assert.Equal(t, 1, strings.Count(taken.Body.String(), `value="sidorova.a"`))
 	assert.Contains(t, taken.Body.String(), ">Сидорова Анна</span>")
 
-	blank := servertest.PostForm(t, env.Handler, path, url.Values{"full_name": {""}, "login": {""}}, []*http.Cookie{admin}, nil)
+	blank := servertest.PostForm(t, env.Handler, path, withNameFields(url.Values{"full_name": {""}, "login": {""}}), []*http.Cookie{admin}, nil)
 	assert.Equal(t, http.StatusOK, blank.Code)
-	assert.Contains(t, blank.Body.String(), "Укажите ФИО")
+	assert.Contains(t, blank.Body.String(), "Укажите фамилию")
 	assert.Contains(t, blank.Body.String(), "Укажите логин")
 
-	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, path, url.Values{"full_name": {"Смирнова  Мария Петровна"}, "login": {"Maria"}}, []*http.Cookie{admin}, nil), "/admin/parents")
+	servertest.AssertRedirect(t, servertest.PostForm(t, env.Handler, path, withNameFields(url.Values{"full_name": {"Смирнова  Мария Петровна"}, "login": {"Maria"}}), []*http.Cookie{admin}, nil), "/admin/parents")
 
 	user, err := env.Auth.UserByID(t.Context(), id)
 	require.NoError(t, err)
@@ -373,7 +394,7 @@ func TestUserSectionRejectsForeignRoleAndUnknownID(t *testing.T) {
 	env := servertest.New(t)
 	admin := servertest.Login(t, env.Handler)
 
-	student, _ := createUserVia(t, env, admin, "/admin/students", url.Values{"full_name": {"Смирнова Мария"}})
+	student, _ := createUserVia(t, env, admin, "/admin/students", servertest.NameForm("Смирнова Мария"))
 
 	var adminID int64
 	require.NoError(t, env.DB.QueryRowContext(t.Context(), "SELECT id FROM users WHERE login = ?", servertest.AdminLogin).Scan(&adminID))
@@ -393,7 +414,7 @@ func TestUserSectionRejectsForeignRoleAndUnknownID(t *testing.T) {
 		userPathFor("/admin/teachers", adminID, ""),
 		"/admin/teachers/999",
 	} {
-		assert.Equal(t, http.StatusNotFound, servertest.PostForm(t, env.Handler, path, url.Values{"full_name": {"X"}, "login": {"x"}}, []*http.Cookie{admin}, nil).Code, path)
+		assert.Equal(t, http.StatusNotFound, servertest.PostForm(t, env.Handler, path, withNameFields(url.Values{"full_name": {"X"}, "login": {"x"}}), []*http.Cookie{admin}, nil).Code, path)
 	}
 
 	foreign := servertest.Get(t, env.Handler, "/admin/teachers?edit="+strconv.FormatInt(student, 10), admin).Body.String()
@@ -422,7 +443,7 @@ func TestUserSectionsHiddenFromOtherRoles(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, path, student).Code, path)
 	}
 
-	forged := servertest.PostForm(t, env.Handler, "/admin/teachers", url.Values{"full_name": {"Кто-то"}}, []*http.Cookie{student}, nil)
+	forged := servertest.PostForm(t, env.Handler, "/admin/teachers", servertest.NameForm("Кто-то"), []*http.Cookie{student}, nil)
 	assert.Equal(t, http.StatusNotFound, forged.Code)
 
 	teachers, err := env.Auth.Users(t.Context(), auth.UserFilter{Role: auth.RoleTeacher, IncludeInactive: true})

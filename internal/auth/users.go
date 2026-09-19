@@ -14,23 +14,24 @@ import (
 )
 
 const (
-	maxFullNameLength = 100
+	maxNamePartLength = 50
 
-	msgFullNameRequired = "Укажите ФИО"
-	msgFullNameTooLong  = "ФИО длиннее 100 символов"
-	msgLoginRequired    = "Укажите логин"
-	msgLoginInvalid     = "Только латинские буквы, цифры, точка, дефис и подчёркивание, не длиннее 50 символов"
-	msgLoginTaken       = "Такой логин уже есть"
+	msgLastNameRequired  = "Укажите фамилию"
+	msgFirstNameRequired = "Укажите имя"
+	msgNamePartTooLong   = "Не длиннее 50 символов"
+	msgLoginRequired     = "Укажите логин"
+	msgLoginInvalid      = "Только латинские буквы, цифры, точка, дефис и подчёркивание, не длиннее 50 символов"
+	msgLoginTaken        = "Такой логин уже есть"
 )
 
 type UserInput struct {
-	FullName string
-	Login    string
+	Name  Name
+	Login string
 }
 
 type NewUser struct {
-	Role     Role
-	FullName string
+	Role Role
+	Name Name
 }
 
 type Credentials struct {
@@ -47,12 +48,12 @@ type UserFilter struct {
 func (s *Service) CreateUser(ctx context.Context, input NewUser) (Credentials, error) {
 	errs := validation.Errors{}
 
-	fullName := validateFullName(errs, input.FullName)
+	name := validateName(errs, input.Name)
 	if len(errs) > 0 {
 		return Credentials{}, errs
 	}
 
-	login, err := s.freeLogin(ctx, SuggestLogin(fullName))
+	login, err := s.freeLogin(ctx, SuggestLogin(name))
 	if err != nil {
 		return Credentials{}, err
 	}
@@ -70,7 +71,9 @@ func (s *Service) CreateUser(ctx context.Context, input NewUser) (Credentials, e
 	id, err := s.users.Create(ctx, storage.User{
 		Login:        login,
 		PasswordHash: hash,
-		FullName:     fullName,
+		LastName:     name.Last,
+		FirstName:    name.First,
+		MiddleName:   name.Middle,
 		Role:         string(input.Role),
 		Active:       true,
 	})
@@ -81,7 +84,7 @@ func (s *Service) CreateUser(ctx context.Context, input NewUser) (Credentials, e
 	s.log.InfoContext(ctx, "user created",
 		slog.Int64("id", id), slog.String("login", login), slog.String("role", string(input.Role)))
 
-	user := User{ID: id, Login: login, FullName: fullName, Role: input.Role, Active: true}
+	user := User{ID: id, Login: login, Name: name, FullName: name.Full(), Role: input.Role, Active: true}
 
 	return Credentials{User: user, Password: password}, nil
 }
@@ -89,7 +92,7 @@ func (s *Service) CreateUser(ctx context.Context, input NewUser) (Credentials, e
 func (s *Service) UpdateUser(ctx context.Context, id int64, input UserInput) error {
 	errs := validation.Errors{}
 
-	fullName := validateFullName(errs, input.FullName)
+	name := validateName(errs, input.Name)
 
 	login := normalizeLogin(input.Login)
 	if login == "" {
@@ -102,7 +105,9 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, input UserInput) err
 		return errs
 	}
 
-	if err := s.users.Update(ctx, id, login, fullName); errors.Is(err, storage.ErrNotFound) {
+	stored := storage.User{ID: id, Login: login, LastName: name.Last, FirstName: name.First, MiddleName: name.Middle}
+
+	if err := s.users.Update(ctx, stored); errors.Is(err, storage.ErrNotFound) {
 		return ErrNotFound
 	} else if err != nil {
 		return err
@@ -181,13 +186,13 @@ func (s *Service) Users(ctx context.Context, filter UserFilter) ([]User, error) 
 
 	users := make([]User, 0, len(stored))
 	for _, row := range stored {
-		if query != "" && !strings.Contains(strings.ToLower(row.FullName), query) {
-			continue
-		}
-
 		user, err := toUser(row)
 		if err != nil {
 			return nil, err
+		}
+
+		if query != "" && !strings.Contains(strings.ToLower(user.FullName), query) {
+			continue
 		}
 
 		users = append(users, user)
@@ -241,15 +246,27 @@ func (s *Service) validateLogin(ctx context.Context, errs validation.Errors, log
 	return nil
 }
 
-func validateFullName(errs validation.Errors, raw string) string {
-	fullName := validation.NormalizeSpaces(raw)
-
-	switch {
-	case fullName == "":
-		errs.Add("full_name", msgFullNameRequired)
-	case utf8.RuneCountInString(fullName) > maxFullNameLength:
-		errs.Add("full_name", msgFullNameTooLong)
+func validateName(errs validation.Errors, raw Name) Name {
+	name := Name{
+		Last:   validation.NormalizeSpaces(raw.Last),
+		First:  validation.NormalizeSpaces(raw.First),
+		Middle: validation.NormalizeSpaces(raw.Middle),
 	}
 
-	return fullName
+	if name.Last == "" {
+		errs.Add("last_name", msgLastNameRequired)
+	}
+
+	if name.First == "" {
+		errs.Add("first_name", msgFirstNameRequired)
+	}
+
+	parts := map[string]string{"last_name": name.Last, "first_name": name.First, "middle_name": name.Middle}
+	for field, value := range parts {
+		if utf8.RuneCountInString(value) > maxNamePartLength {
+			errs.Add(field, msgNamePartTooLong)
+		}
+	}
+
+	return name
 }

@@ -51,9 +51,9 @@ func TestHomeHidesSetupWhenRequiredStepsDone(t *testing.T) {
 	require.NoError(t, err)
 	subjectID, err := env.School.CreateSubject(ctx, school.SubjectInput{Name: "Алгебра"})
 	require.NoError(t, err)
-	teacher, err := env.Auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleTeacher, FullName: "Сидорова Анна"})
+	teacher, err := env.Auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleTeacher, Name: auth.Name{Last: "Сидорова", First: "Анна"}})
 	require.NoError(t, err)
-	student, err := env.Auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleStudent, FullName: "Козлов Пётр"})
+	student, err := env.Auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleStudent, Name: auth.Name{Last: "Козлов", First: "Пётр"}})
 	require.NoError(t, err)
 	require.NoError(t, env.School.SetStudentClass(ctx, student.User.ID, classID))
 
@@ -91,7 +91,7 @@ func TestHomeCountsCurrentYearForAdmin(t *testing.T) {
 	require.NoError(t, env.School.SetSubjectActive(ctx, inactiveSubject, false))
 
 	for _, name := range []string{"Сидорова Анна", "Петров Иван", "Уволенный Учитель"} {
-		created, err := env.Auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleTeacher, FullName: name})
+		created, err := env.Auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleTeacher, Name: servertest.Name(name)})
 		require.NoError(t, err)
 
 		if name == "Уволенный Учитель" {
@@ -102,7 +102,7 @@ func TestHomeCountsCurrentYearForAdmin(t *testing.T) {
 	env.CreateUser(t, auth.RoleStudent, "free", "Без Класса")
 
 	for _, name := range []string{"Козлов Пётр", "Иванова Мария", "Выбывший Ученик"} {
-		created, err := env.Auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleStudent, FullName: name})
+		created, err := env.Auth.CreateUser(ctx, auth.NewUser{Role: auth.RoleStudent, Name: servertest.Name(name)})
 		require.NoError(t, err)
 		require.NoError(t, env.School.SetStudentClass(ctx, created.User.ID, classID))
 
