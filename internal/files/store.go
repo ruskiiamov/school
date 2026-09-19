@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"time"
 )
 
 var (
@@ -104,6 +105,22 @@ func (s *Store) Open(id string) (*os.File, error) {
 	}
 
 	return file, nil
+}
+
+func (s *Store) ModTime(id string) (time.Time, error) {
+	if !idPattern.MatchString(id) {
+		return time.Time{}, ErrNotFound
+	}
+
+	info, err := os.Stat(s.path(id))
+	if errors.Is(err, os.ErrNotExist) {
+		return time.Time{}, ErrNotFound
+	}
+	if err != nil {
+		return time.Time{}, fmt.Errorf("stat file: %w", err)
+	}
+
+	return info.ModTime(), nil
 }
 
 func (s *Store) Delete(id string) error {

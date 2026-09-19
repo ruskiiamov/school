@@ -9,6 +9,8 @@ import (
 	"github.com/ruskiiamov/school/internal/files"
 )
 
+const strayFileAge = 24 * time.Hour
+
 func (s *Service) RunCleanup(ctx context.Context, every time.Duration) {
 	ticker := time.NewTicker(every)
 	defer ticker.Stop()
@@ -95,20 +97,51 @@ func (s *Service) cleanupDisk(ctx context.Context) (int, error) {
 		}
 	}
 
-	removed := 0
+	var stray []string
 
 	for _, id := range onDisk {
-		if rows[id] {
-			continue
+		if !rows[id] {
+			stray = append(stray, id)
 		}
+	}
 
-		if err := s.store.Delete(id); err != nil && !errors.Is(err, files.ErrNotFound) {
-			s.log.ErrorContext(ctx, "remove stray file", slog.String("file_id", id), slog.Any("error", err))
-			continue
+	if len(stray) > 0 && len(known) == 0 {
+		s.log.WarnContext(ctx, "files on disk but no homework files in the database, nothing removed",
+			slog.Int("files", len(stray)))
+
+		return 0, nil
+	}
+
+	removed := 0
+	cutoff := time.Now().Add(-strayFileAge)
+
+	for _, id := range stray {
+		if s.removeStray(ctx, id, cutoff) {
+			removed++
 		}
-
-		removed++
 	}
 
 	return removed, nil
+}
+
+func (s *Service) removeStray(ctx context.Context, id string, cutoff time.Time) bool {
+	modified, err := s.store.ModTime(id)
+	if errors.Is(err, files.ErrNotFound) {
+		return false
+	}
+	if err != nil {
+		s.log.ErrorContext(ctx, "check stray file age", slog.String("file_id", id), slog.Any("error", err))
+		return false
+	}
+
+	if modified.After(cutoff) {
+		return false
+	}
+
+	if err := s.store.Delete(id); err != nil && !errors.Is(err, files.ErrNotFound) {
+		s.log.ErrorContext(ctx, "remove stray file", slog.String("file_id", id), slog.Any("error", err))
+		return false
+	}
+
+	return true
 }

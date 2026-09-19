@@ -14,6 +14,7 @@ import (
 
 const (
 	invalidLoginMessage  = "Неверный логин или пароль"
+	tooManyMessage       = "Слишком много неудачных попыток. Попробуйте через 5 минут"
 	internalErrorMessage = "Не удалось войти, попробуйте позже"
 )
 
@@ -30,23 +31,42 @@ func (h *Handler) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	login := strings.TrimSpace(r.PostFormValue("login"))
 	password := r.PostFormValue("password")
 
-	session, err := h.auth.Login(r.Context(), login, password)
-	if err != nil {
-		if !errors.Is(err, auth.ErrInvalidCredentials) {
-			h.log.ErrorContext(r.Context(), "login failed", slog.Any("error", err))
-			h.renderLoginError(w, r, login, internalErrorMessage)
+	ip := h.base.ClientIP(r)
+	device := h.base.DeviceToken(r)
 
-			return
-		}
+	result, err := h.auth.LoginFrom(r.Context(), auth.LoginAttempt{Login: login, Password: password, DeviceToken: device, IP: ip})
+	if errors.Is(err, auth.ErrTooManyAttempts) {
+		h.log.WarnContext(r.Context(), "login blocked after repeated failures", slog.String("login", login), slog.String("ip", ip))
+		h.renderLoginError(w, r, login, tooManyMessage)
 
-		h.log.WarnContext(r.Context(), "invalid login attempt", slog.String("login", login))
+		return
+	}
+	if errors.Is(err, auth.ErrInvalidCredentials) {
+		h.log.WarnContext(r.Context(), "invalid login attempt", slog.String("login", login), slog.String("ip", ip))
 		h.renderLoginError(w, r, login, invalidLoginMessage)
 
 		return
 	}
+	if err != nil {
+		h.log.ErrorContext(r.Context(), "login failed", slog.Any("error", err))
+		h.renderLoginError(w, r, login, internalErrorMessage)
 
-	h.base.SetSessionCookie(w, session)
-	h.log.InfoContext(r.Context(), "login succeeded", slog.Int64("user_id", session.UserID))
+		return
+	}
+
+	if !result.KnownDevice {
+		device, err = h.auth.RememberDevice(r.Context(), result.Session.UserID)
+		if err != nil {
+			h.log.ErrorContext(r.Context(), "remember login device", slog.Any("error", err))
+		}
+	}
+
+	if device != "" {
+		h.base.SetDeviceCookie(w, device)
+	}
+
+	h.base.SetSessionCookie(w, result.Session)
+	h.log.InfoContext(r.Context(), "login succeeded", slog.Int64("user_id", result.Session.UserID))
 	web.Redirect(w, r, "/")
 }
 

@@ -27,7 +27,7 @@ func newTestService(t *testing.T, ttl time.Duration) (*Service, *sql.DB) {
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	return NewService(storage.NewUserRepo(db), storage.NewSessionRepo(db), ttl, log), db
+	return NewService(storage.NewUserRepo(db), storage.NewSessionRepo(db), storage.NewLoginDeviceRepo(db), ttl, log), db
 }
 
 func adminConfig() config.Admin {

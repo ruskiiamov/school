@@ -50,6 +50,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 	authService := auth.NewService(
 		storage.NewUserRepo(db),
 		storage.NewSessionRepo(db),
+		storage.NewLoginDeviceRepo(db),
 		cfg.Session.TTL,
 		log,
 	)

@@ -41,6 +41,15 @@ type sessionRepo interface {
 	DeleteOrphaned(ctx context.Context) (int64, error)
 }
 
+type deviceRepo interface {
+	Create(ctx context.Context, tokenHash string, userID int64, keep int) error
+	Exists(ctx context.Context, tokenHash string, userID int64) (bool, error)
+	Touch(ctx context.Context, tokenHash string) error
+	DeleteByUser(ctx context.Context, userID int64) error
+	DeleteUnusedSince(ctx context.Context, before time.Time) (int64, error)
+	DeleteOrphaned(ctx context.Context) (int64, error)
+}
+
 type Session struct {
 	ID        string
 	UserID    int64
@@ -50,33 +59,33 @@ type Session struct {
 type Service struct {
 	users    userRepo
 	sessions sessionRepo
+	devices  deviceRepo
 	ttl      time.Duration
 	log      *slog.Logger
+
+	loginAttempts  *attemptLimiter
+	deviceAttempts *attemptLimiter
+	ipAttempts     *attemptLimiter
 }
 
-func NewService(users userRepo, sessions sessionRepo, ttl time.Duration, log *slog.Logger) *Service {
-	return &Service{users: users, sessions: sessions, ttl: ttl, log: log}
+func NewService(users userRepo, sessions sessionRepo, devices deviceRepo, ttl time.Duration, log *slog.Logger) *Service {
+	return &Service{
+		users:    users,
+		sessions: sessions,
+		devices:  devices,
+		ttl:      ttl,
+		log:      log,
+
+		loginAttempts:  newAttemptLimiter(loginLimit),
+		deviceAttempts: newAttemptLimiter(deviceLimit),
+		ipAttempts:     newAttemptLimiter(ipLimit),
+	}
 }
 
 func (s *Service) Login(ctx context.Context, login, password string) (Session, error) {
-	stored, err := s.users.ByLogin(ctx, login)
-	if errors.Is(err, storage.ErrNotFound) {
-		equalizePasswordTiming(password)
-		return Session{}, ErrInvalidCredentials
-	}
-	if err != nil {
-		return Session{}, err
-	}
+	result, err := s.LoginFrom(ctx, LoginAttempt{Login: login, Password: password})
 
-	if bcrypt.CompareHashAndPassword([]byte(stored.PasswordHash), []byte(password)) != nil {
-		return Session{}, ErrInvalidCredentials
-	}
-
-	if !stored.Active {
-		return Session{}, ErrInvalidCredentials
-	}
-
-	return s.createSession(ctx, stored.ID)
+	return result.Session, err
 }
 
 func (s *Service) Logout(ctx context.Context, sessionID string) error {
@@ -233,6 +242,8 @@ func (s *Service) cleanupSessions(ctx context.Context) {
 		s.log.ErrorContext(ctx, "delete orphaned sessions", slog.Any("error", err))
 		return
 	}
+
+	s.cleanupDevices(ctx)
 
 	if expired+orphaned > 0 {
 		s.log.InfoContext(ctx, "sessions cleaned up",

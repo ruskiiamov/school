@@ -30,6 +30,9 @@ import (
 const (
 	AdminLogin    = "admin"
 	AdminPassword = "secret"
+
+	SessionCookie = "sid"
+	DeviceCookie  = "device"
 )
 
 type Env struct {
@@ -39,6 +42,8 @@ type Env struct {
 	School  *school.Service
 	Journal *journal.Service
 	Files   *files.Store
+
+	FilesDir string
 }
 
 func New(t *testing.T) *Env {
@@ -61,7 +66,7 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 
 	cfg := &config.Config{
 		School:   config.School{Name: "Школа №1", YearStartMonth: time.August},
-		Session:  config.Session{CookieName: "sid", TTL: time.Hour},
+		Session:  config.Session{CookieName: SessionCookie, TTL: time.Hour},
 		Files:    config.Files{Dir: t.TempDir(), MaxFileSizeMB: 1, MaxPerLesson: 3, TransferTimeout: time.Minute},
 		Admin:    config.Admin{Login: AdminLogin, Password: AdminPassword, LastName: "Иванова", FirstName: "Мария", MiddleName: "Петровна"},
 		Location: time.UTC,
@@ -76,7 +81,7 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	require.NoError(t, storage.Migrate(t.Context(), db))
 
-	authService := auth.NewService(storage.NewUserRepo(db), storage.NewSessionRepo(db), cfg.Session.TTL, log)
+	authService := auth.NewService(storage.NewUserRepo(db), storage.NewSessionRepo(db), storage.NewLoginDeviceRepo(db), cfg.Session.TTL, log)
 	require.NoError(t, authService.EnsureAdmin(t.Context(), cfg.Admin))
 
 	schoolService := school.NewService(cfg.School.YearStartMonth, cfg.Location,
@@ -96,6 +101,8 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 		School:  schoolService,
 		Journal: journalService,
 		Files:   store,
+
+		FilesDir: cfg.Files.Dir,
 	}
 }
 
@@ -166,10 +173,21 @@ func LoginWith(t *testing.T, handler http.Handler, login, password string) *http
 	require.Equal(t, http.StatusNoContent, recorder.Code)
 	require.Equal(t, "/", recorder.Header().Get("HX-Redirect"))
 
-	cookies := Cookies(t, recorder)
-	require.Len(t, cookies, 1)
+	return CookieNamed(t, recorder, SessionCookie)
+}
 
-	return cookies[0]
+func CookieNamed(t *testing.T, recorder *httptest.ResponseRecorder, name string) *http.Cookie {
+	t.Helper()
+
+	for _, cookie := range Cookies(t, recorder) {
+		if cookie.Name == name {
+			return cookie
+		}
+	}
+
+	require.Failf(t, "cookie not set", "no %q cookie in the response", name)
+
+	return nil
 }
 
 func PostForm(t *testing.T, handler http.Handler, path string, form url.Values, cookies []*http.Cookie, headers map[string]string) *httptest.ResponseRecorder {
