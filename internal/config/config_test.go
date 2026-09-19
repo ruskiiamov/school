@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,10 +21,24 @@ func writeConfig(t *testing.T, body string) string {
 	return path
 }
 
+func TestLoadExampleRefusesExamplePassword(t *testing.T) {
+	t.Parallel()
+
+	_, err := Load("../../config.example.yaml")
+	require.Error(t, err)
+	assert.Equal(t, "invalid config: admin.password is the example value, set your own", err.Error())
+}
+
 func TestLoadExample(t *testing.T) {
 	t.Parallel()
 
-	cfg, err := Load("../../config.example.yaml")
+	example, err := os.ReadFile("../../config.example.yaml")
+	require.NoError(t, err)
+
+	path := writeConfig(t, strings.Replace(string(example), "change-me", "own-secret", 1))
+	dir := filepath.Dir(path)
+
+	cfg, err := Load(path)
 	require.NoError(t, err)
 
 	assert.Equal(t, ":8080", cfg.HTTP.Addr)
@@ -31,7 +46,9 @@ func TestLoadExample(t *testing.T) {
 	assert.Equal(t, 12*time.Hour, cfg.Session.TTL)
 	assert.Equal(t, time.Hour, cfg.Session.CleanupInterval)
 	assert.Equal(t, 24*time.Hour, cfg.Journal.CleanupInterval)
-	assert.Equal(t, "./data/files", cfg.Files.Dir)
+	assert.Equal(t, filepath.Join(dir, "data", "school.db"), cfg.DB.Path)
+	assert.Equal(t, filepath.Join(dir, "logs", "app.log"), cfg.Log.File)
+	assert.Equal(t, filepath.Join(dir, "data", "files"), cfg.Files.Dir)
 	assert.Equal(t, int64(10<<20), cfg.Files.MaxFileSize())
 	assert.Equal(t, 10, cfg.Files.MaxPerLesson)
 	assert.Equal(t, 5*time.Minute, cfg.Files.TransferTimeout)
@@ -41,6 +58,18 @@ func TestLoadExample(t *testing.T) {
 	assert.Equal(t, "Europe/Moscow", cfg.Timezone)
 	assert.Equal(t, "Europe/Moscow", cfg.Location.String())
 	assert.Equal(t, time.August, cfg.School.YearStartMonth)
+}
+
+func TestLoadKeepsAbsolutePaths(t *testing.T) {
+	t.Parallel()
+
+	logFile := filepath.Join(t.TempDir(), "elsewhere", "app.log")
+	cfg, err := Load(writeConfig(t, "db:\n  path: ./x.db\nlog:\n  file: "+logFile+"\nfiles:\n  dir: ./x\nadmin:\n  login: a\n  password: p\n  full_name: n\n"))
+	require.NoError(t, err)
+
+	assert.Equal(t, logFile, cfg.Log.File)
+	assert.True(t, filepath.IsAbs(cfg.DB.Path))
+	assert.Equal(t, "x.db", filepath.Base(cfg.DB.Path))
 }
 
 func TestLoadYearStartMonth(t *testing.T) {
@@ -94,6 +123,11 @@ func TestLoadInvalid(t *testing.T) {
 			name: "zero max file size",
 			body: "files:\n  max_file_size_mb: 0\n",
 			want: "files.max_file_size_mb must be positive",
+		},
+		{
+			name: "example admin password",
+			body: "db:\n  path: ./x.db\nlog:\n  file: ./x.log\nfiles:\n  dir: ./x\nadmin:\n  login: a\n  password: change-me\n  full_name: n\n",
+			want: "admin.password is the example value, set your own",
 		},
 		{
 			name: "unknown log level",

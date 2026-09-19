@@ -203,10 +203,12 @@ README без участия автора. Срезы идут по порядк
    `-version`, запись `server starting` с версией первой в логе; workflow
    `.github/workflows/check.yml` — `make tools` и `make check` на push и
    pull request.
-1. **Конфиг** — относительные `db.path`, `log.file`, `files.dir` от
-   каталога конфига; отказ стартовать с паролем `change-me`;
-   разовое предупреждение в лог про `session.secure: false` за
-   HTTPS-прокси; тесты `config`.
+1. **Конфиг** — готов (2026-09-19): относительные `db.path`, `log.file`,
+   `files.dir` разрешаются от каталога конфига в `config.Load`; пароль
+   `change-me` отвергается в `validate` (в `config.example.yaml` —
+   комментарий об этом); middleware `warnInsecureCookie` на внешнем mux
+   один раз пишет `WARN`, если `session.secure: false`, а запрос пришёл с
+   `X-Forwarded-Proto: https`; тесты `config` и `server`.
 2. **Резервная копия** — D-077: `internal/backup` (архив `tar.gz`:
    `school.db` через `VACUUM INTO` отдельным соединением только на чтение
    + каталог файлов ДЗ, стримом в `io.Writer`), страница `/admin/backup` с

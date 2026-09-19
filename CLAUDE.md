@@ -76,7 +76,10 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
   (`session.cleanup_interval`), уборка осиротевших строк журнала
   (`journal.cleanup_interval`, `journal.RunCleanup`), graceful shutdown по `ctx`.
 - `internal/config` — YAML с дефолтами в `Load` и списком проверок в `validate`
-  (все ошибки собираются через `errors.Join`). Профилей окружения (`app.env`,
+  (все ошибки собираются через `errors.Join`). Относительные `db.path`,
+  `log.file` и `files.dir` `Load` разрешает от каталога файла конфига, не
+  от рабочего каталога (D-076); `admin.password` со значением из
+  `config.example.yaml` (`change-me`) отвергается — сервер не стартует. Профилей окружения (`app.env`,
   `dev`/`prod`) нет и не вводить: каждое поведение — отдельное явное поле конфига.
   `timezone` проверяется через `time.LoadLocation` и отдаётся как `Config.Location`;
   `cmd/server` импортирует `time/tzdata`, чтобы статический бинарник не зависел
@@ -91,7 +94,10 @@ make check     # fmt --diff + lint + test (прогонять перед ком�
   служебными маршрутами (статика, `/healthz`) и внутренний `pages()` с маршрутами
   приложения (точное совпадение корня — `"GET /{$}"`), смонтированный под `"/"`
   как `chain(s.pages(), s.logRequests, s.recoverPanic)`. Внешний обёрнут
-  `chain(mux, requestID, secureHeaders, s.crossOriginProtection)`. Порядок значим:
+  `chain(mux, requestID, secureHeaders, s.crossOriginProtection,
+  s.warnInsecureCookie)` — последний один раз (`sync.Once`) пишет `WARN`,
+  если `session.secure: false`, а запрос пришёл с `X-Forwarded-Proto:
+  https` (D-076). Порядок значим:
   `requestID` снаружи всего, потому что логгер — `contextHandler`, который достаёт
   `request_id` из контекста; `recoverPanic` внутри `logRequests`, чтобы паника попала
   в лог запроса. В корне остались middleware (`middleware.go`) и дашборд
