@@ -1,6 +1,9 @@
 package components
 
 const (
+	TabActiveClass = "inline-flex min-h-11 items-center rounded-lg bg-indigo-50 px-4 text-sm font-medium text-indigo-700"
+	TabClass       = "inline-flex min-h-11 items-center rounded-lg px-4 text-sm text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+
 	CardClass            = "rounded-xl bg-white shadow-sm ring-1 ring-slate-200"
 	InputClass           = "min-h-11 w-full rounded-lg border border-slate-300 px-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
 	InputErrorClass      = "min-h-11 w-full rounded-lg border border-rose-400 px-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 focus:outline-none"

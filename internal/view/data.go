@@ -10,7 +10,7 @@ const (
 )
 
 func NavItems(role, active string) []NavItem {
-	items := []NavItem{{Title: "Дашборд", Href: "/", Icon: IconDashboard}}
+	items := []NavItem{{Title: "Главная", Href: "/", Icon: IconDashboard}}
 
 	if role == "admin" {
 		items = append(items,
@@ -27,7 +27,7 @@ func NavItems(role, active string) []NavItem {
 			NavItem{Title: "Резервная копия", Href: "/admin/backup", Icon: IconArchive, Group: groupService},
 		)
 	} else {
-		items = append(items, SectionItem(role), summaryItem(role), NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey})
+		items = append(items, sectionItem(role), summaryItem(role), NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey})
 	}
 
 	for i := range items {
@@ -37,7 +37,7 @@ func NavItems(role, active string) []NavItem {
 	return items
 }
 
-func SectionItem(role string) NavItem {
+func sectionItem(role string) NavItem {
 	if role == "teacher" {
 		return NavItem{Title: "Журнал", Href: "/journal", Icon: IconMarks}
 	}

@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -10,8 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/servertest"
+	"github.com/ruskiiamov/school/internal/validation"
 )
 
 func TestHomeShowsSetupStepsForAdmin(t *testing.T) {
@@ -124,42 +127,131 @@ func assertStat(t *testing.T, body, label string, value int) {
 	assert.Contains(t, body, label+`</span></span> <span class="mt-2 block text-2xl font-semibold tabular-nums text-slate-900 lg:text-3xl">`+strconv.Itoa(value)+`</span>`, label)
 }
 
-func TestHomeShowsSectionLinkForOtherRoles(t *testing.T) {
+func TestHomeTeacherOpensTodayLesson(t *testing.T) {
 	t.Parallel()
 
 	env := servertest.New(t)
-	env.CreateUser(t, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
-	env.CreateUser(t, auth.RoleStudent, "student", "Козлов Пётр Ильич")
-	env.CreateUser(t, auth.RoleParent, "parent", "Петрова Ольга Николаевна")
+	ctx := t.Context()
+	teacherID := createUser(t, env, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
+	teacher := env.LoginAs(t, "teacher")
 
-	tests := []struct {
-		login string
-		href  string
-		title string
-		note  string
-	}{
-		{"teacher", "/journal", "Журнал", "Уроки, оценки, отсутствие и комментарии ученикам"},
-		{"student", "/diary", "Дневник", "Уроки, оценки и комментарии по дням"},
-		{"parent", "/diary", "Дневник", "Уроки, оценки и комментарии по дням"},
+	body := servertest.Get(t, env.Handler, "/", teacher).Body.String()
+	assert.Contains(t, body, "Мои классы")
+	assert.Contains(t, body, "Вам пока не назначены классы и предметы")
+	assert.Contains(t, body, "Пока нет уроков")
+	assert.NotContains(t, body, "Учебный год")
+
+	classID, err := env.School.CreateClass(ctx, "7А")
+	require.NoError(t, err)
+	subjectID, err := env.School.CreateSubject(ctx, school.SubjectInput{Name: "Алгебра"})
+	require.NoError(t, err)
+	require.NoError(t, env.School.AssignTeacher(ctx, classID, subjectID, teacherID))
+
+	pair := strconv.FormatInt(classID, 10) + "-" + strconv.FormatInt(subjectID, 10)
+	today := env.School.Today().Format(validation.DateLayout)
+
+	body = servertest.Get(t, env.Handler, "/", teacher).Body.String()
+	assert.Contains(t, body, "7А · Алгебра")
+	assert.Contains(t, body, `name="pair" value="`+pair+`"`)
+	assert.Contains(t, body, `name="date" value="`+today+`"`)
+	assert.Contains(t, body, "Урок сегодня")
+
+	opened := servertest.PostForm(t, env.Handler, "/journal", url.Values{"pair": {pair}, "date": {today}}, []*http.Cookie{teacher}, nil)
+	require.Equal(t, http.StatusSeeOther, opened.Code)
+	lesson := opened.Header().Get("Location")
+	require.Contains(t, lesson, "/journal/lessons/")
+
+	body = servertest.Get(t, env.Handler, "/", teacher).Body.String()
+	assert.Contains(t, body, `href="`+lesson+`"`)
+	assert.NotContains(t, body, "Пока нет уроков")
+}
+
+func TestHomeStudentSeesTodayAndWeekMarks(t *testing.T) {
+	t.Parallel()
+
+	env := servertest.New(t)
+	ctx := t.Context()
+	teacherID := createUser(t, env, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
+	studentID := createUser(t, env, auth.RoleStudent, "student", "Козлов Пётр Ильич")
+	parentID := createUser(t, env, auth.RoleParent, "parent", "Козлова Ольга Николаевна")
+	createUser(t, env, auth.RoleParent, "childless", "Бездетный Родитель Иванович")
+
+	student := env.LoginAs(t, "student")
+
+	body := servertest.Get(t, env.Handler, "/", student).Body.String()
+	assert.Contains(t, body, "Уроков сегодня пока нет")
+	assert.Contains(t, body, "За последние семь дней оценок нет")
+
+	classID, err := env.School.CreateClass(ctx, "7А")
+	require.NoError(t, err)
+	subjectID, err := env.School.CreateSubject(ctx, school.SubjectInput{Name: "Алгебра"})
+	require.NoError(t, err)
+	require.NoError(t, env.School.AddClassStudent(ctx, classID, studentID))
+	require.NoError(t, env.School.AssignTeacher(ctx, classID, subjectID, teacherID))
+	require.NoError(t, env.School.AddChild(ctx, parentID, studentID))
+
+	workTypes, err := env.School.WorkTypes(ctx, false)
+	require.NoError(t, err)
+
+	today := env.School.Today()
+	lessonID, err := env.Journal.OpenLesson(ctx, teacherID, env.School.CurrentYear(), today,
+		journal.OpenLessonInput{ClassID: classID, SubjectID: subjectID, Date: today.Format(validation.DateLayout)})
+	require.NoError(t, err)
+	_, err = env.Journal.AddMark(ctx, teacherID, lessonID, studentID, journal.MarkInput{WorkTypeID: workTypes[0].ID, Value: 5})
+	require.NoError(t, err)
+
+	lessonHref := "/diary?date=" + today.Format(validation.DateLayout) + "&amp;lesson=" + strconv.FormatInt(lessonID, 10)
+
+	body = servertest.Get(t, env.Handler, "/", student).Body.String()
+	assert.Contains(t, body, ">Сегодня</h2>")
+	assert.Contains(t, body, "Алгебра")
+	assert.Contains(t, body, `href="`+lessonHref+`"`)
+	assert.Contains(t, body, "Оценки за неделю")
+	assert.Contains(t, body, "Средний: 5,00")
+	assert.NotContains(t, body, `aria-label="Дети"`)
+
+	parent := env.LoginAs(t, "parent")
+	body = servertest.Get(t, env.Handler, "/", parent).Body.String()
+	assert.NotContains(t, body, `aria-label="Дети"`)
+	assert.Contains(t, body, "child="+strconv.FormatInt(studentID, 10))
+	assert.Contains(t, body, "Средний: 5,00")
+
+	sisterID := createUser(t, env, auth.RoleStudent, "sister", "Козлова Мария Ильинична")
+	require.NoError(t, env.School.AddChild(ctx, parentID, sisterID))
+
+	body = servertest.Get(t, env.Handler, "/", parent).Body.String()
+	assert.Contains(t, body, `aria-label="Дети"`)
+	assert.Contains(t, body, `href="/?child=`+strconv.FormatInt(sisterID, 10)+`"`)
+	assert.Contains(t, body, `href="/?child=`+strconv.FormatInt(studentID, 10)+`" aria-current="page"`)
+	assert.Contains(t, body, "Средний: 5,00")
+
+	body = servertest.Get(t, env.Handler, "/?child="+strconv.FormatInt(sisterID, 10), parent).Body.String()
+	assert.Contains(t, body, `href="/?child=`+strconv.FormatInt(sisterID, 10)+`" aria-current="page"`)
+	assert.Contains(t, body, "За последние семь дней оценок нет")
+
+	stranger := createUser(t, env, auth.RoleStudent, "stranger", "Чужой Ученик Иванович")
+	foreign := servertest.Get(t, env.Handler, "/?child="+strconv.FormatInt(stranger, 10), parent)
+	assert.Equal(t, http.StatusNotFound, foreign.Code)
+
+	body = servertest.Get(t, env.Handler, "/", env.LoginAs(t, "childless")).Body.String()
+	assert.Contains(t, body, "К вашему аккаунту не привязаны дети")
+}
+
+func createUser(t *testing.T, env *servertest.Env, role auth.Role, login, fullName string) int64 {
+	t.Helper()
+
+	env.CreateUser(t, role, login, fullName)
+
+	users, err := env.Auth.Users(t.Context(), auth.UserFilter{Role: role, IncludeInactive: true})
+	require.NoError(t, err)
+
+	for _, user := range users {
+		if user.Login == login {
+			return user.ID
+		}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.login, func(t *testing.T) {
-			cookie := env.LoginAs(t, tt.login)
+	t.Fatalf("user %q not found", login)
 
-			recorder := servertest.Get(t, env.Handler, "/", cookie)
-			require.Equal(t, http.StatusOK, recorder.Code)
-
-			body := recorder.Body.String()
-			assert.Contains(t, body, "Здравствуйте, ")
-			assert.Contains(t, body, `href="`+tt.href+`"`)
-			assert.Contains(t, body, tt.title)
-			assert.Contains(t, body, tt.note)
-			assert.NotContains(t, body, "Учебный год")
-			assert.NotContains(t, body, `href="/admin/classes"`)
-			assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/admin/classes", cookie).Code)
-			assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/admin/students", cookie).Code)
-		})
-	}
-
+	return 0
 }

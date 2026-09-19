@@ -128,7 +128,7 @@ func (h *Handler) passwordResetCreated(w http.ResponseWriter, r *http.Request) {
 		FullName:  user.FullName,
 		Login:     entry.login,
 		Password:  entry.password,
-		Note:      "Сессии пользователя сброшены. Новый пароль показан один раз, передайте его " + sectionByRole(user.Role).recipient + ".",
+		Note:      "Сессии пользователя сброшены. Новый пароль показан один раз, передайте его " + sectionByRole(user.Role).recipient,
 		ListHref:  backHref,
 		ListTitle: backToSearch,
 	}

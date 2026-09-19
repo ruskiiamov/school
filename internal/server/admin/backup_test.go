@@ -31,7 +31,8 @@ func TestBackupPage(t *testing.T) {
 	assert.Contains(t, body, "Резервная копия")
 	assert.Contains(t, body, "1 файл, 10 Б")
 	assert.Contains(t, body, `href="/admin/backup/download"`)
-	assert.Contains(t, body, "Как восстановить")
+	assert.Contains(t, body, "Как восстановить данные из архива")
+	assert.Contains(t, body, "<details")
 }
 
 func TestBackupDownload(t *testing.T) {

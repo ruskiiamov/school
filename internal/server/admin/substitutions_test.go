@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/journal"
+	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/servertest"
 	"github.com/ruskiiamov/school/internal/validation"
 )
@@ -140,6 +142,38 @@ func TestSubstitutionsCreateEditDelete(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, servertest.PostForm(t, env.Handler, substitutionPath(id, "/delete"), nil, []*http.Cookie{admin}, nil).Code)
 	assert.Equal(t, http.StatusNotFound, servertest.PostForm(t, env.Handler, substitutionPath(id, ""), url.Values{"start_date": {"2026-09-01"}}, []*http.Cookie{admin}, nil).Code)
+}
+
+func TestSubstitutionWithLessonsCannotBeDeleted(t *testing.T) {
+	t.Parallel()
+
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	ctx := t.Context()
+	today := env.School.Today()
+
+	class := createClass(t, env, admin, env.School.CurrentYear(), "7А")
+	algebra := createSubject(t, env, admin, "Алгебра")
+	viktor, _ := createUserVia(t, env, admin, "/admin/teachers", url.Values{"full_name": {"Кузнецов Виктор"}})
+
+	id, err := env.School.CreateSubstitution(ctx, school.SubstitutionInput{
+		ClassID: class, SubjectID: algebra, TeacherID: viktor, StartDate: today.Format(validation.DateLayout),
+	})
+	require.NoError(t, err)
+
+	_, err = env.Journal.OpenLesson(ctx, viktor, env.School.CurrentYear(), today,
+		journal.OpenLessonInput{ClassID: class, SubjectID: algebra, Date: today.Format(validation.DateLayout)})
+	require.NoError(t, err)
+
+	refused := servertest.PostForm(t, env.Handler, substitutionPath(id, "/delete"), nil, []*http.Cookie{admin}, nil)
+	require.Equal(t, http.StatusOK, refused.Code)
+	assert.Contains(t, refused.Body.String(), "По замене уже проведены уроки: вместо удаления укажите дату окончания")
+	assert.Contains(t, refused.Body.String(), `action="`+substitutionPath(id, "")+`"`)
+
+	ended := servertest.PostForm(t, env.Handler, substitutionPath(id, ""),
+		url.Values{"start_date": {today.Format(validation.DateLayout)}, "end_date": {today.Format(validation.DateLayout)}},
+		[]*http.Cookie{admin}, nil)
+	servertest.AssertRedirect(t, ended, substitutionsPath)
 }
 
 func TestSubstitutionsHiddenFromOtherRoles(t *testing.T) {

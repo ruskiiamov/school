@@ -30,6 +30,7 @@ func TestAdminSectionsExplainThemselves(t *testing.T) {
 		{"/admin/journal", "Журналы никто не формирует"},
 		{"/admin/diary", "собирается из уроков его класса"},
 		{"/admin/password-reset", "Пароль администратора меняется в конфиге сервера"},
+		{"/admin/backup", "храните не на этом сервере"},
 	}
 
 	for _, tt := range tests {

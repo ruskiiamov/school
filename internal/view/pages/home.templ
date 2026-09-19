@@ -28,19 +28,23 @@ templ Home(page view.HomePage) {
 					</div>
 				</section>
 			}
-			if page.Section.Href != "" {
-				<a
-					href={ templ.SafeURL(page.Section.Href) }
-					class={ components.CardClass, "flex items-center gap-4 p-4 hover:ring-indigo-300 active:bg-slate-50 sm:p-5" }
-				>
-					<span class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
-						@components.Icon(page.Section.Icon, "size-6")
-					</span>
-					<span class="flex min-w-0 flex-col">
-						<span class="text-base font-semibold text-slate-900">{ page.Section.Title }</span>
-						<span class="text-sm text-slate-500">{ page.SectionNote }</span>
-					</span>
-				</a>
+			if page.Teacher != nil {
+				@teacherDashboard(*page.Teacher)
+			}
+			if page.NoChildren {
+				<div class={ components.CardClass }>
+					@components.EmptyState("К вашему аккаунту не привязаны дети")
+				</div>
+			}
+			if len(page.Children) > 1 {
+				<nav aria-label="Дети" class="flex flex-wrap gap-2">
+					for _, child := range page.Children {
+						@childTab(child)
+					}
+				</nav>
+			}
+			if page.Student != nil {
+				@studentDashboard(*page.Student)
 			}
 		</div>
 	}
@@ -49,7 +53,7 @@ templ Home(page view.HomePage) {
 templ setupCard(steps []view.SetupStep) {
 	<section class={ components.CardClass, "flex flex-col gap-1 p-4 sm:p-5" }>
 		<h2 class="text-base font-semibold text-slate-900">Начало работы</h2>
-		<p class="text-sm text-slate-500">Пройдите шаги по порядку. Когда обязательные будут выполнены, этот блок исчезнет.</p>
+		<p class="text-sm text-slate-500">Пройдите шаги по порядку. Когда обязательные будут выполнены, этот блок исчезнет</p>
 		<ol class="mt-2 divide-y divide-slate-100">
 			for _, step := range steps {
 				<li>
@@ -73,4 +77,99 @@ templ setupCard(steps []view.SetupStep) {
 			}
 		</ol>
 	</section>
+}
+
+templ dashboardCardHeader(title, href, label string) {
+	<div class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 lg:px-5">
+		<h2 class="min-w-0 truncate text-sm font-semibold text-slate-900">{ title }</h2>
+		<a href={ templ.SafeURL(href) } class="shrink-0 text-sm font-medium text-indigo-700 hover:underline">{ label }</a>
+	</div>
+}
+
+templ teacherDashboard(board view.TeacherDashboard) {
+	<section class={ components.CardClass }>
+		@dashboardCardHeader("Мои классы", board.JournalHref, "Журнал")
+		if len(board.Pairs) == 0 {
+			@components.EmptyState("Вам пока не назначены классы и предметы")
+		} else {
+			<ul class="divide-y divide-slate-100">
+				for _, pair := range board.Pairs {
+					<li>
+						<form method="post" action={ templ.SafeURL(board.Action) } class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
+							<input type="hidden" name="pair" value={ pair.Value }/>
+							<input type="hidden" name="date" value={ board.Date }/>
+							<span class="min-w-0 flex-1 basis-40 truncate text-sm font-medium text-slate-900">{ pair.Name }</span>
+							<button type="submit" class={ components.ButtonSecondaryClass }>Урок сегодня</button>
+						</form>
+					</li>
+				}
+			</ul>
+		}
+	</section>
+	<section class={ components.CardClass }>
+		@dashboardCardHeader("Последние уроки", board.JournalHref, "Все уроки")
+		if len(board.Lessons) == 0 {
+			@components.EmptyState("Пока нет уроков")
+		} else {
+			<ul class="divide-y divide-slate-100">
+				for _, lesson := range board.Lessons {
+					@lessonRowItem(lesson)
+				}
+			</ul>
+		}
+	</section>
+}
+
+templ studentDashboard(board view.StudentDashboard) {
+	<div class="flex flex-col gap-4 lg:gap-6">
+		<section class={ components.CardClass }>
+			@dashboardCardHeader("Сегодня", board.DiaryHref, "Дневник")
+			if len(board.Lessons) == 0 {
+				@components.EmptyState("Уроков сегодня пока нет")
+			} else {
+				<ul class="divide-y divide-slate-100">
+					for _, lesson := range board.Lessons {
+						<li>
+							<a href={ templ.SafeURL(lesson.Href) } class="flex min-h-11 items-center gap-3 p-3 hover:bg-slate-50 sm:px-4">
+								<span class="flex min-w-0 flex-1 flex-col">
+									<span class="truncate text-sm font-medium text-slate-900">{ lesson.Subject }</span>
+									<span class="truncate text-xs text-slate-500">{ lesson.Teacher }</span>
+								</span>
+								if lesson.Summary != "" {
+									<span class="shrink-0 text-sm font-semibold text-slate-700">{ lesson.Summary }</span>
+								}
+								if lesson.Homework {
+									<span class="shrink-0 rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700">ДЗ</span>
+								}
+							</a>
+						</li>
+					}
+				</ul>
+			}
+		</section>
+		<section class={ components.CardClass }>
+			@dashboardCardHeader("Оценки за неделю", board.MarksHref, "Все оценки")
+			if len(board.Subjects) == 0 {
+				@components.EmptyState("За последние семь дней оценок нет")
+			} else {
+				<ul class="divide-y divide-slate-100">
+					for _, subject := range board.Subjects {
+						@subjectMarksRow(subject)
+					}
+				</ul>
+			}
+		</section>
+	</div>
+}
+
+templ childTab(child view.DiaryChild) {
+	<a
+		href={ templ.SafeURL(child.Href) }
+		if child.Active {
+			aria-current="page"
+			class={ components.TabActiveClass }
+		} else {
+			class={ components.TabClass }
+		}
+	>{ child.Name }</a>
 }

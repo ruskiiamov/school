@@ -16,8 +16,10 @@ import (
 )
 
 const (
-	journalPath = "/journal"
-	lessonsPath = journalPath + "/lessons"
+	journalPath      = "/journal"
+	lessonsPath      = journalPath + "/lessons"
+	dashboardLessons = 5
+	lessonsPageSize  = 10
 )
 
 type Handler struct {
@@ -87,6 +89,61 @@ func (h *Handler) open(w http.ResponseWriter, r *http.Request) {
 	web.Redirect(w, r, lessonPath(id, ""))
 }
 
+func (h *Handler) Dashboard(r *http.Request, teacherID int64) (view.TeacherDashboard, error) {
+	ctx := r.Context()
+	year := h.school.CurrentYear()
+	today := h.school.Today()
+
+	pairs, err := h.journal.Pairs(ctx, teacherID, year, today)
+	if err != nil {
+		return view.TeacherDashboard{}, err
+	}
+
+	lessons, err := h.journal.RecentLessons(ctx, teacherID, year, dashboardLessons)
+	if err != nil {
+		return view.TeacherDashboard{}, err
+	}
+
+	return view.TeacherDashboard{
+		Action:      journalPath,
+		Date:        today.Format(validation.DateLayout),
+		JournalHref: journalPath,
+		Pairs:       teacherPairOptions(pairs, ""),
+		Lessons:     lessonRows(lessons),
+	}, nil
+}
+
+func teacherPairOptions(pairs []journal.Pair, selected string) []view.PairOption {
+	options := make([]view.PairOption, 0, len(pairs))
+
+	for _, pair := range pairs {
+		value := pairValue(pair.ClassID, pair.SubjectID)
+		options = append(options, view.PairOption{
+			Value:    value,
+			Name:     pair.ClassName + " · " + pair.SubjectName,
+			Selected: value == selected,
+		})
+	}
+
+	return options
+}
+
+func lessonRows(lessons []journal.Lesson) []view.LessonRow {
+	rows := make([]view.LessonRow, 0, len(lessons))
+
+	for _, lesson := range lessons {
+		rows = append(rows, view.LessonRow{
+			Href:    lessonPath(lesson.ID, ""),
+			Date:    view.FormatShortDate(lesson.Date),
+			Class:   lesson.ClassName,
+			Subject: lesson.SubjectName,
+			Topic:   lesson.Topic,
+		})
+	}
+
+	return rows
+}
+
 func (h *Handler) renderJournal(w http.ResponseWriter, r *http.Request, form journalForm) {
 	ctx := r.Context()
 	user, _ := web.UserFromContext(ctx)
@@ -98,35 +155,27 @@ func (h *Handler) renderJournal(w http.ResponseWriter, r *http.Request, form jou
 		return
 	}
 
-	lessons, err := h.journal.RecentLessons(ctx, user.ID, year)
+	number := requestedPage(r)
+
+	lessons, total, err := h.journal.LessonsPage(ctx, user.ID, year, number, lessonsPageSize)
 	if err != nil {
-		h.base.ServerError(w, r, "list recent lessons", err)
+		h.base.ServerError(w, r, "list lessons", err)
+		return
+	}
+
+	pageCount := max(1, (total+lessonsPageSize-1)/lessonsPageSize)
+	if number > pageCount {
+		web.Redirect(w, r, journalPageURL(pageCount))
 		return
 	}
 
 	page := view.JournalPage{
-		Shell:  h.base.Shell(r, "Журнал", journalPath),
-		Date:   form.date,
-		Errors: form.errs,
-	}
-
-	for _, pair := range pairs {
-		value := pairValue(pair.ClassID, pair.SubjectID)
-		page.Pairs = append(page.Pairs, view.PairOption{
-			Value:    value,
-			Name:     pair.ClassName + " · " + pair.SubjectName,
-			Selected: value == form.pair,
-		})
-	}
-
-	for _, lesson := range lessons {
-		page.Lessons = append(page.Lessons, view.LessonRow{
-			Href:    lessonPath(lesson.ID, ""),
-			Date:    view.FormatShortDate(lesson.Date),
-			Class:   lesson.ClassName,
-			Subject: lesson.SubjectName,
-			Topic:   lesson.Topic,
-		})
+		Shell:   h.base.Shell(r, "Журнал", journalPath),
+		Date:    form.date,
+		Errors:  form.errs,
+		Pairs:   teacherPairOptions(pairs, form.pair),
+		Lessons: lessonRows(lessons),
+		Pager:   lessonsPager(number, pageCount),
 	}
 
 	if web.IsHTMX(r) {
@@ -135,6 +184,37 @@ func (h *Handler) renderJournal(w http.ResponseWriter, r *http.Request, form jou
 	}
 
 	h.base.Render(w, r, pages.Journal(page))
+}
+
+func requestedPage(r *http.Request) int {
+	number, err := strconv.Atoi(r.URL.Query().Get("page"))
+	if err != nil || number < 1 {
+		return 1
+	}
+
+	return number
+}
+
+func journalPageURL(number int) string {
+	if number <= 1 {
+		return journalPath
+	}
+
+	return journalPath + "?page=" + strconv.Itoa(number)
+}
+
+func lessonsPager(number, pageCount int) view.Pager {
+	pager := view.Pager{Label: "Страница " + strconv.Itoa(number) + " из " + strconv.Itoa(pageCount), Pages: pageCount}
+
+	if number > 1 {
+		pager.NewerHref = journalPageURL(number - 1)
+	}
+
+	if number < pageCount {
+		pager.OlderHref = journalPageURL(number + 1)
+	}
+
+	return pager
 }
 
 func pairValue(classID, subjectID int64) string {

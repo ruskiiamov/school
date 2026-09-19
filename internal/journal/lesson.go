@@ -22,7 +22,6 @@ const (
 	msgLessonNotEmpty       = "Урок с оценками или записями удалить нельзя"
 
 	maxTopicLength = 200
-	recentLimit    = 15
 )
 
 type Lesson struct {
@@ -188,12 +187,35 @@ func (s *Service) LessonsByPair(ctx context.Context, classID, subjectID int64) (
 	return lessons, withHomework, nil
 }
 
-func (s *Service) RecentLessons(ctx context.Context, teacherID int64, year int) ([]Lesson, error) {
-	stored, err := s.lessons.ListVisible(ctx, teacherID, year, recentLimit)
+func (s *Service) RecentLessons(ctx context.Context, teacherID int64, year, limit int) ([]Lesson, error) {
+	stored, err := s.lessons.ListVisible(ctx, teacherID, year, limit, 0)
 	if err != nil {
 		return nil, err
 	}
 
+	return s.withPairNames(ctx, year, stored)
+}
+
+func (s *Service) LessonsPage(ctx context.Context, teacherID int64, year, page, size int) ([]Lesson, int, error) {
+	total, err := s.lessons.CountVisible(ctx, teacherID, year)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	stored, err := s.lessons.ListVisible(ctx, teacherID, year, size, (page-1)*size)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	lessons, err := s.withPairNames(ctx, year, stored)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return lessons, total, nil
+}
+
+func (s *Service) withPairNames(ctx context.Context, year int, stored []storage.Lesson) ([]Lesson, error) {
 	classes, err := s.classes.ListByYear(ctx, year, true)
 	if err != nil {
 		return nil, err

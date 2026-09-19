@@ -189,15 +189,10 @@ func (h *Handler) renderDiary(w http.ResponseWriter, r *http.Request, dv diaryVi
 		return
 	}
 
-	teachers, err := h.auth.Users(ctx, auth.UserFilter{Role: auth.RoleTeacher, IncludeInactive: true})
+	teacherNames, err := h.teacherNames(r)
 	if err != nil {
 		h.base.ServerError(w, r, "list teachers", err)
 		return
-	}
-
-	teacherNames := make(map[int64]string, len(teachers))
-	for _, teacher := range teachers {
-		teacherNames[teacher.ID] = teacher.FullName
 	}
 
 	dateValue := date.Format(validation.DateLayout)

@@ -63,22 +63,26 @@ templ MarksContent(page view.MarksPage) {
 				} else {
 					<ul class="divide-y divide-slate-100">
 						for _, subject := range page.Subjects {
-							<li class="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
-								<span class="text-sm font-medium text-slate-900 sm:w-44 sm:shrink-0">{ subject.Name }</span>
-								<span class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-									for _, mark := range subject.Marks {
-										<a href={ templ.SafeURL(mark.Href) } title={ mark.Title } class="inline-flex size-9 items-center justify-center rounded-lg bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100">{ mark.Value }</a>
-									}
-								</span>
-								<span class="flex shrink-0 items-center gap-4 text-sm">
-									<span class="text-slate-600">Н: { subject.Absences }</span>
-									<span class="font-semibold text-slate-900">Средний: { subject.Average }</span>
-								</span>
-							</li>
+							@subjectMarksRow(subject)
 						}
 					</ul>
 				}
 			</section>
 		}
 	</div>
+}
+
+templ subjectMarksRow(subject view.SubjectMarksRow) {
+	<li class="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
+		<span class="text-sm font-medium text-slate-900 sm:w-44 sm:shrink-0">{ subject.Name }</span>
+		<span class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+			for _, mark := range subject.Marks {
+				<a href={ templ.SafeURL(mark.Href) } title={ mark.Title } class="inline-flex size-9 items-center justify-center rounded-lg bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100">{ mark.Value }</a>
+			}
+		</span>
+		<span class="flex shrink-0 items-center gap-4 text-sm">
+			<span class="text-slate-600">Н: { subject.Absences }</span>
+			<span class="font-semibold text-slate-900">Средний: { subject.Average }</span>
+		</span>
+	</li>
 }

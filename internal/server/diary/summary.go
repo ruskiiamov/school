@@ -134,6 +134,14 @@ func (h *Handler) renderMarks(w http.ResponseWriter, r *http.Request, dv diaryVi
 		}
 	}
 
+	page.Subjects = subjectRows(summary, diary)
+
+	h.renderMarksPage(w, r, page)
+}
+
+func subjectRows(summary journal.StudentSummary, diary diaryView) []view.SubjectMarksRow {
+	rows := make([]view.SubjectMarksRow, 0, len(summary.Subjects))
+
 	for _, subject := range summary.Subjects {
 		row := view.SubjectMarksRow{
 			Name:     subject.SubjectName,
@@ -149,10 +157,10 @@ func (h *Handler) renderMarks(w http.ResponseWriter, r *http.Request, dv diaryVi
 			})
 		}
 
-		page.Subjects = append(page.Subjects, row)
+		rows = append(rows, row)
 	}
 
-	h.renderMarksPage(w, r, page)
+	return rows
 }
 
 func (h *Handler) renderMarksPage(w http.ResponseWriter, r *http.Request, page view.MarksPage) {
