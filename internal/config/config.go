@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
-const DefaultPath = "config.yaml"
+const (
+	DefaultPath       = "config.yaml"
+	adminExampleValue = "change-me"
+)
 
 type Config struct {
 	School   School  `yaml:"school"`
@@ -123,11 +127,28 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
+	base, err := filepath.Abs(filepath.Dir(path))
+	if err != nil {
+		return nil, fmt.Errorf("resolve config directory: %w", err)
+	}
+
+	cfg.DB.Path = resolvePath(base, cfg.DB.Path)
+	cfg.Log.File = resolvePath(base, cfg.Log.File)
+	cfg.Files.Dir = resolvePath(base, cfg.Files.Dir)
+
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
 	return &cfg, nil
+}
+
+func resolvePath(base, path string) string {
+	if path == "" || filepath.IsAbs(path) {
+		return path
+	}
+
+	return filepath.Join(base, path)
 }
 
 func (c *Config) validate() error {
@@ -168,6 +189,7 @@ func (c *Config) validate() error {
 	require(c.Files.TransferTimeout > 0, "files.transfer_timeout must be positive")
 	require(c.Admin.Login != "", "admin.login is empty")
 	require(c.Admin.Password != "", "admin.password is empty")
+	require(c.Admin.Password != adminExampleValue, "admin.password is the example value, set your own")
 	require(c.Admin.FullName != "", "admin.full_name is empty")
 
 	return errors.Join(problems...)

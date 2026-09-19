@@ -40,5 +40,6 @@ files:
 
 admin:
   login: admin
+  # обязательно замените: с этим значением сервер не запустится
   password: change-me
   full_name: Администратор

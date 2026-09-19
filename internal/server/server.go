@@ -3,6 +3,7 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/ruskiiamov/school/internal/auth"
@@ -29,6 +30,9 @@ type Server struct {
 	files    *filepages.Handler
 	location *time.Location
 	log      *slog.Logger
+
+	secureCookie         bool
+	insecureCookieWarned sync.Once
 }
 
 func New(cfg *config.Config, authService *auth.Service, schoolService *school.Service, journalService *journal.Service, log *slog.Logger) *Server {
@@ -45,6 +49,8 @@ func New(cfg *config.Config, authService *auth.Service, schoolService *school.Se
 		files:    filepages.New(base, schoolService, journalService, cfg.Files.TransferTimeout, log),
 		location: cfg.Location,
 		log:      log,
+
+		secureCookie: cfg.Session.Secure,
 	}
 }
 
@@ -55,7 +61,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.Handle("/", chain(s.pages(), s.logRequests, s.recoverPanic))
 
-	return chain(mux, requestID, secureHeaders, s.crossOriginProtection)
+	return chain(mux, requestID, secureHeaders, s.crossOriginProtection, s.warnInsecureCookie)
 }
 
 func (s *Server) pages() http.Handler {

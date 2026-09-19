@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/ruskiiamov/school/internal/logger"
@@ -124,4 +125,21 @@ func (s *Server) crossOriginProtection(next http.Handler) http.Handler {
 	}))
 
 	return protection.Handler(next)
+}
+
+func (s *Server) warnInsecureCookie(next http.Handler) http.Handler {
+	if s.secureCookie {
+		return next
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+			s.insecureCookieWarned.Do(func() {
+				s.log.WarnContext(r.Context(),
+					"requests arrive over https but session.secure is false; set session.secure: true in the config")
+			})
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
