@@ -6,6 +6,8 @@ timezone: Europe/Moscow
 
 http:
   addr: ":8080"
+  # true только за обратным прокси (Caddy, nginx): адрес клиента берётся из X-Forwarded-For
+  behind_proxy: false
   read_timeout: 5s
   write_timeout: 10s
   idle_timeout: 60s

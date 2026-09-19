@@ -141,6 +141,10 @@ func (s *Service) ResetPassword(ctx context.Context, id int64) (string, error) {
 		return "", err
 	}
 
+	if err := s.devices.DeleteByUser(ctx, id); err != nil {
+		return "", err
+	}
+
 	s.log.InfoContext(ctx, "user password reset", slog.Int64("id", id))
 
 	return password, nil
@@ -155,6 +159,10 @@ func (s *Service) SetUserActive(ctx context.Context, id int64, active bool) erro
 
 	if !active {
 		if err := s.sessions.DeleteByUser(ctx, id); err != nil {
+			return err
+		}
+
+		if err := s.devices.DeleteByUser(ctx, id); err != nil {
 			return err
 		}
 	}

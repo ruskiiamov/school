@@ -4,6 +4,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,4 +70,24 @@ func TestStoreRejectsForeignIDs(t *testing.T) {
 	_, err = store.Open("../store.go")
 	assert.ErrorIs(t, err, files.ErrNotFound)
 	assert.ErrorIs(t, store.Delete(""), files.ErrNotFound)
+}
+
+func TestStoreModTime(t *testing.T) {
+	t.Parallel()
+
+	store, err := files.NewStore(t.TempDir())
+	require.NoError(t, err)
+
+	saved, err := store.Save(strings.NewReader("content"), 100)
+	require.NoError(t, err)
+
+	modified, err := store.ModTime(saved.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, time.Now(), modified, time.Minute)
+
+	_, err = store.ModTime("../etc/passwd")
+	require.ErrorIs(t, err, files.ErrNotFound)
+
+	_, err = store.ModTime(strings.Repeat("0", 32))
+	require.ErrorIs(t, err, files.ErrNotFound)
 }

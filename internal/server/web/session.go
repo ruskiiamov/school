@@ -9,6 +9,8 @@ import (
 	"github.com/ruskiiamov/school/internal/auth"
 )
 
+const deviceCookieName = "device"
+
 func (b *Base) Authenticate(r *http.Request) (auth.User, bool) {
 	sessionID := b.SessionID(r)
 	if sessionID == "" {
@@ -54,6 +56,27 @@ func (b *Base) ClearSessionCookie(w http.ResponseWriter) {
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   b.cookie.Secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func (b *Base) DeviceToken(r *http.Request) string {
+	cookie, err := r.Cookie(deviceCookieName)
+	if err != nil {
+		return ""
+	}
+
+	return cookie.Value
+}
+
+func (b *Base) SetDeviceCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     deviceCookieName,
+		Value:    token,
+		Path:     "/login",
+		MaxAge:   int(auth.DeviceTTL / time.Second),
 		HttpOnly: true,
 		Secure:   b.cookie.Secure,
 		SameSite: http.SameSiteLaxMode,

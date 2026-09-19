@@ -11,6 +11,9 @@ timezone: Europe/Moscow
 http:
   # Только локальный адрес: снаружи приложение видно через прокси
   addr: "127.0.0.1:8080"
+  # Адрес клиента для ограничения попыток входа берётся из X-Forwarded-For,
+  # который ставит прокси. Без прокси держите false: заголовок можно подделать
+  behind_proxy: true
   read_timeout: 5s
   write_timeout: 10s
   idle_timeout: 60s

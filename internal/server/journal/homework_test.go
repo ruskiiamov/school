@@ -7,9 +7,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -220,10 +223,7 @@ func TestJournalCleanupRemovesHomeworkOrphans(t *testing.T) {
 	servertest.AssertRedirect(t, uploaded, lessonPath(id, ""))
 	require.NoError(t, f.env.Journal.SaveHomework(t.Context(), f.teacher, id, journalHomework("Упр. 1")))
 
-	stray, err := f.env.Files.Save(strings.NewReader("stray"), 100)
-	require.NoError(t, err)
-
-	_, err = f.env.DB.ExecContext(t.Context(), "DELETE FROM lessons WHERE id = ?", id)
+	_, err := f.env.DB.ExecContext(t.Context(), "DELETE FROM lessons WHERE id = ?", id)
 	require.NoError(t, err)
 
 	f.env.Journal.CleanupOrphans(t.Context())
@@ -237,5 +237,52 @@ func TestJournalCleanupRemovesHomeworkOrphans(t *testing.T) {
 	ids, err := f.env.Files.IDs()
 	require.NoError(t, err)
 	assert.Empty(t, ids)
-	assert.NotContains(t, ids, stray.ID)
+}
+
+func saveStray(t *testing.T, env *servertest.Env, age time.Duration) string {
+	t.Helper()
+
+	stray, err := env.Files.Save(strings.NewReader("stray"), 100)
+	require.NoError(t, err)
+
+	modified := time.Now().Add(-age)
+	require.NoError(t, os.Chtimes(filepath.Join(env.FilesDir, stray.ID), modified, modified))
+
+	return stray.ID
+}
+
+func TestJournalCleanupRemovesOnlyOldStrayFiles(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t)
+	teacher := f.env.LoginAs(t, "teacher")
+	require.NoError(t, f.env.School.AssignTeacher(t.Context(), f.class, f.subject, f.teacher))
+
+	id := openLesson(t, f.env, teacher, f.class, f.subject, f.today)
+	uploaded := upload(t, f.env.Handler, lessonPath(id, "/homework/files"), teacher, false, map[string]string{"a.txt": "a"})
+	servertest.AssertRedirect(t, uploaded, lessonPath(id, ""))
+
+	fresh := saveStray(t, f.env, time.Hour)
+	old := saveStray(t, f.env, 25*time.Hour)
+
+	f.env.Journal.CleanupOrphans(t.Context())
+
+	ids, err := f.env.Files.IDs()
+	require.NoError(t, err)
+	assert.Len(t, ids, 2)
+	assert.Contains(t, ids, fresh)
+	assert.NotContains(t, ids, old)
+}
+
+func TestJournalCleanupKeepsFilesWhenDatabaseKnowsNone(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t)
+	old := saveStray(t, f.env, 25*time.Hour)
+
+	f.env.Journal.CleanupOrphans(t.Context())
+
+	ids, err := f.env.Files.IDs()
+	require.NoError(t, err)
+	assert.Equal(t, []string{old}, ids)
 }

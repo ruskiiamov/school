@@ -70,6 +70,65 @@ func TestLoginFailureWithoutHtmxRendersFullPage(t *testing.T) {
 	assert.Contains(t, body, `value="admin"`)
 }
 
+func TestLoginBlockedAfterRepeatedFailures(t *testing.T) {
+	t.Parallel()
+
+	env := servertest.New(t)
+	wrong := url.Values{"login": {servertest.AdminLogin}, "password": {"wrong"}}
+
+	for range 5 {
+		recorder := servertest.PostForm(t, env.Handler, "/login", wrong, nil, nil)
+		require.Contains(t, recorder.Body.String(), "Неверный логин или пароль")
+	}
+
+	recorder := servertest.PostForm(t, env.Handler, "/login",
+		url.Values{"login": {servertest.AdminLogin}, "password": {servertest.AdminPassword}}, nil, nil)
+
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Empty(t, servertest.Cookies(t, recorder))
+	assert.Contains(t, recorder.Body.String(), "Слишком много неудачных попыток")
+}
+
+func TestLoginRemembersDevice(t *testing.T) {
+	t.Parallel()
+
+	env := servertest.New(t)
+	correct := url.Values{"login": {servertest.AdminLogin}, "password": {servertest.AdminPassword}}
+
+	first := servertest.PostForm(t, env.Handler, "/login", correct, nil, nil)
+	device := servertest.CookieNamed(t, first, servertest.DeviceCookie)
+
+	assert.NotEmpty(t, device.Value)
+	assert.True(t, device.HttpOnly)
+	assert.Equal(t, http.SameSiteLaxMode, device.SameSite)
+	assert.Equal(t, "/login", device.Path)
+	assert.Positive(t, device.MaxAge)
+
+	second := servertest.PostForm(t, env.Handler, "/login", correct, []*http.Cookie{device}, nil)
+	assert.Equal(t, device.Value, servertest.CookieNamed(t, second, servertest.DeviceCookie).Value)
+}
+
+func TestLoginFromKnownDeviceSurvivesLockout(t *testing.T) {
+	t.Parallel()
+
+	env := servertest.New(t)
+	correct := url.Values{"login": {servertest.AdminLogin}, "password": {servertest.AdminPassword}}
+	wrong := url.Values{"login": {servertest.AdminLogin}, "password": {"wrong"}}
+
+	device := servertest.CookieNamed(t, servertest.PostForm(t, env.Handler, "/login", correct, nil, nil), servertest.DeviceCookie)
+
+	for range 5 {
+		servertest.PostForm(t, env.Handler, "/login", wrong, nil, nil)
+	}
+
+	stranger := servertest.PostForm(t, env.Handler, "/login", correct, nil, nil)
+	assert.Contains(t, stranger.Body.String(), "Слишком много неудачных попыток")
+
+	owner := servertest.PostForm(t, env.Handler, "/login", correct, []*http.Cookie{device}, nil)
+	servertest.AssertRedirect(t, owner, "/")
+	assert.NotEmpty(t, servertest.CookieNamed(t, owner, servertest.SessionCookie).Value)
+}
+
 func TestLoginPageRedirectsAuthenticatedUser(t *testing.T) {
 	t.Parallel()
 
