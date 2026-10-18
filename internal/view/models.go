@@ -90,18 +90,25 @@ type HomePage struct {
 	YearName   string
 	Setup      []SetupStep
 	Stats      []Stat
-	Teacher    *TeacherDashboard
+	Teacher    *TeacherHome
 	Children   []DiaryChild
 	Student    *StudentDashboard
 	NoChildren bool
 }
 
-type TeacherDashboard struct {
-	Action      string
-	Date        string
-	JournalHref string
-	Pairs       []PairOption
-	Lessons     []LessonRow
+type TeacherHome struct {
+	Path          string
+	Years         []Option
+	Assigned      []PairCard
+	Substitutions []PairCard
+}
+
+type PairCard struct {
+	Href    string
+	Name    string
+	Lessons string
+	Periods []string
+	OwnOnly bool
 }
 
 type StudentDashboard struct {

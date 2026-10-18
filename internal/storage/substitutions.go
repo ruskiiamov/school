@@ -64,6 +64,20 @@ func (r *SubstitutionRepo) ListActiveByTeacher(ctx context.Context, teacherID in
 	return collectSubstitutions(rows)
 }
 
+func (r *SubstitutionRepo) ListByTeacherYear(ctx context.Context, teacherID int64, year int) ([]Substitution, error) {
+	const query = "SELECT " + substitutionColumns + ` FROM substitutions
+		WHERE teacher_id = ? AND class_id IN (SELECT id FROM classes WHERE year = ?)
+		ORDER BY start_date, id`
+
+	rows, err := r.db.QueryContext(ctx, query, teacherID, year)
+	if err != nil {
+		return nil, fmt.Errorf("select teacher year substitutions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	return collectSubstitutions(rows)
+}
+
 func (r *SubstitutionRepo) ByID(ctx context.Context, id int64) (Substitution, error) {
 	const query = "SELECT " + substitutionColumns + " FROM substitutions WHERE id = ?"
 

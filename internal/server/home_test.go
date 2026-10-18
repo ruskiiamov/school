@@ -2,10 +2,10 @@ package server_test
 
 import (
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,6 +15,7 @@ import (
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/servertest"
 	"github.com/ruskiiamov/school/internal/validation"
+	"github.com/ruskiiamov/school/internal/view"
 )
 
 func TestHomeShowsSetupStepsForAdmin(t *testing.T) {
@@ -127,43 +128,101 @@ func assertStat(t *testing.T, body, label string, value int) {
 	assert.Contains(t, body, label+`</span></span> <span class="mt-2 block text-2xl font-semibold tabular-nums text-slate-900 lg:text-3xl">`+strconv.Itoa(value)+`</span>`, label)
 }
 
-func TestHomeTeacherOpensTodayLesson(t *testing.T) {
+func TestHomeTeacherSeesPairsOfYear(t *testing.T) {
 	t.Parallel()
 
 	env := servertest.New(t)
 	ctx := t.Context()
+	year := env.School.CurrentYear()
+	today := env.School.Today()
 	teacherID := createUser(t, env, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
+	otherID := createUser(t, env, auth.RoleTeacher, "other", "Кузнецов Виктор Павлович")
 	teacher := env.LoginAs(t, "teacher")
 
 	body := servertest.Get(t, env.Handler, "/", teacher).Body.String()
-	assert.Contains(t, body, "Мои классы")
-	assert.Contains(t, body, "Вам пока не назначены классы и предметы")
-	assert.Contains(t, body, "Пока нет уроков")
-	assert.NotContains(t, body, "Учебный год")
+	assert.Contains(t, body, "В этом году вам не назначены классы и предметы")
+	assert.Contains(t, body, `name="year"`)
+	assert.Contains(t, body, `<noscript><button type="submit"`)
+	assert.Contains(t, body, `href="/journal" class`)
+	assert.Contains(t, body, "Журнал OLD")
+	assert.NotContains(t, body, "Урок сегодня")
 
-	classID, err := env.School.CreateClass(ctx, "7А")
+	seventh, err := env.School.CreateClass(ctx, "7А")
 	require.NoError(t, err)
-	subjectID, err := env.School.CreateSubject(ctx, school.SubjectInput{Name: "Алгебра"})
+	eighth, err := env.School.CreateClass(ctx, "8А")
 	require.NoError(t, err)
-	require.NoError(t, env.School.AssignTeacher(ctx, classID, subjectID, teacherID))
+	ninth, err := env.School.CreateClass(ctx, "9Б")
+	require.NoError(t, err)
+	algebra, err := env.School.CreateSubject(ctx, school.SubjectInput{Name: "Алгебра"})
+	require.NoError(t, err)
+	geometry, err := env.School.CreateSubject(ctx, school.SubjectInput{Name: "Геометрия"})
+	require.NoError(t, err)
 
-	pair := strconv.FormatInt(classID, 10) + "-" + strconv.FormatInt(subjectID, 10)
-	today := env.School.Today().Format(validation.DateLayout)
+	require.NoError(t, env.School.AssignTeacher(ctx, seventh, algebra, teacherID))
+	require.NoError(t, env.School.AssignTeacher(ctx, eighth, geometry, otherID))
+	require.NoError(t, env.School.AssignTeacher(ctx, ninth, algebra, teacherID))
+
+	start := today.AddDate(0, 0, -2)
+	_, err = env.School.CreateSubstitution(ctx, school.SubstitutionInput{
+		ClassID: eighth, SubjectID: geometry, TeacherID: teacherID,
+		StartDate: start.Format(validation.DateLayout), EndDate: today.Format(validation.DateLayout),
+	})
+	require.NoError(t, err)
+
+	open := func(classID, subjectID int64, date time.Time) {
+		t.Helper()
+
+		_, err := env.Journal.OpenLesson(ctx, teacherID, year, today,
+			journal.OpenLessonInput{ClassID: classID, SubjectID: subjectID, Date: date.Format(validation.DateLayout)})
+		require.NoError(t, err)
+	}
+
+	open(seventh, algebra, today.AddDate(0, 0, -7))
+	open(seventh, algebra, today)
+	open(eighth, geometry, today.AddDate(0, 0, -1))
+	open(ninth, algebra, today.AddDate(0, 0, -3))
+	require.NoError(t, env.School.AssignTeacher(ctx, ninth, algebra, otherID))
+
+	pairHref := func(classID, subjectID int64) string {
+		return `href="/journal/pairs/` + strconv.FormatInt(classID, 10) + "/" + strconv.FormatInt(subjectID, 10) + `"`
+	}
 
 	body = servertest.Get(t, env.Handler, "/", teacher).Body.String()
-	assert.Contains(t, body, "7А · Алгебра")
-	assert.Contains(t, body, `name="pair" value="`+pair+`"`)
-	assert.Contains(t, body, `name="date" value="`+today+`"`)
-	assert.Contains(t, body, "Урок сегодня")
+	assert.NotContains(t, body, "В этом году вам не назначены классы и предметы")
+	assert.Less(t, strings.Index(body, ">Мои классы<"), strings.Index(body, ">7А · Алгебра<"))
+	assert.Less(t, strings.Index(body, ">7А · Алгебра<"), strings.Index(body, ">Замены<"))
+	assert.Less(t, strings.Index(body, ">Замены<"), strings.Index(body, ">8А · Геометрия<"))
+	assert.Less(t, strings.Index(body, ">8А · Геометрия<"), strings.Index(body, ">9Б · Алгебра<"))
+	assert.Contains(t, body, pairHref(seventh, algebra))
+	assert.Contains(t, body, pairHref(eighth, geometry))
+	assert.Contains(t, body, pairHref(ninth, algebra))
+	assert.Contains(t, body, ">2 урока<")
+	assert.Contains(t, body, view.FormatPeriod(start, today))
+	assert.Equal(t, 2, strings.Count(body, ">1 урок<"))
+	assert.Contains(t, body, ">только ваши уроки<")
+	assert.NotContains(t, body, view.FormatShortDate(today.AddDate(0, 0, -3)))
 
-	opened := servertest.PostForm(t, env.Handler, "/journal", url.Values{"pair": {pair}, "date": {today}}, []*http.Cookie{teacher}, nil)
-	require.Equal(t, http.StatusSeeOther, opened.Code)
-	lesson := opened.Header().Get("Location")
-	require.Contains(t, lesson, "/journal/lessons/")
+	fragment := servertest.Get(t, env.Handler, "/?year="+strconv.Itoa(year+1), teacher, map[string]string{"HX-Request": "true"})
+	require.Equal(t, http.StatusOK, fragment.Code)
+	assert.Contains(t, fragment.Body.String(), `id="teacher-home"`)
+	assert.Contains(t, fragment.Body.String(), "В этом году вам не назначены классы и предметы")
+	assert.NotContains(t, fragment.Body.String(), "<html")
+
+	other := servertest.Get(t, env.Handler, "/", env.LoginAs(t, "other")).Body.String()
+	assert.Contains(t, other, pairHref(eighth, geometry))
+	assert.Contains(t, other, pairHref(ninth, algebra))
+	assert.NotContains(t, other, pairHref(seventh, algebra))
+	assert.NotContains(t, other, ">Замены<")
+
+	_, err = env.School.CreateSubstitution(ctx, school.SubstitutionInput{
+		ClassID: ninth, SubjectID: algebra, TeacherID: teacherID, StartDate: today.Format(validation.DateLayout),
+	})
+	require.NoError(t, err)
 
 	body = servertest.Get(t, env.Handler, "/", teacher).Body.String()
-	assert.Contains(t, body, `href="`+lesson+`"`)
-	assert.NotContains(t, body, "Пока нет уроков")
+	assert.NotContains(t, body, ">только ваши уроки<")
+	assert.Contains(t, body, view.FormatPeriod(today, time.Time{}))
+	assert.Contains(t, body, "Уроков пока нет")
 }
 
 func TestHomeStudentSeesTodayAndWeekMarks(t *testing.T) {

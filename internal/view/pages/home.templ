@@ -29,7 +29,7 @@ templ Home(page view.HomePage) {
 				</section>
 			}
 			if page.Teacher != nil {
-				@teacherDashboard(*page.Teacher)
+				@TeacherHome(*page.Teacher)
 			}
 			if page.NoChildren {
 				<div class={ components.CardClass }>
@@ -86,37 +86,55 @@ templ dashboardCardHeader(title, href, label string) {
 	</div>
 }
 
-templ teacherDashboard(board view.TeacherDashboard) {
-	<section class={ components.CardClass }>
-		@dashboardCardHeader("Мои классы", board.JournalHref, "Журнал")
-		if len(board.Pairs) == 0 {
-			@components.EmptyState("Вам пока не назначены классы и предметы")
-		} else {
-			<ul class="divide-y divide-slate-100">
-				for _, pair := range board.Pairs {
-					<li>
-						<form method="post" action={ templ.SafeURL(board.Action) } class="flex flex-wrap items-center gap-2 p-3 sm:p-4">
-							<input type="hidden" name="pair" value={ pair.Value }/>
-							<input type="hidden" name="date" value={ board.Date }/>
-							<span class="min-w-0 flex-1 basis-40 truncate text-sm font-medium text-slate-900">{ pair.Name }</span>
-							<button type="submit" class={ components.ButtonSecondaryClass }>Урок сегодня</button>
-						</form>
-					</li>
-				}
-			</ul>
+templ TeacherHome(home view.TeacherHome) {
+	<div id="teacher-home" class="flex flex-col gap-4 lg:gap-6">
+		@components.PageHint(hintTeacherHome)
+		<form
+			method="get"
+			action={ templ.SafeURL(home.Path) }
+			hx-get={ home.Path }
+			hx-target="#teacher-home"
+			hx-swap="outerHTML"
+			hx-trigger="submit, change"
+			hx-push-url="true"
+			class="flex flex-wrap items-start gap-2"
+		>
+			@components.RowSelect("year", "Учебный год", home.Years, "", "basis-36")
+			@components.NoScriptSubmit("Показать")
+		</form>
+		if len(home.Assigned) == 0 && len(home.Substitutions) == 0 {
+			<div class={ components.CardClass }>
+				@components.EmptyState("В этом году вам не назначены классы и предметы")
+			</div>
 		}
-	</section>
-	<section class={ components.CardClass }>
-		@dashboardCardHeader("Последние уроки", board.JournalHref, "Все уроки")
-		if len(board.Lessons) == 0 {
-			@components.EmptyState("Пока нет уроков")
-		} else {
-			<ul class="divide-y divide-slate-100">
-				for _, lesson := range board.Lessons {
-					@lessonRowItem(lesson)
-				}
-			</ul>
+		if len(home.Assigned) > 0 {
+			@pairCards("Мои классы", home.Assigned)
 		}
+		if len(home.Substitutions) > 0 {
+			@pairCards("Замены", home.Substitutions)
+		}
+	</div>
+}
+
+templ pairCards(title string, cards []view.PairCard) {
+	<section class="flex flex-col gap-3">
+		<h2 class="text-sm font-semibold text-slate-900">{ title }</h2>
+		<ul class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+			for _, card := range cards {
+				<li>
+					<a href={ templ.SafeURL(card.Href) } class={ components.CardClass, "flex h-full flex-col gap-1 p-4 hover:bg-slate-50 active:bg-slate-100" }>
+						<span class="text-base font-semibold text-slate-900">{ card.Name }</span>
+						for _, period := range card.Periods {
+							<span class="text-sm text-slate-700">{ period }</span>
+						}
+						if card.OwnOnly {
+							<span class="text-sm text-slate-700">только ваши уроки</span>
+						}
+						<span class="text-sm text-slate-500">{ card.Lessons }</span>
+					</a>
+				</li>
+			}
+		</ul>
 	</section>
 }
 

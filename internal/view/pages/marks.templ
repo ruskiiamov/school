@@ -53,7 +53,7 @@ templ MarksContent(page view.MarksPage) {
 					@components.RowSelect("year", "Учебный год", page.Years, "", "basis-36")
 				}
 				@components.PeriodFields(page.Period)
-				<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Показать</button>
+				@components.NoScriptSubmit("Показать")
 				@components.PeriodNav(page.Period, marksTarget)
 			</form>
 			<p class="text-sm font-semibold text-slate-900">{ page.Period.Label }</p>

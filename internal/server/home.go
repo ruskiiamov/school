@@ -26,6 +26,11 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if web.IsHTMX(r) {
+			s.base.Render(w, r, pages.TeacherHome(board))
+			return
+		}
+
 		page.Teacher = &board
 		s.base.Render(w, r, pages.Home(page))
 

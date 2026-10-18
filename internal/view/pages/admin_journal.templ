@@ -35,7 +35,7 @@ templ AdminJournalContent(page view.AdminJournalPage) {
 			}
 			@components.RowSelect("class", "Класс", page.Classes, "", "flex-1 basis-40")
 			@components.RowSelect("subject", "Предмет", page.Subjects, "", "flex-1 basis-56")
-			<button type="submit" class={ components.ButtonPrimaryClass, "shrink-0" }>Показать</button>
+			@components.NoScriptSubmit("Показать")
 			if page.SummaryHref != "" {
 				<a href={ templ.SafeURL(page.SummaryHref) } class={ components.ButtonSecondaryClass, "shrink-0" }>Сводка</a>
 			}

@@ -187,15 +187,6 @@ func (s *Service) LessonsByPair(ctx context.Context, classID, subjectID int64) (
 	return lessons, withHomework, nil
 }
 
-func (s *Service) RecentLessons(ctx context.Context, teacherID int64, year, limit int) ([]Lesson, error) {
-	stored, err := s.lessons.ListVisible(ctx, teacherID, year, limit, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.withPairNames(ctx, year, stored)
-}
-
 func (s *Service) LessonsPage(ctx context.Context, teacherID int64, year, page, size int) ([]Lesson, int, error) {
 	total, err := s.lessons.CountVisible(ctx, teacherID, year)
 	if err != nil {

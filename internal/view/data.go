@@ -21,7 +21,7 @@ func NavItems(role, active string) []NavItem {
 			NavItem{Title: "Замены", Href: "/admin/substitutions", Icon: IconSwap, Group: groupSchool},
 			NavItem{Title: "Предметы", Href: "/admin/subjects", Icon: IconSubjects, Group: groupCatalogs},
 			NavItem{Title: "Типы работ", Href: "/admin/work-types", Icon: IconWorkTypes, Group: groupCatalogs},
-			NavItem{Title: "Журналы", Href: "/admin/journal", Icon: IconMarks, Group: groupReading},
+			NavItem{Title: "Журналы OLD", Href: "/admin/journal", Icon: IconMarks, Group: groupReading},
 			NavItem{Title: "Дневники", Href: "/admin/diary", Icon: IconDiary, Group: groupReading},
 			NavItem{Title: "Сброс пароля", Href: "/admin/password-reset", Icon: IconKey, Group: groupService},
 			NavItem{Title: "Резервная копия", Href: "/admin/backup", Icon: IconArchive, Group: groupService},
@@ -39,7 +39,7 @@ func NavItems(role, active string) []NavItem {
 
 func sectionItem(role string) NavItem {
 	if role == "teacher" {
-		return NavItem{Title: "Журнал", Href: "/journal", Icon: IconMarks}
+		return NavItem{Title: "Журнал OLD", Href: "/journal", Icon: IconMarks}
 	}
 
 	return NavItem{Title: "Дневник", Href: "/diary", Icon: IconDiary}
@@ -47,7 +47,7 @@ func sectionItem(role string) NavItem {
 
 func summaryItem(role string) NavItem {
 	if role == "teacher" {
-		return NavItem{Title: "Сводка", Href: "/journal/summary", Icon: IconTable}
+		return NavItem{Title: "Сводка OLD", Href: "/journal/summary", Icon: IconTable}
 	}
 
 	return NavItem{Title: "Оценки", Href: "/diary/summary", Icon: IconMarks}

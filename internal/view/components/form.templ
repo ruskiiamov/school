@@ -198,3 +198,9 @@ templ RowDate(name, value, label, message, class string) {
 		@FieldError(message)
 	</span>
 }
+
+templ NoScriptSubmit(label string) {
+	<noscript>
+		<button type="submit" class={ ButtonPrimaryClass, "shrink-0" }>{ label }</button>
+	</noscript>
+}

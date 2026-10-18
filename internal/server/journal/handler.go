@@ -16,10 +16,11 @@ import (
 )
 
 const (
-	journalPath      = "/journal"
-	lessonsPath      = journalPath + "/lessons"
-	dashboardLessons = 5
-	lessonsPageSize  = 10
+	journalPath     = "/journal"
+	lessonsPath     = journalPath + "/lessons"
+	pairsPath       = journalPath + "/pairs"
+	homePath        = "/"
+	lessonsPageSize = 10
 )
 
 type Handler struct {
@@ -89,28 +90,52 @@ func (h *Handler) open(w http.ResponseWriter, r *http.Request) {
 	web.Redirect(w, r, lessonPath(id, ""))
 }
 
-func (h *Handler) Dashboard(r *http.Request, teacherID int64) (view.TeacherDashboard, error) {
-	ctx := r.Context()
-	year := h.school.CurrentYear()
-	today := h.school.Today()
-
-	pairs, err := h.journal.Pairs(ctx, teacherID, year, today)
+func (h *Handler) Dashboard(r *http.Request, teacherID int64) (view.TeacherHome, error) {
+	year, years, err := web.YearSelection(r, h.school)
 	if err != nil {
-		return view.TeacherDashboard{}, err
+		return view.TeacherHome{}, err
 	}
 
-	lessons, err := h.journal.RecentLessons(ctx, teacherID, year, dashboardLessons)
+	pairs, err := h.journal.YearPairs(r.Context(), teacherID, year)
 	if err != nil {
-		return view.TeacherDashboard{}, err
+		return view.TeacherHome{}, err
 	}
 
-	return view.TeacherDashboard{
-		Action:      journalPath,
-		Date:        today.Format(validation.DateLayout),
-		JournalHref: journalPath,
-		Pairs:       teacherPairOptions(pairs, ""),
-		Lessons:     lessonRows(lessons),
-	}, nil
+	home := view.TeacherHome{Path: homePath, Years: years}
+
+	for _, pair := range pairs {
+		card := pairCard(pair)
+		if pair.Kind == journal.PairAssigned {
+			home.Assigned = append(home.Assigned, card)
+		} else {
+			home.Substitutions = append(home.Substitutions, card)
+		}
+	}
+
+	return home, nil
+}
+
+func pairCard(pair journal.YearPair) view.PairCard {
+	card := view.PairCard{
+		Href:    pairPath(pair.ClassID, pair.SubjectID),
+		Name:    pair.ClassName + " · " + pair.SubjectName,
+		Lessons: "Уроков пока нет",
+		OwnOnly: pair.Kind == journal.PairOwnLessons,
+	}
+
+	if pair.LessonCount > 0 {
+		card.Lessons = view.Plural(pair.LessonCount, "урок", "урока", "уроков")
+	}
+
+	for _, period := range pair.Periods {
+		card.Periods = append(card.Periods, view.FormatPeriod(period.Start, period.End))
+	}
+
+	return card
+}
+
+func pairPath(classID, subjectID int64) string {
+	return pairsPath + "/" + strconv.FormatInt(classID, 10) + "/" + strconv.FormatInt(subjectID, 10)
 }
 
 func teacherPairOptions(pairs []journal.Pair, selected string) []view.PairOption {
