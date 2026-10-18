@@ -44,7 +44,8 @@ func TestDownloadByRole(t *testing.T) {
 	lessonID, err := env.Journal.OpenLesson(ctx, teacher, env.School.CurrentYear(), today,
 		journal.OpenLessonInput{ClassID: class, SubjectID: subject, Date: today.Format(validation.DateLayout)})
 	require.NoError(t, err)
-	require.NoError(t, env.Journal.AddHomeworkFile(ctx, teacher, lessonID, "задание.txt", strings.NewReader("Упр. 12")))
+	_, err = env.Journal.AddHomeworkFile(ctx, teacher, lessonID, "задание.txt", strings.NewReader("Упр. 12"))
+	require.NoError(t, err)
 
 	homework, err := env.Journal.Homework(ctx, lessonID)
 	require.NoError(t, err)

@@ -209,6 +209,17 @@ func (r *LessonRepo) UpdateTopic(ctx context.Context, id int64, topic string) er
 	return requireAffected(result, "update lesson topic")
 }
 
+func (r *LessonRepo) UpdateDate(ctx context.Context, id int64, date time.Time) error {
+	const query = "UPDATE lessons SET date = ?, updated_at = ? WHERE id = ?"
+
+	result, err := r.db.ExecContext(ctx, query, toDate(date), toMillis(time.Now()), id)
+	if err != nil {
+		return fmt.Errorf("update lesson date: %w", err)
+	}
+
+	return requireAffected(result, "update lesson date")
+}
+
 func (r *LessonRepo) HasRecords(ctx context.Context, id int64) (bool, error) {
 	const query = `SELECT EXISTS (SELECT 1 FROM marks WHERE lesson_id = ?)
 		OR EXISTS (SELECT 1 FROM lesson_students WHERE lesson_id = ?)`

@@ -10,32 +10,175 @@ import (
 	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/web"
+	"github.com/ruskiiamov/school/internal/validation"
 	"github.com/ruskiiamov/school/internal/view"
 	"github.com/ruskiiamov/school/internal/view/pages"
 )
 
+type pairState struct {
+	newDate   string
+	newError  string
+	rowID     int64
+	rowDate   string
+	dateError string
+	topic     string
+	topicErr  string
+	highlight int64
+}
+
+const (
+	journalContentID = "journal-content"
+	fromJournal      = "journal"
+)
+
 func (h *Handler) pairShow(w http.ResponseWriter, r *http.Request) {
+	classID, subjectID, ok := pairPathIDs(w, r)
+	if !ok {
+		return
+	}
+
+	h.renderPair(w, r, classID, subjectID, pairState{})
+}
+
+func (h *Handler) pairLessonCreate(w http.ResponseWriter, r *http.Request) {
+	classID, subjectID, ok := pairPathIDs(w, r)
+	if !ok {
+		return
+	}
+
+	class, err := h.school.ClassByID(r.Context(), classID)
+	if err != nil {
+		h.base.HandleServiceError(w, r, "load class", err)
+		return
+	}
+
+	user, _ := web.UserFromContext(r.Context())
+	date := web.FormValue(r, "date")
+
+	id, err := h.journal.CreateLesson(r.Context(), user.ID, classID, subjectID, date, h.yearBounds(class.Year))
+	if errs, ok := web.FormErrors(err); ok {
+		h.renderPair(w, r, classID, subjectID, pairState{newDate: date, newError: errs["date"]})
+		return
+	}
+	if err != nil {
+		h.base.HandleServiceError(w, r, "create lesson", err)
+		return
+	}
+
+	h.pairDone(w, r, classID, subjectID, id)
+}
+
+func (h *Handler) lessonMove(w http.ResponseWriter, r *http.Request) {
+	lesson, ok := h.pathLesson(w, r)
+	if !ok {
+		return
+	}
+
+	user, _ := web.UserFromContext(r.Context())
+	date := web.FormValue(r, "date")
+
+	if date == "" {
+		h.lessonClear(w, r, lesson)
+		return
+	}
+
+	err := h.journal.MoveLesson(r.Context(), user.ID, lesson.ID, date, h.yearBounds(lesson.Year))
+	if errs, ok := web.FormErrors(err); ok {
+		h.renderPair(w, r, lesson.ClassID, lesson.SubjectID, pairState{rowID: lesson.ID, rowDate: date, dateError: errs["date"]})
+		return
+	}
+	if err != nil {
+		h.base.HandleServiceError(w, r, "move lesson", err)
+		return
+	}
+
+	h.pairDone(w, r, lesson.ClassID, lesson.SubjectID, lesson.ID)
+}
+
+func (h *Handler) lessonClear(w http.ResponseWriter, r *http.Request, lesson journal.Lesson) {
+	user, _ := web.UserFromContext(r.Context())
+
+	err := h.journal.DeleteLesson(r.Context(), user.ID, lesson.ID)
+	if errs, ok := web.FormErrors(err); ok {
+		h.renderPair(w, r, lesson.ClassID, lesson.SubjectID, pairState{rowID: lesson.ID, rowDate: lesson.Date.Format(validation.InputDateLayout), dateError: errs["lesson"]})
+		return
+	}
+	if err != nil {
+		h.base.HandleServiceError(w, r, "delete lesson", err)
+		return
+	}
+
+	if web.IsHTMX(r) {
+		h.renderPair(w, r, lesson.ClassID, lesson.SubjectID, pairState{})
+		return
+	}
+
+	web.Redirect(w, r, pairPath(lesson.ClassID, lesson.SubjectID))
+}
+
+func (h *Handler) journalTopic(w http.ResponseWriter, r *http.Request, lesson journal.Lesson, topic string) {
+	user, _ := web.UserFromContext(r.Context())
+
+	err := h.journal.UpdateTopic(r.Context(), user.ID, lesson.ID, topic)
+	errs, invalid := web.FormErrors(err)
+	if err != nil && !invalid {
+		h.base.HandleServiceError(w, r, "update lesson topic", err)
+		return
+	}
+
+	if web.IsHTMX(r) {
+		h.base.Render(w, r, pages.TopicError(topicTarget(lesson.ID)+"-error", errs["topic"]))
+		return
+	}
+
+	if invalid {
+		h.renderPair(w, r, lesson.ClassID, lesson.SubjectID, pairState{rowID: lesson.ID, rowDate: lesson.Date.Format(validation.InputDateLayout), topic: topic, topicErr: errs["topic"]})
+		return
+	}
+
+	web.Redirect(w, r, pairPath(lesson.ClassID, lesson.SubjectID)+"#"+lessonAnchor(lesson.ID))
+}
+
+func (h *Handler) pairDone(w http.ResponseWriter, r *http.Request, classID, subjectID, lessonID int64) {
+	if web.IsHTMX(r) {
+		h.renderPair(w, r, classID, subjectID, pairState{highlight: lessonID})
+		return
+	}
+
+	web.Redirect(w, r, pairPath(classID, subjectID)+"#"+lessonAnchor(lessonID))
+}
+
+func (h *Handler) yearBounds(year int) journal.YearBounds {
+	start, end := h.school.YearBounds(year)
+
+	return journal.YearBounds{Start: start, End: end}
+}
+
+func pairPathIDs(w http.ResponseWriter, r *http.Request) (int64, int64, bool) {
 	classID, classOK := web.PathValue(r, "class")
 	subjectID, subjectOK := web.PathValue(r, "subject")
 
 	if !classOK || !subjectOK {
 		http.NotFound(w, r)
-		return
+		return 0, 0, false
 	}
 
-	user, _ := web.UserFromContext(r.Context())
+	return classID, subjectID, true
+}
 
-	pair, err := h.journal.PairJournal(r.Context(), user.ID, classID, subjectID)
+func lessonAnchor(lessonID int64) string {
+	return "lesson-" + strconv.FormatInt(lessonID, 10)
+}
+
+func (h *Handler) renderPair(w http.ResponseWriter, r *http.Request, classID, subjectID int64, state pairState) {
+	content, pair, err := h.pairContent(r, classID, subjectID, state)
 	if err != nil {
 		h.base.HandleServiceError(w, r, "load pair journal", err)
 		return
 	}
 
-	table, err := h.journalTable(r, pair, user.ID, func(lessonID, studentID int64) string {
-		return studentURL(lessonID, studentID, 0)
-	})
-	if err != nil {
-		h.base.ServerError(w, r, "build pair journal", err)
+	if web.IsHTMX(r) && r.Header.Get("HX-Target") == journalContentID {
+		h.base.Render(w, r, pages.PairJournalContent(content, false))
 		return
 	}
 
@@ -45,19 +188,82 @@ func (h *Handler) pairShow(w http.ResponseWriter, r *http.Request) {
 		Shell:    h.base.Shell(r, title, homePath),
 		Title:    title + " · " + school.YearName(pair.Year),
 		BackHref: homePath,
-		Lessons:  view.Plural(len(pair.Lessons), "урок", "урока", "уроков"),
-		Table:    table,
+		Content:  content,
 	}
 
 	if pair.Year != h.school.CurrentYear() {
 		page.BackHref += "?year=" + strconv.Itoa(pair.Year)
 	}
 
-	if pair.Pair.Kind == journal.PairSubstitution {
-		page.Periods = substitutionPeriods(pair.Pair.Periods)
+	h.base.Render(w, r, pages.PairJournal(page))
+}
+
+func (h *Handler) pairContent(r *http.Request, classID, subjectID int64, state pairState) (view.PairJournalContent, journal.PairJournal, error) {
+	user, _ := web.UserFromContext(r.Context())
+
+	pair, err := h.journal.PairJournal(r.Context(), user.ID, classID, subjectID)
+	if err != nil {
+		return view.PairJournalContent{}, journal.PairJournal{}, err
 	}
 
-	h.base.Render(w, r, pages.PairJournal(page))
+	table, err := h.journalTable(r, pair, user.ID, func(lessonID, studentID int64) string {
+		return studentMarksPath(lessonID, studentID)
+	})
+	if err != nil {
+		return view.PairJournalContent{}, journal.PairJournal{}, err
+	}
+
+	content := view.PairJournalContent{
+		Lessons: view.Plural(len(pair.Lessons), "урок", "урока", "уроков"),
+		New:     newLessonForm(pair, state),
+		Table:   table,
+	}
+
+	if pair.Pair.Kind == journal.PairSubstitution {
+		content.Periods = substitutionPeriods(pair.Pair.Periods)
+	}
+
+	for i, lesson := range pair.Lessons {
+		row := &content.Table.Rows[i]
+		row.Highlight = lesson.ID == state.highlight
+		row.Edit = rowEdit(lesson, state)
+		row.CardHref = lessonPath(lesson.ID, "/card")
+
+		if lesson.ID == state.rowID && state.topicErr != "" {
+			row.Topic = state.topic
+		}
+	}
+
+	return content, pair, nil
+}
+
+func newLessonForm(pair journal.PairJournal, state pairState) *view.NewLessonForm {
+	return &view.NewLessonForm{
+		Action: pairPath(pair.Pair.ClassID, pair.Pair.SubjectID) + "/lessons",
+		Date:   state.newDate,
+		Error:  state.newError,
+	}
+}
+
+func rowEdit(lesson journal.Lesson, state pairState) *view.JournalRowEdit {
+	edit := &view.JournalRowEdit{
+		DateAction:  lessonPath(lesson.ID, "/date"),
+		DateValue:   lesson.Date.Format(validation.InputDateLayout),
+		TopicAction: lessonPath(lesson.ID, "/topic"),
+		TopicID:     topicTarget(lesson.ID),
+	}
+
+	if lesson.ID == state.rowID {
+		edit.DateValue = state.rowDate
+		edit.DateError = state.dateError
+		edit.TopicError = state.topicErr
+	}
+
+	return edit
+}
+
+func topicTarget(lessonID int64) string {
+	return "topic-" + strconv.FormatInt(lessonID, 10)
 }
 
 func substitutionPeriods(periods []journal.SubstitutionPeriod) string {
@@ -70,7 +276,7 @@ func substitutionPeriods(periods []journal.SubstitutionPeriod) string {
 }
 
 func (h *Handler) journalTable(r *http.Request, pair journal.PairJournal, viewerID int64, cellHref func(lessonID, studentID int64) string) (view.JournalTable, error) {
-	students, err := h.studentsByID(r)
+	students, err := h.sortStudents(r, pair.Students)
 	if err != nil {
 		return view.JournalTable{}, err
 	}
@@ -79,10 +285,6 @@ func (h *Handler) journalTable(r *http.Request, pair journal.PairJournal, viewer
 	if err != nil {
 		return view.JournalTable{}, err
 	}
-
-	sort.SliceStable(pair.Students, func(i, j int) bool {
-		return students[pair.Students[i].ID].FullName < students[pair.Students[j].ID].FullName
-	})
 
 	table := view.JournalTable{}
 
@@ -95,17 +297,16 @@ func (h *Handler) journalTable(r *http.Request, pair journal.PairJournal, viewer
 			Active:    user.Active,
 			InClass:   student.InClass,
 			Average:   view.FormatAverage(student.Average, student.MarkCount),
-			Absences:  student.Absences,
+			Absences:  strconv.Itoa(student.Absences) + "×Н",
 		})
 	}
 
 	for _, lesson := range pair.Lessons {
 		row := view.JournalRow{
-			Anchor:    "lesson-" + strconv.FormatInt(lesson.ID, 10),
-			Date:      view.FormatShortDate(lesson.Date),
-			ShortDate: lesson.Date.Format("02.01"),
-			Topic:     lesson.Topic,
-			Homework:  pair.WithHomework[lesson.ID],
+			Anchor:   lessonAnchor(lesson.ID),
+			Date:     view.FormatShortDate(lesson.Date),
+			Topic:    lesson.Topic,
+			Homework: pair.WithHomework[lesson.ID],
 		}
 
 		if lesson.TeacherID != viewerID {
@@ -121,6 +322,19 @@ func (h *Handler) journalTable(r *http.Request, pair journal.PairJournal, viewer
 	}
 
 	return table, nil
+}
+
+func (h *Handler) sortStudents(r *http.Request, list []journal.JournalStudent) (map[int64]auth.User, error) {
+	students, err := h.studentsByID(r)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.SliceStable(list, func(i, j int) bool {
+		return students[list[i].ID].FullName < students[list[j].ID].FullName
+	})
+
+	return students, nil
 }
 
 func (h *Handler) studentsByID(r *http.Request) (map[int64]auth.User, error) {

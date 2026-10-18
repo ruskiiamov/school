@@ -85,24 +85,7 @@ func (s *Service) SaveHomework(ctx context.Context, teacherID, lessonID int64, i
 		return err
 	}
 
-	errs := validation.Errors{}
-
-	text := validation.NormalizeLines(input.Text)
-	if utf8.RuneCountInString(text) > maxHomeworkLength {
-		errs.Add("text", msgHomeworkTooLong)
-	}
-
-	var due time.Time
-
-	if input.Due != "" {
-		parsed, ok := validation.ParseDate(input.Due)
-		if !ok {
-			errs.Add("due", msgDueInvalid)
-		}
-
-		due = parsed
-	}
-
+	text, due, errs := parseHomework(input)
 	if len(errs) > 0 {
 		return errs
 	}
@@ -126,35 +109,35 @@ func (s *Service) SaveHomework(ctx context.Context, teacherID, lessonID int64, i
 	return nil
 }
 
-func (s *Service) AddHomeworkFile(ctx context.Context, teacherID, lessonID int64, name string, content io.Reader) error {
+func (s *Service) AddHomeworkFile(ctx context.Context, teacherID, lessonID int64, name string, content io.Reader) (string, error) {
 	if _, err := s.LessonForTeacher(ctx, teacherID, lessonID); err != nil {
-		return err
+		return "", err
 	}
 
 	name = fileName(name)
 	if name == "" {
-		return validation.Errors{"files": msgFileRequired}
+		return "", validation.Errors{"files": msgFileRequired}
 	}
 
 	if utf8.RuneCountInString(name) > maxFileNameLength {
-		return validation.Errors{"files": msgFileNameTooLong}
+		return "", validation.Errors{"files": msgFileNameTooLong}
 	}
 
 	count, err := s.homeworkFiles.CountByLesson(ctx, lessonID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if count >= s.limits.MaxPerLesson {
-		return validation.Errors{"files": fmt.Sprintf(msgTooManyFilesFmt, s.limits.MaxPerLesson)}
+		return "", validation.Errors{"files": fmt.Sprintf(msgTooManyFilesFmt, s.limits.MaxPerLesson)}
 	}
 
 	saved, err := s.store.Save(content, s.limits.MaxFileSize)
 	if errors.Is(err, files.ErrTooLarge) {
-		return validation.Errors{"files": fmt.Sprintf(msgFileTooLargeFmt, s.limits.MaxFileSize>>20)}
+		return "", validation.Errors{"files": fmt.Sprintf(msgFileTooLargeFmt, s.limits.MaxFileSize>>20)}
 	}
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	err = s.homeworkFiles.Create(ctx, storage.HomeworkFile{
@@ -169,13 +152,13 @@ func (s *Service) AddHomeworkFile(ctx context.Context, teacherID, lessonID int64
 			s.log.ErrorContext(ctx, "remove unsaved homework file", slog.String("file_id", saved.ID), slog.Any("error", removeErr))
 		}
 
-		return err
+		return "", err
 	}
 
 	s.log.InfoContext(ctx, "homework file added", slog.Int64("lesson_id", lessonID), slog.Int64("teacher_id", teacherID),
 		slog.String("file_id", saved.ID), slog.Int64("size", saved.Size))
 
-	return nil
+	return saved.ID, nil
 }
 
 func (s *Service) DeleteHomeworkFile(ctx context.Context, teacherID, lessonID int64, fileID string) error {
@@ -235,6 +218,28 @@ func (s *Service) OpenHomeworkFile(ctx context.Context, fileID string) (*os.File
 
 func (s *Service) LessonVisibleToStudent(ctx context.Context, studentID, lessonID int64) (bool, error) {
 	return s.lessons.VisibleToStudent(ctx, studentID, lessonID)
+}
+
+func parseHomework(input HomeworkInput) (string, time.Time, validation.Errors) {
+	errs := validation.Errors{}
+
+	text := validation.NormalizeLines(input.Text)
+	if utf8.RuneCountInString(text) > maxHomeworkLength {
+		errs.Add("text", msgHomeworkTooLong)
+	}
+
+	var due time.Time
+
+	if input.Due != "" {
+		parsed, ok := validation.ParseDate(input.Due)
+		if !ok {
+			errs.Add("due", msgDueInvalid)
+		}
+
+		due = parsed
+	}
+
+	return text, due, errs
 }
 
 func fileName(name string) string {

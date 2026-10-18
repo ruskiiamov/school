@@ -105,3 +105,7 @@ func journalHomework(text string) journal.HomeworkInput {
 func monthStart(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
 }
+
+func inputDate(t time.Time) string {
+	return t.Format(validation.InputDateLayout)
+}

@@ -76,7 +76,7 @@ func TestLessonHomeworkTextAndDue(t *testing.T) {
 
 	body = servertest.Get(t, f.env.Handler, lessonPath(id, ""), teacher).Body.String()
 	assert.Contains(t, body, ">Упр. 12, 13\n\nстр. 40</textarea>")
-	assert.Contains(t, body, `name="due" value="`+dateValue(f.today.AddDate(0, 0, 2))+`"`)
+	assert.Contains(t, body, `name="due" value="`+inputDate(f.today.AddDate(0, 0, 2))+`"`)
 	assert.Contains(t, body, ">к "+f.today.AddDate(0, 0, 2).Format("02.01.2006")+"<")
 	assert.Contains(t, body, "Удалить урок")
 

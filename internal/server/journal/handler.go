@@ -38,6 +38,12 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET "+journalPath, h.teacher(h.index))
 	mux.Handle("POST "+journalPath, h.teacher(h.open))
 	mux.Handle("GET "+journalPath+"/class/{class}/subject/{subject}", h.teacher(h.pairShow))
+	mux.Handle("POST "+journalPath+"/class/{class}/subject/{subject}/lessons", h.teacher(h.pairLessonCreate))
+	mux.Handle("POST "+lessonsPath+"/{id}/date", h.teacher(h.lessonMove))
+	mux.Handle("GET "+lessonsPath+"/{id}/card", h.teacher(h.lessonCard))
+	mux.Handle("POST "+lessonsPath+"/{id}/card", h.teacher(h.lessonCardSave))
+	mux.Handle("GET "+lessonsPath+"/{id}/students/{sid}/marks", h.teacher(h.marksEntryShow))
+	mux.Handle("POST "+lessonsPath+"/{id}/students/{sid}/marks", h.teacher(h.marksEntrySave))
 	mux.Handle("GET "+lessonsPath+"/{id}", h.teacher(h.lessonShow))
 	mux.Handle("POST "+lessonsPath+"/{id}/topic", h.teacher(h.lessonTopic))
 	mux.Handle("POST "+lessonsPath+"/{id}/delete", h.teacher(h.lessonDelete))
@@ -49,6 +55,9 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST "+lessonsPath+"/{id}/homework/files", h.teacher(h.homeworkUpload))
 	mux.Handle("POST "+lessonsPath+"/{id}/homework/files/{fid}/delete", h.teacher(h.homeworkFileDelete))
 	mux.Handle("GET "+summaryPath, h.teacher(h.summary))
+	mux.Handle("GET "+adminJournalsPath, h.admin(h.adminJournals))
+	mux.Handle("GET "+adminJournalsLessonsPath+"/{id}", h.admin(h.adminJournalsCard))
+	mux.Handle("GET "+adminJournalsLessonsPath+"/{id}/students/{sid}", h.admin(h.adminJournalsEntry))
 	mux.Handle("GET "+adminJournalPath, h.admin(h.adminIndex))
 	mux.Handle("GET "+adminSummaryPath, h.admin(h.adminSummary))
 	mux.Handle("GET "+adminLessonsPath+"/{id}", h.admin(h.adminLesson))
@@ -59,7 +68,7 @@ func (h *Handler) teacher(fn http.HandlerFunc) http.Handler {
 }
 
 func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
-	h.renderJournal(w, r, journalForm{date: h.school.Today().Format(validation.DateLayout)})
+	h.renderJournal(w, r, journalForm{date: h.school.Today().Format(validation.InputDateLayout)})
 }
 
 type journalForm struct {

@@ -53,6 +53,11 @@ func (h *Handler) lessonTopic(w http.ResponseWriter, r *http.Request) {
 	user, _ := web.UserFromContext(r.Context())
 	topic := web.FormValue(r, "topic")
 
+	if web.FormValue(r, "from") == fromJournal {
+		h.journalTopic(w, r, lesson, topic)
+		return
+	}
+
 	mode := renderPage
 	if web.IsHTMX(r) {
 		mode = renderTopic

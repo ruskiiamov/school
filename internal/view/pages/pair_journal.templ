@@ -1,9 +1,16 @@
 package pages
 
 import (
+	"strconv"
+
 	"github.com/ruskiiamov/school/internal/view"
 	"github.com/ruskiiamov/school/internal/view/components"
 	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+const (
+	journalContentID = "journal-content"
+	modalBodyID      = "modal-body"
 )
 
 templ PairJournal(page view.PairJournalPage) {
@@ -13,52 +20,112 @@ templ PairJournal(page view.PairJournalPage) {
 				<a href={ templ.SafeURL(page.BackHref) } class="text-sm font-medium text-indigo-700 hover:underline">← Главная</a>
 			}
 			@components.PageHelp("Как работать с журналом") {
-				<p>В ячейке — оценки ученика за урок по порядку типов работ, «Н» — отсутствовал, точка — есть комментарий учителя. Если навести курсор на ячейку, появится расшифровка</p>
-				<p>Нажмите на ячейку, чтобы поставить или исправить оценки, отметить отсутствие и написать комментарий</p>
-				<p>Метка «ДЗ» зелёная с галочкой, если домашнее задание уже задано. Задание задаётся на странице урока: она открывается по любой ячейке строки</p>
-				<p>Уроки, которые провёл заменяющий учитель, подписаны «замена» с его фамилией</p>
+				<p>В ячейке — оценки за урок по порядку типов работ, «Н» — ученик не был на уроке, точка — есть комментарий</p>
+				<p>Чтобы поставить оценку, нажмите на ячейку</p>
+				<p>Новый урок — введите его дату в первой строке таблицы</p>
+				<p>Чтобы удалить урок без оценок и записей, сотрите его дату</p>
 			}
-			if len(page.Table.Rows) > 0 || page.Periods != "" {
-				<p class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-					if len(page.Table.Rows) > 0 {
-						<span class="font-semibold text-slate-900">Всего: { page.Lessons }</span>
-					}
-					if page.Periods != "" {
-						<span class="text-slate-700">{ page.Periods }</span>
-					}
-				</p>
-			}
-			<section class={ components.CardClass, "flex min-h-0 flex-col" }>
-				if len(page.Table.Rows) == 0 {
-					@components.EmptyState("Уроков пока нет")
-				} else if len(page.Table.Students) == 0 {
-					@components.EmptyState("В классе пока нет учеников")
-				} else {
-					@journalTable(page.Table)
-				}
-			</section>
+			@PairJournalContent(page.Content, false)
 		</div>
+		@journalModal()
 	}
 }
 
-templ journalTable(table view.JournalTable) {
+templ journalModal() {
+	<dialog
+		id="journal-modal"
+		aria-labelledby="journal-modal-title"
+		class="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-xl bg-white p-0 shadow-lg ring-1 ring-slate-200 backdrop:bg-slate-900/50"
+	>
+		<div id={ modalBodyID }></div>
+	</dialog>
+}
+
+templ modalHeader(title string) {
+	<div class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
+		<h2 id="journal-modal-title" class="text-base font-semibold text-slate-900">{ title }</h2>
+		<button type="button" data-modal-close aria-label="Закрыть" title="Закрыть" class={ components.ButtonIconClass }>
+			@components.Icon(view.IconClose, "size-5")
+		</button>
+	</div>
+}
+
+templ PairJournalContent(content view.PairJournalContent, oob bool) {
+	<div
+		id="journal-content"
+		if oob {
+			hx-swap-oob="true"
+		}
+		class="flex min-h-0 flex-1 flex-col gap-4 lg:gap-6"
+	>
+		if content.Periods != "" {
+			<p class="text-sm text-slate-700">{ content.Periods }</p>
+		}
+		<section class={ components.CardClass, "flex min-h-0 flex-col" }>
+			@journalTable(content)
+		</section>
+	</div>
+}
+
+templ journalTable(content view.PairJournalContent) {
 	<div class="journal-scroll min-h-0 flex-1 scroll-pt-[var(--journal-head,15rem)] overflow-auto rounded-xl">
 		<table class="journal-table w-full border-separate border-spacing-0 text-sm">
 			<thead>
 				<tr>
-					<td class="sticky top-0 left-0 z-30 w-px border-b border-slate-200 bg-white"></td>
-					for _, student := range table.Students {
+					<td class="sticky top-0 left-0 z-30 w-px border-b border-slate-200 bg-white px-5 align-middle text-sm font-semibold whitespace-nowrap text-slate-900">Всего: { content.Lessons }</td>
+					for _, student := range content.Table.Students {
 						@journalStudentHead(student)
+					}
+					if len(content.Table.Students) == 0 {
+						<th scope="col" class="sticky top-0 z-20 border-b border-slate-200 bg-white px-3 py-2 text-left font-normal text-slate-500">В классе пока нет учеников</th>
 					}
 				</tr>
 			</thead>
-			<tbody>
-				for _, row := range table.Rows {
+			<tbody hx-boost="true" hx-target={ "#" + modalBodyID } hx-swap="innerHTML">
+				if content.New != nil {
+					@newLessonRow(*content.New, max(len(content.Table.Students), 1))
+				}
+				for _, row := range content.Table.Rows {
 					@journalRow(row)
+				}
+				if len(content.Table.Rows) == 0 {
+					<tr>
+						<td colspan={ strconv.Itoa(columns(content.Table)) }>
+							@components.EmptyState("Уроков пока нет")
+						</td>
+					</tr>
 				}
 			</tbody>
 		</table>
 	</div>
+}
+
+func columns(table view.JournalTable) int {
+	return max(len(table.Students), 1) + 1
+}
+
+templ newLessonRow(form view.NewLessonForm, cells int) {
+	<tr>
+		<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-100 bg-white px-3 py-1 text-left font-normal whitespace-nowrap">
+			<form
+				method="post"
+				action={ templ.SafeURL(form.Action) }
+				hx-post={ form.Action }
+				hx-target={ "#" + journalContentID }
+				hx-swap="outerHTML"
+				hx-trigger="submit, change"
+				hx-sync="this:drop"
+				class="flex items-center gap-2"
+			>
+				@components.DateInput("date", form.Date, "Дата нового урока", components.InputCompactClassFor(form.Error)+" w-[8.25rem] font-medium", templ.Attributes{"id": "new-lesson-date", "title": "Новый урок"})
+				@components.NoScriptSubmit("Добавить")
+			</form>
+			if form.Error != "" {
+				<span class="block max-w-xs text-xs whitespace-normal text-rose-600">{ form.Error }</span>
+			}
+		</th>
+		<td colspan={ strconv.Itoa(cells) }></td>
+	</tr>
 }
 
 templ journalStudentHead(student view.JournalStudentHead) {
@@ -95,21 +162,44 @@ func studentTitle(student view.JournalStudentHead) string {
 }
 
 templ journalRow(row view.JournalRow) {
-	<tr id={ row.Anchor }>
-		<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-100 bg-white px-3 py-2 text-left font-normal whitespace-nowrap">
-			<span class="flex items-center gap-3">
-				<span class="font-medium whitespace-nowrap text-slate-900 tabular-nums">
-					<span class="sm:hidden">{ row.ShortDate }</span>
-					<span class="hidden sm:inline">{ row.Date }</span>
+	<tr id={ row.Anchor } data-highlight?={ row.Highlight }>
+		<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-100 bg-white px-3 py-1 text-left font-normal whitespace-nowrap">
+			<span class="flex items-center gap-1">
+				if row.Edit != nil {
+					<form
+						method="post"
+						action={ templ.SafeURL(row.Edit.DateAction) }
+						hx-post={ row.Edit.DateAction }
+						hx-target={ "#" + journalContentID }
+						hx-swap="outerHTML"
+						hx-trigger="submit, change"
+						hx-sync="this:drop"
+						data-confirm-empty={ "Удалить урок " + row.Date + "?" }
+						class="quiet-date"
+					>
+						@components.DateInput("date", row.Edit.DateValue, "Дата урока", components.InputQuietClassFor(row.Edit.DateError)+" w-[8.25rem] font-medium", nil)
+					</form>
+					@JournalTopic(*row.Edit, row.Topic)
+				} else {
+					<span class="px-2 font-medium text-slate-900 tabular-nums">{ row.Date }</span>
+					<span class="ml-2 hidden w-54 truncate text-slate-700 sm:block" title={ row.Topic }>{ row.Topic }</span>
+				}
+				<span class="ml-2">
+					if row.CardHref != "" {
+						@homeworkBadge(row.CardHref, row.Homework)
+					} else {
+						@homeworkLabel(row.Homework)
+					}
 				</span>
-				<span class="hidden w-40 truncate text-slate-700 sm:block xl:w-52" title={ row.Topic }>{ row.Topic }</span>
-				@homeworkBadge(row.Homework)
+				if row.Author != "" {
+					<span title={ "Урок провёл " + row.Author } class="ml-1 text-slate-400">
+						@components.Icon(view.IconSwap, "size-4")
+						<span class="sr-only">Урок провёл { row.Author }</span>
+					</span>
+				}
 			</span>
-			if row.Author != "" {
-				<span class="mt-0.5 block text-xs whitespace-nowrap text-slate-500" title={ "замена · " + row.Author }>
-					<span class="sm:hidden">зам.</span>
-					<span class="hidden sm:inline">замена · { row.Author }</span>
-				</span>
+			if row.Edit != nil && row.Edit.DateError != "" {
+				<span class="block max-w-xs text-xs whitespace-normal text-rose-600">{ row.Edit.DateError }</span>
 			}
 		</th>
 		for _, cell := range row.Cells {
@@ -130,13 +220,53 @@ templ journalRow(row view.JournalRow) {
 	</tr>
 }
 
-templ homeworkBadge(set bool) {
-	if set {
-		<span class="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
-			@components.Icon(view.IconCheck, "size-3.5")
-			ДЗ
-		</span>
-	} else {
-		<span class="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">ДЗ</span>
-	}
+templ JournalTopic(edit view.JournalRowEdit, topic string) {
+	<form
+		id={ edit.TopicID }
+		data-field
+		method="post"
+		action={ templ.SafeURL(edit.TopicAction) }
+		hx-post={ edit.TopicAction }
+		hx-target={ "#" + edit.TopicID + "-error" }
+		hx-swap="outerHTML"
+		hx-trigger="submit, input changed delay:500ms"
+		class="hidden sm:block"
+	>
+		<input type="hidden" name="from" value="journal"/>
+		<input
+			name="topic"
+			value={ topic }
+			placeholder="Тема"
+			aria-label="Тема урока"
+			title={ topic }
+			class={ components.InputQuietClass, "w-54 truncate" }
+		/>
+		@TopicError(edit.TopicID+"-error", edit.TopicError)
+	</form>
+}
+
+templ TopicError(id, message string) {
+	<span id={ id } data-error class="block max-w-xs text-xs whitespace-normal text-rose-600 empty:hidden">{ message }</span>
+}
+
+templ homeworkBadge(href string, set bool) {
+	<a
+		href={ templ.SafeURL(href) }
+		title="Домашнее задание"
+		if set {
+			class="inline-flex shrink-0 rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-300 hover:bg-emerald-100"
+		} else {
+			class="inline-flex shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200 hover:bg-slate-200"
+		}
+	>ДЗ</a>
+}
+
+templ homeworkLabel(set bool) {
+	<span
+		if set {
+			class="inline-flex shrink-0 rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-300"
+		} else {
+			class="inline-flex shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200"
+		}
+	>ДЗ</span>
 }

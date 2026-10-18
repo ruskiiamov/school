@@ -1,0 +1,130 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+templ AdminJournals(page view.AdminJournalsPage) {
+	@layout.App(page.Shell) {
+		<div class="flex h-[calc(100dvh-6.5rem-1px)] flex-col gap-4 lg:h-[calc(100dvh-8rem-1px)] lg:gap-6">
+			@components.PageHeader("Журналы")
+			@components.PageHint(hintAdminJournals)
+			@AdminJournalsContent(page)
+		</div>
+		@journalModal()
+	}
+}
+
+templ AdminJournalsContent(page view.AdminJournalsPage) {
+	<div id="admin-journals" class="flex min-h-0 flex-1 flex-col gap-4 lg:gap-6">
+		<form
+			method="get"
+			action={ templ.SafeURL(page.Path) }
+			hx-get={ page.Path }
+			hx-target="#admin-journals"
+			hx-swap="outerHTML"
+			hx-trigger="submit, change"
+			hx-push-url="true"
+			class="flex flex-wrap items-start gap-2"
+		>
+			@components.RowSelect("year", "Учебный год", page.Years, "", "basis-36")
+			@components.RowSelect("class", "Класс", page.Classes, "", "flex-1 basis-40 sm:max-w-56")
+			@components.RowSelect("subject", "Предмет", page.Subjects, "", "flex-1 basis-56 sm:max-w-72")
+			@components.NoScriptSubmit("Показать")
+		</form>
+		if page.Content == nil {
+			<div class={ components.CardClass }>
+				@components.EmptyState("Выберите класс и предмет")
+			</div>
+		} else {
+			<p class="text-sm text-slate-700">{ page.Teacher }</p>
+			<section class={ components.CardClass, "flex min-h-0 flex-col" }>
+				@journalTable(*page.Content)
+			</section>
+		}
+	</div>
+}
+
+templ AdminLessonWindow(card view.AdminLessonCard) {
+	@modalHeader(card.Title)
+	@adminLessonBody(card)
+}
+
+templ AdminLessonCardPage(page view.AdminLessonCardPage) {
+	@layout.App(page.Shell) {
+		<div class="mx-auto flex w-full max-w-xl flex-col gap-4">
+			@components.PageHeader(page.Card.Title) {
+				<a href={ templ.SafeURL(page.Card.BackHref) } class="text-sm font-medium text-indigo-700 hover:underline">← К журналу</a>
+			}
+			<section class={ components.CardClass }>
+				@adminLessonBody(page.Card)
+			</section>
+		</div>
+	}
+}
+
+templ adminLessonBody(card view.AdminLessonCard) {
+	<div class="flex flex-col">
+		<div class="flex flex-col gap-1 p-4">
+			<p class="text-sm text-slate-500">{ card.Teacher }</p>
+			if card.Topic != "" {
+				<p class="text-sm text-slate-900">Тема: { card.Topic }</p>
+			}
+		</div>
+		if card.Homework != nil {
+			@diaryHomework(*card.Homework)
+		}
+	</div>
+}
+
+templ AdminMarksEntryWindow(entry view.AdminMarksEntry) {
+	@modalHeader(entry.Title)
+	@adminMarksEntryBody(entry)
+}
+
+templ AdminMarksEntryPage(page view.AdminMarksEntryPage) {
+	@layout.App(page.Shell) {
+		<div class="mx-auto flex w-full max-w-xl flex-col gap-4">
+			@components.PageHeader(page.Entry.Title) {
+				<a href={ templ.SafeURL(page.Entry.BackHref) } class="text-sm font-medium text-indigo-700 hover:underline">← К журналу</a>
+			}
+			<section class={ components.CardClass }>
+				@adminMarksEntryBody(page.Entry)
+			</section>
+		</div>
+	}
+}
+
+templ adminMarksEntryBody(entry view.AdminMarksEntry) {
+	<div class="flex flex-col">
+		<div class="flex flex-wrap items-center justify-between gap-2 px-4 pt-3">
+			if entry.InClass {
+				if entry.Absent {
+					<span class="rounded-md bg-amber-100 px-2 py-1 text-sm font-medium text-amber-800">Отсутствовал</span>
+				} else {
+					<span></span>
+				}
+			} else {
+				<span class="text-sm text-amber-700">Ученик не в классе</span>
+			}
+			<a href={ templ.SafeURL(entry.DiaryHref) } class="text-sm font-medium text-indigo-700 hover:underline">Дневник</a>
+		</div>
+		if len(entry.Marks) == 0 {
+			@components.EmptyState("Оценок нет")
+		} else {
+			<ul class="divide-y divide-slate-100 py-1">
+				for _, mark := range entry.Marks {
+					<li class="flex items-center gap-3 px-4 py-2">
+						<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-base font-semibold text-indigo-700">{ mark.Value }</span>
+						<span class="text-sm text-slate-900">{ mark.WorkType }</span>
+					</li>
+				}
+			</ul>
+		}
+		if entry.Comment != "" {
+			<p class="border-t border-slate-100 px-4 py-3 text-sm text-slate-700">{ entry.Comment }</p>
+		}
+	</div>
+}

@@ -196,9 +196,9 @@ func (h *Handler) renderSubstitutions(w http.ResponseWriter, r *http.Request, ne
 		}
 
 		if row.Editing {
-			row.Fields.StartDate = substitution.StartDate.Format(validation.DateLayout)
+			row.Fields.StartDate = substitution.StartDate.Format(validation.InputDateLayout)
 			if !substitution.EndDate.IsZero() {
-				row.Fields.EndDate = substitution.EndDate.Format(validation.DateLayout)
+				row.Fields.EndDate = substitution.EndDate.Format(validation.InputDateLayout)
 			}
 		}
 

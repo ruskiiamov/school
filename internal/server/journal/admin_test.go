@@ -52,7 +52,8 @@ func TestAdminJournalListAndLesson(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.env.Journal.SaveRecord(ctx, f.teacher, id, petr, journal.RecordInput{Absent: true, Comment: "Опоздал"}))
 	require.NoError(t, f.env.Journal.SaveHomework(ctx, f.teacher, id, journal.HomeworkInput{Text: "Упр. 12", Due: dateValue(f.today.AddDate(0, 0, 2))}))
-	require.NoError(t, f.env.Journal.AddHomeworkFile(ctx, f.teacher, id, "задание.txt", strings.NewReader("Упр. 12")))
+	_, err = f.env.Journal.AddHomeworkFile(ctx, f.teacher, id, "задание.txt", strings.NewReader("Упр. 12"))
+	require.NoError(t, err)
 
 	fragment := servertest.Get(t, f.env.Handler, listPath, admin, map[string]string{"HX-Request": "true"})
 	require.Equal(t, http.StatusOK, fragment.Code)

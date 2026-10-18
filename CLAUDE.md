@@ -9,11 +9,10 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 (standalone-бинарник, без npm), данные — SQLite через `modernc.org/sqlite`.
 
 Интерфейс полностью на русском; вёрстка должна быть одинаково пригодна на телефоне
-и на десктопе. Готовы итерации 1 (вход, дашборд), 2 (справочники админа),
-3 (журнал учителя), 4 (дневник), 5 (домашнее задание), 6 (сводные
-представления) и 7 (перевод классов и прошлые годы); следующая в
-`docs/roadmap.md` — 8 (самостоятельная установка: релизы, `deploy/`,
-бэкап кнопкой, README, группы меню, подсказки, главная по ролям, замечания; D-075…D-083). Меню
+и на десктопе. Готовы итерации 1–8 (до выпуска v0.1.0) и итерация 9
+«журнал пары» (D-087…D-103), кроме среза 9 — удаления старых страниц
+журнала и сводок («OLD» в меню), который делается только по команде
+автора. Меню
 строится по роли в `view.NavItems(role, active)`; у админа пункты несут
 `NavItem.Group` («Школа», «Справочники», «Просмотр», «Служебное», D-080),
 сайдбар рисует подпись перед первым пунктом группы.
@@ -155,8 +154,29 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
   - `server/account` — вход, выход и свой пароль (`login.go`, `password.go`);
     `Routes` сам оборачивает `/account/password` в `RequireAuth` +
     `RequireRole` трёх ролей.
-  - `server/journal` — журнал учителя под `/journal`: `handler.go` (`New`,
-    `Routes`, обёртка `h.teacher(fn)`, форма пары и последние уроки),
+  - `server/journal` — журнал учителя под `/journal`. Новый журнал
+    (итерация 9): `pair.go` — журнал пары
+    `/journal/class/{class}/subject/{subject}` (`renderPair`,
+    `pairContent` → фрагмент `#journal-content`, `journalTable` — общая
+    сборка таблицы «уроки × ученики» для учителя и админа, `sortStudents`,
+    создание урока `pairLessonCreate`, перенос даты `lessonMove`, тема из
+    строки `journalTopic` по `from=journal`), `card.go` — окно урока
+    `/journal/lessons/{id}/card`: GET и POST одной multipart-формы
+    (`lessonCardSave`: поля до файлов, `journal.CheckLessonCard` до
+    первого файла, при ошибке записанные файлы удаляет
+    `DiscardHomeworkFiles`), `cardDone` (окно — таблица через
+    `hx-swap-oob` и закрытие, иначе редирект; удаления в окне нет —
+    урок удаляет пустая дата в строке, `lessonClear` в `pair.go`, D-101),
+    `entry.go` — окно ученика за урок
+    `/journal/lessons/{id}/students/{sid}/marks`, `admin_journals.go` —
+    «Журналы» админа `/admin/journals` и окна только на чтение. Окна —
+    один `<dialog id="journal-modal">`, содержимое в `#modal-body`,
+    ссылки `tbody` — `hx-boost`; ответы окон ставят `HX-Push-Url: false`
+    (иначе boost кладёт адрес окна в историю, D-098); без JS окна —
+    отдельные страницы. Главная учителя —
+    `Handler.Dashboard` → `view.TeacherHome` (пары года из
+    `journal.YearPairs`). Старое (OLD): `handler.go` (`New`,
+    `Routes`, обёртка `h.teacher(fn)`, форма пары и список уроков),
     `lesson.go` (страница урока, тема, удаление, `renderLesson` с режимами
     `renderPage`/`renderTopic`/`renderBlock`/`renderActions`/`renderRecord`/
     `renderHomework`), `summary.go` (`/journal/summary` учителя и
@@ -168,7 +188,7 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
     срок, потоковая загрузка файлов через `r.MultipartReader` с
     `http.MaxBytesReader`, удаление файла, `homeworkView`, статус
     `homeworkStatus`), `admin.go` (`/admin/journal` и
-    `/admin/journal/lessons/{id}` только на чтение под обёрткой `h.admin`,
+    `/admin/journal/lessons/{id}` (OLD) только на чтение под обёрткой `h.admin`,
     D-066 — исключение из «всё под `/admin` в `admin`», как `/admin/diary`;
     свои шаблоны `pages.AdminJournal`/`AdminLesson`, список учеников
     `lessonStudentItem` общий с учителем). Год и «сегодня» берёт из
@@ -238,9 +258,20 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
   рядом с проверкой (в `school`, `auth`, `journal`, а для роли и
   активности пользователя из формы — в `server`).
 - `internal/journal` — журнал: пары «класс, предмет» учителя из нагрузки и
-  действующих замен (`pair.go`), уроки с правами D-031 (`lesson.go`:
+  действующих замен (`pair.go`: `Pairs` для OLD, `YearPairs` — пары года с
+  видом `PairAssigned`/`PairSubstitution`/`PairOwnLessons`, периодами
+  замен и числом уроков, `YearPair.Shows` — урок внутри периодов замены,
+  D-090), журнал пары (`pair_journal.go`: `PairJournal` по правам учителя,
+  `AdminPairJournal` — все уроки пары и учитель по нагрузке, ячейки
+  `CellKey` → `JournalCell`, итоги учеников), создание и перенос урока
+  (`lesson_date.go`: `CreateLesson`, `MoveLesson` с границами года
+  `YearBounds` от вызывающего), окно ученика (`entry.go`: `MarksEntry`,
+  `AdminMarksEntry`, `SaveMarksEntry` — всё или ничего, оценки одной
+  транзакцией `MarkRepo.SetForStudent`), окно урока (`lesson_card.go`:
+  `CheckLessonCard`, `SaveLessonCard` — тема, ДЗ, удаление отмеченных
+  файлов; `DiscardHomeworkFiles`), уроки с правами D-031 (`lesson.go`:
   `OpenLesson` создаёт или открывает, `LessonForTeacher`, `UpdateTopic`,
-  `DeleteLesson` только пустой, `RecentLessons`), оценки и список учеников
+  `DeleteLesson` только пустой), оценки (одна на тип работы, D-088) и список учеников
   урока по D-023 (`mark.go`: `LessonStudents`, `AddMark`/`UpdateMark`/
   `DeleteMark`), записи об уроке (`record.go`: `SaveRecord`, пустая запись
   удаляет строку), уборка осиротевших строк (`cleanup.go`), чтение для
@@ -268,8 +299,10 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
 - `internal/validation` — `Errors map[string]string` (реализует `error`),
   `NormalizeSpaces`, `NormalizeLines` (многострочный текст: пробелы в
   строках схлопнуты, не больше одной пустой строки подряд),
-  `ParseDate`/`DateLayout` (`YYYY-MM-DD`, как у
-  `<input type="date">`), общие для `auth`, `school` и `journal`.
+  `ParseDate` (принимает `ДД.ММ.ГГГГ`, `Д.М.ГГГГ` и `YYYY-MM-DD`),
+  `DateLayout` (`YYYY-MM-DD` — для адресов ссылок) и `InputDateLayout`
+  (`02.01.2006` — значения полей дат), общие для `auth`, `school` и
+  `journal`.
 - `internal/files` — `Store` поверх каталога: `Save(reader, maxSize)`
   пишет во временно открытый файл со случайным hex-именем, определяет
   `Content-Type` по первым 512 байтам и возвращает `ErrTooLarge` при
@@ -566,7 +599,17 @@ multiple>` в `<label>`-кнопке с `hx-trigger="change"` и
 `data-edit-form` + `data-cancel="<адрес списка>"` на форме правки строки
 (клик по неинтерактивному месту вне `<li>` строки или Escape в форме
 запрашивает этот адрес через `htmx.ajax` в `hx-target` формы; кнопки
-«Отмена» нет, D-074). Обработчики
+«Отмена» нет, D-074), окно журнала `#journal-modal` (открывается
+после подмены `#modal-body`, закрывается по `data-modal-close`, подложке,
+Esc и событию `journal:close-modal`), замер шапки таблицы журнала в
+CSS-переменные `--journal-head`/`--journal-side` (поля полос прокрутки
+и `scroll-padding`) и восстановление прокрутки таблицы после htmx-подмены
+(D-095, D-097), поле даты `components.DateInput` (`data-date`: кнопка
+`data-date-pick` открывает `showPicker()` скрытого `<input type="date">`,
+его `input`/`change` гасятся в фазе захвата, выбранная дата пишется в
+текстовое поле и шлёт `change`, D-098), имена выбранных файлов
+(`data-file-names` → `data-file-list`). CSS-переменные ставятся через CSSOM (`style.setProperty`)
+— CSP это разрешает, атрибут `style` в разметке — нет. Обработчики
 делегированы на `document`, чтобы работать после HTMX-подмен (D-053).
 
 **Статика версионирована**: ссылки в шаблонах только через `static.URL("css/app.css")`
@@ -588,6 +631,22 @@ multiple>` в `<label>`-кнопке с `hx-trigger="change"` и
 **Ошибки** оборачиваются с контекстом (`fmt.Errorf("insert user: %w", err)`);
 на границах сравнение через `errors.Is` с сентинелами (`storage.ErrNotFound`,
 `auth.ErrInvalidCredentials`, `auth.ErrUnauthenticated`).
+
+**Журнал пары (D-087…D-103).** Таблица «уроки × ученики» одна для
+учителя и админа (`journalTable`): оформление ячеек — правило
+`.journal-table` в `input.css` (ячейка — голые `<td><a>`, иначе страница
+на 170 уроков × 30 учеников весит 1,6 МБ вместо 490 КБ), строки уроков —
+`#lesson-{id}` с гаснущей подсветкой `:target` и `data-highlight` (анимация `journal-highlight`, D-101). Ответы форм
+журнала — фрагмент `#journal-content` (по `HX-Target`) или, из окна,
+`hx-swap-oob`. Поля в строке — «тихие» (`components.InputQuietClass`),
+формы дат — `hx-trigger="submit, change"` с `hx-sync="this:drop"` (Enter
+даёт и `change`, и `submit`). Новый урок — первая строка таблицы,
+только поле даты (D-100). Пустая дата в строке урока — удаление урока
+без оценок и записей; подтверждение — `data-confirm-empty` на форме,
+`app.js` перехватывает `htmx:confirm` (D-101). Новые страницы журнала не трогают маршруты OLD: окна — `/card`
+и `/students/{sid}/marks`, тема различает источник по `from=journal`. Даты во всех полях — `ДД.ММ.ГГГГ`
+(`components.DateInput`, не `<input type="date">`: его формат зависит от
+языка браузера).
 
 ## Как добавить страницу
 

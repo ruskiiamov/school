@@ -35,11 +35,24 @@ func (s *Service) SaveRecord(ctx context.Context, teacherID, lessonID, studentID
 		return validation.Errors{"student": msgStudentNotInClass}
 	}
 
-	input.Comment = validation.NormalizeSpaces(input.Comment)
-	if utf8.RuneCountInString(input.Comment) > maxCommentLength {
-		return validation.Errors{"comment": msgCommentTooLong}
+	input, err = validateRecord(input)
+	if err != nil {
+		return err
 	}
 
+	return s.storeRecord(ctx, lessonID, studentID, input)
+}
+
+func validateRecord(input RecordInput) (RecordInput, error) {
+	input.Comment = validation.NormalizeSpaces(input.Comment)
+	if utf8.RuneCountInString(input.Comment) > maxCommentLength {
+		return input, validation.Errors{"comment": msgCommentTooLong}
+	}
+
+	return input, nil
+}
+
+func (s *Service) storeRecord(ctx context.Context, lessonID, studentID int64, input RecordInput) error {
 	if !input.Absent && input.Comment == "" {
 		if err := s.lessonStudents.Delete(ctx, lessonID, studentID); err != nil {
 			return err
@@ -50,7 +63,7 @@ func (s *Service) SaveRecord(ctx context.Context, teacherID, lessonID, studentID
 		return nil
 	}
 
-	err = s.lessonStudents.Upsert(ctx, storage.LessonStudent{
+	err := s.lessonStudents.Upsert(ctx, storage.LessonStudent{
 		LessonID:  lessonID,
 		StudentID: studentID,
 		Absent:    input.Absent,

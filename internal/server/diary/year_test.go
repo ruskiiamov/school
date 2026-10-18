@@ -73,7 +73,7 @@ func TestStudentMarksPastYear(t *testing.T) {
 
 	code, body = get(t, f.env, "/diary/summary?year="+year, student, false)
 	require.Equal(t, http.StatusOK, code)
-	assert.Contains(t, body, `name="from" value="`+start.Format("2006-01-02")+`"`)
+	assert.Contains(t, body, `name="from" value="`+start.Format("02.01.2006")+`"`)
 }
 
 func TestAdminDiaryByYearAndClass(t *testing.T) {

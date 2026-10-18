@@ -21,6 +21,7 @@ func NavItems(role, active string) []NavItem {
 			NavItem{Title: "Замены", Href: "/admin/substitutions", Icon: IconSwap, Group: groupSchool},
 			NavItem{Title: "Предметы", Href: "/admin/subjects", Icon: IconSubjects, Group: groupCatalogs},
 			NavItem{Title: "Типы работ", Href: "/admin/work-types", Icon: IconWorkTypes, Group: groupCatalogs},
+			NavItem{Title: "Журналы", Href: "/admin/journals", Icon: IconTable, Group: groupReading},
 			NavItem{Title: "Журналы OLD", Href: "/admin/journal", Icon: IconMarks, Group: groupReading},
 			NavItem{Title: "Дневники", Href: "/admin/diary", Icon: IconDiary, Group: groupReading},
 			NavItem{Title: "Сброс пароля", Href: "/admin/password-reset", Icon: IconKey, Group: groupService},

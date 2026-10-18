@@ -86,8 +86,8 @@ func PeriodForm(p Period, today time.Time, path string, hidden map[string]string
 	}
 
 	return view.PeriodForm{
-		From:     p.From.Format(validation.DateLayout),
-		To:       p.To.Format(validation.DateLayout),
+		From:     p.From.Format(validation.InputDateLayout),
+		To:       p.To.Format(validation.InputDateLayout),
 		Label:    view.FormatPeriod(p.From, p.To),
 		PrevHref: href(p.Month(-1)),
 		ThisHref: href(Period{min: p.min, max: p.max}.month(today)),

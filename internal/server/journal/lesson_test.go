@@ -30,7 +30,7 @@ func TestJournalOpenLessonTopicDelete(t *testing.T) {
 
 	body = servertest.Get(t, f.env.Handler, "/journal", teacher).Body.String()
 	assert.Contains(t, body, `<option value="`+pairValue(f.class, f.subject)+`">7А · Алгебра</option>`)
-	assert.Contains(t, body, `name="date" value="`+dateValue(f.today)+`"`)
+	assert.Contains(t, body, `name="date" value="`+inputDate(f.today)+`"`)
 
 	id := openLesson(t, f.env, teacher, f.class, f.subject, f.today)
 	assert.Equal(t, id, openLesson(t, f.env, teacher, f.class, f.subject, f.today))
@@ -95,7 +95,7 @@ func TestJournalOpenLessonErrors(t *testing.T) {
 	}{
 		{"unknown pair", url.Values{"pair": {"99-99"}, "date": {dateValue(f.today)}}, "Выберите класс и предмет из списка"},
 		{"empty date", url.Values{"pair": {pairValue(f.class, f.subject)}, "date": {""}}, "Укажите дату"},
-		{"bad date", url.Values{"pair": {pairValue(f.class, f.subject)}, "date": {"15.09.2026"}}, "Неверная дата"},
+		{"bad date", url.Values{"pair": {pairValue(f.class, f.subject)}, "date": {"31.02.2026"}}, "Неверная дата"},
 	}
 
 	for _, tc := range cases {

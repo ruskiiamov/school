@@ -28,7 +28,8 @@ func TestDiaryShowsHomework(t *testing.T) {
 	due := f.today.AddDate(0, 0, 3)
 
 	require.NoError(t, f.env.Journal.SaveHomework(ctx, f.teacher, algebra, journal.HomeworkInput{Text: "Упр. 12\nстр. 40", Due: due.Format(validation.DateLayout)}))
-	require.NoError(t, f.env.Journal.AddHomeworkFile(ctx, f.teacher, algebra, "задание.txt", strings.NewReader("Упр. 12")))
+	_, err := f.env.Journal.AddHomeworkFile(ctx, f.teacher, algebra, "задание.txt", strings.NewReader("Упр. 12"))
+	require.NoError(t, err)
 
 	homework, err := f.env.Journal.Homework(ctx, algebra)
 	require.NoError(t, err)

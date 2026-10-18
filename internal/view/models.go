@@ -31,6 +31,10 @@ const (
 	IconSave      Icon = "save"
 	IconRestore   Icon = "restore"
 	IconArchive   Icon = "archive"
+	IconClose     Icon = "close"
+	IconLeft      Icon = "left"
+	IconRight     Icon = "right"
+	IconCalendar  Icon = "calendar"
 )
 
 type User struct {
@@ -115,9 +119,106 @@ type PairJournalPage struct {
 	Shell    Shell
 	Title    string
 	BackHref string
-	Periods  string
-	Lessons  string
-	Table    JournalTable
+	Content  PairJournalContent
+}
+
+type PairJournalContent struct {
+	Periods string
+	Lessons string
+	New     *NewLessonForm
+	Table   JournalTable
+}
+
+type LessonCardPage struct {
+	Shell Shell
+	Card  LessonCard
+}
+
+type LessonCard struct {
+	Title     string
+	BackHref  string
+	Author    string
+	Action    string
+	Topic     string
+	Text      string
+	Due       string
+	Errors    map[string]string
+	Files     []LessonCardFile
+	CanUpload bool
+}
+
+type LessonCardFile struct {
+	FileLink
+	ID     string
+	Remove bool
+}
+
+type MarksEntryPage struct {
+	Shell Shell
+	Entry MarksEntry
+}
+
+type MarksEntry struct {
+	Title        string
+	Action       string
+	BackHref     string
+	InClass      bool
+	Rows         []MarksEntryRow
+	Absent       bool
+	Comment      string
+	CommentError string
+}
+
+type MarksEntryRow struct {
+	Name      string
+	Field     string
+	Value     string
+	Error     string
+	Autofocus bool
+}
+
+type AdminJournalsPage struct {
+	Shell    Shell
+	Path     string
+	Years    []Option
+	Classes  []Option
+	Subjects []Option
+	Teacher  string
+	Content  *PairJournalContent
+}
+
+type AdminLessonCard struct {
+	Title    string
+	BackHref string
+	Teacher  string
+	Topic    string
+	Homework *DiaryHomework
+}
+
+type AdminLessonCardPage struct {
+	Shell Shell
+	Card  AdminLessonCard
+}
+
+type AdminMarksEntry struct {
+	Title     string
+	BackHref  string
+	DiaryHref string
+	InClass   bool
+	Marks     []DiaryMark
+	Absent    bool
+	Comment   string
+}
+
+type AdminMarksEntryPage struct {
+	Shell Shell
+	Entry AdminMarksEntry
+}
+
+type NewLessonForm struct {
+	Action string
+	Date   string
+	Error  string
 }
 
 type JournalTable struct {
@@ -132,17 +233,28 @@ type JournalStudentHead struct {
 	Active    bool
 	InClass   bool
 	Average   string
-	Absences  int
+	Absences  string
 }
 
 type JournalRow struct {
 	Anchor    string
 	Date      string
-	ShortDate string
 	Topic     string
 	Homework  bool
+	CardHref  string
 	Author    string
+	Highlight bool
+	Edit      *JournalRowEdit
 	Cells     []JournalCell
+}
+
+type JournalRowEdit struct {
+	DateAction  string
+	DateValue   string
+	DateError   string
+	TopicAction string
+	TopicID     string
+	TopicError  string
 }
 
 type JournalCell struct {

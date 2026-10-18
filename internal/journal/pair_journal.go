@@ -34,6 +34,7 @@ type JournalStudent struct {
 
 type PairJournal struct {
 	Pair         YearPair
+	TeacherID    int64
 	Year         int
 	Lessons      []Lesson
 	WithHomework map[int64]bool
@@ -71,6 +72,66 @@ func (s *Service) PairJournal(ctx context.Context, teacherID, classID, subjectID
 
 		journal.Lessons = append(journal.Lessons, lesson)
 		included[lesson.ID] = true
+	}
+
+	if journal.WithHomework, err = s.homeworkLessons(ctx, classID, subjectID); err != nil {
+		return PairJournal{}, err
+	}
+
+	if err := s.fillJournalCells(ctx, &journal, included); err != nil {
+		return PairJournal{}, err
+	}
+
+	return journal, nil
+}
+
+func (s *Service) AdminPairJournal(ctx context.Context, classID, subjectID int64) (PairJournal, error) {
+	class, err := s.classes.ByID(ctx, classID)
+	if errors.Is(err, storage.ErrNotFound) {
+		return PairJournal{}, ErrNotFound
+	}
+	if err != nil {
+		return PairJournal{}, err
+	}
+
+	subject, err := s.subjects.ByID(ctx, subjectID)
+	if errors.Is(err, storage.ErrNotFound) {
+		return PairJournal{}, ErrNotFound
+	}
+	if err != nil {
+		return PairJournal{}, err
+	}
+
+	assignments, err := s.assignments.ListByClass(ctx, classID)
+	if err != nil {
+		return PairJournal{}, err
+	}
+
+	journal := PairJournal{
+		Pair: YearPair{
+			Pair: Pair{ClassID: classID, SubjectID: subjectID, ClassName: class.Name, SubjectName: subject.Name},
+			Kind: PairAssigned,
+		},
+		Year:  class.Year,
+		Cells: map[CellKey]JournalCell{},
+	}
+
+	for _, assignment := range assignments {
+		if assignment.SubjectID == subjectID {
+			journal.TeacherID = assignment.TeacherID
+		}
+	}
+
+	stored, err := s.lessons.ListByPair(ctx, classID, subjectID)
+	if err != nil {
+		return PairJournal{}, err
+	}
+
+	included := map[int64]bool{}
+
+	for _, item := range stored {
+		journal.Lessons = append(journal.Lessons, toLesson(item))
+		included[item.ID] = true
 	}
 
 	if journal.WithHomework, err = s.homeworkLessons(ctx, classID, subjectID); err != nil {

@@ -69,12 +69,9 @@ func (h *Handler) homeworkUpload(w http.ResponseWriter, r *http.Request) {
 
 	user, _ := web.UserFromContext(r.Context())
 
-	if err := http.NewResponseController(w).SetReadDeadline(time.Now().Add(h.files.TransferTimeout)); err != nil && !errors.Is(err, http.ErrNotSupported) {
-		h.base.ServerError(w, r, "extend read deadline", err)
+	if !h.prepareUpload(w, r) {
 		return
 	}
-
-	r.Body = http.MaxBytesReader(w, r.Body, h.files.MaxFileSize()*int64(h.files.MaxPerLesson)+uploadSlack)
 
 	reader, err := r.MultipartReader()
 	if err != nil {
@@ -98,7 +95,7 @@ func (h *Handler) homeworkUpload(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		err = h.journal.AddHomeworkFile(r.Context(), user.ID, lesson.ID, part.FileName(), part)
+		_, err = h.journal.AddHomeworkFile(r.Context(), user.ID, lesson.ID, part.FileName(), part)
 		if errs, ok := web.FormErrors(err); ok {
 			h.renderHomeworkError(w, r, lesson, errs["files"])
 			return
@@ -117,6 +114,17 @@ func (h *Handler) homeworkUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.homeworkDone(w, r, lesson)
+}
+
+func (h *Handler) prepareUpload(w http.ResponseWriter, r *http.Request) bool {
+	if err := http.NewResponseController(w).SetReadDeadline(time.Now().Add(h.files.TransferTimeout)); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		h.base.ServerError(w, r, "extend read deadline", err)
+		return false
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, h.files.MaxFileSize()*int64(h.files.MaxPerLesson)+uploadSlack)
+
+	return true
 }
 
 func (h *Handler) homeworkFileDelete(w http.ResponseWriter, r *http.Request) {
@@ -166,7 +174,7 @@ func (h *Handler) homeworkView(r *http.Request, lesson journal.Lesson, form home
 	}
 
 	if !homework.Due.IsZero() {
-		hw.Due = homework.Due.Format(validation.DateLayout)
+		hw.Due = homework.Due.Format(validation.InputDateLayout)
 	}
 
 	if form.entered {

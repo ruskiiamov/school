@@ -1,0 +1,100 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+templ MarksEntryWindow(entry view.MarksEntry) {
+	@modalHeader(entry.Title)
+	@marksEntryForm(entry, true)
+}
+
+templ MarksEntryPage(page view.MarksEntryPage) {
+	@layout.App(page.Shell) {
+		<div class="mx-auto flex w-full max-w-xl flex-col gap-4">
+			@components.PageHeader(page.Entry.Title) {
+				<a href={ templ.SafeURL(page.Entry.BackHref) } class="text-sm font-medium text-indigo-700 hover:underline">← К журналу</a>
+			}
+			<section class={ components.CardClass }>
+				@marksEntryForm(page.Entry, false)
+			</section>
+		</div>
+	}
+}
+
+templ marksEntryForm(entry view.MarksEntry, modal bool) {
+	<form
+		method="post"
+		action={ templ.SafeURL(entry.Action) }
+		if modal {
+			hx-post={ entry.Action }
+			hx-target={ "#" + modalBodyID }
+			hx-swap="innerHTML"
+		}
+		class="flex flex-col"
+	>
+		if entry.InClass {
+			<fieldset class="flex px-4 pt-3">
+				<legend class="sr-only">Присутствие на уроке</legend>
+				<span class="inline-flex rounded-lg bg-slate-100 p-1">
+					@attendanceOption("", "Был", !entry.Absent, "peer-checked:bg-white peer-checked:text-slate-900 peer-checked:shadow-sm")
+					@attendanceOption("1", "Не был", entry.Absent, "peer-checked:bg-amber-100 peer-checked:text-amber-800 peer-checked:shadow-sm")
+				</span>
+			</fieldset>
+		} else {
+			<p class="px-4 pt-3 text-sm text-amber-700">Ученик не в классе: можно исправить или убрать уже поставленные оценки</p>
+		}
+		if len(entry.Rows) == 0 {
+			@components.EmptyState("Оценок за этот урок нет")
+		} else {
+			<ul class="flex flex-col py-2">
+				for _, row := range entry.Rows {
+					<li class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5">
+						<label for={ row.Field } class="min-w-0 flex-1 text-sm text-slate-900">{ row.Name }</label>
+						<input
+							id={ row.Field }
+							name={ row.Field }
+							value={ row.Value }
+							inputmode="numeric"
+							maxlength="1"
+							autocomplete="off"
+							if row.Autofocus {
+								autofocus
+							}
+							class={ components.InputCompactClassFor(row.Error), "w-14 text-center text-base font-semibold" }
+						/>
+						if row.Error != "" {
+							<span class="basis-full text-right text-xs text-rose-600">{ row.Error }</span>
+						}
+					</li>
+				}
+			</ul>
+		}
+		if entry.InClass {
+			<div class="flex flex-col gap-1 px-4 pb-3">
+				<label for="entry-comment" class="sr-only">Комментарий ученику</label>
+				<input
+					id="entry-comment"
+					name="comment"
+					value={ entry.Comment }
+					placeholder="Комментарий ученику"
+					autocomplete="off"
+					class={ components.InputCompactClassFor(entry.CommentError), "w-full" }
+				/>
+				@components.FieldError(entry.CommentError)
+			</div>
+		}
+		<div class="flex justify-center border-t border-slate-100 px-4 py-3">
+			<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
+		</div>
+	</form>
+}
+
+templ attendanceOption(value, label string, checked bool, checkedClass string) {
+	<label class="cursor-pointer">
+		<input type="radio" name="absent" value={ value } checked?={ checked } class="peer sr-only"/>
+		<span class={ "inline-flex h-9 min-w-20 items-center justify-center rounded-md px-3 text-sm font-medium text-slate-500 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-400 hover:text-slate-900", checkedClass }>{ label }</span>
+	</label>
+}

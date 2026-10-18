@@ -188,14 +188,28 @@ templ RowSelect(name, label string, options []view.Option, message, class string
 
 templ RowDate(name, value, label, message, class string) {
 	<span class={ "flex min-w-0 flex-col gap-1", class }>
+		@DateInput(name, value, label, InputClassFor(message), nil)
+		@FieldError(message)
+	</span>
+}
+
+templ DateInput(name, value, label, class string, attrs templ.Attributes) {
+	<span class="relative flex min-w-0" data-date>
 		<input
-			type="date"
 			name={ name }
 			value={ value }
 			aria-label={ label }
-			class={ InputClassFor(message) }
+			placeholder="ДД.ММ.ГГГГ"
+			inputmode="numeric"
+			maxlength="10"
+			autocomplete="off"
+			{ attrs... }
+			class={ class, "pr-9 tabular-nums" }
 		/>
-		@FieldError(message)
+		<button type="button" data-date-pick tabindex="-1" aria-label="Выбрать в календаре" title="Календарь" class="absolute inset-y-0 right-0 flex w-9 items-center justify-center rounded-r-md text-slate-400 hover:text-indigo-700">
+			@Icon(view.IconCalendar, "size-4")
+		</button>
+		<input type="date" tabindex="-1" aria-hidden="true" data-date-native class="pointer-events-none absolute bottom-0 left-0 size-px opacity-0"/>
 	</span>
 }
 

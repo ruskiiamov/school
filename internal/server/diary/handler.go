@@ -195,7 +195,7 @@ func (h *Handler) renderDiary(w http.ResponseWriter, r *http.Request, dv diaryVi
 		return
 	}
 
-	dateValue := date.Format(validation.DateLayout)
+	dateValue := date.Format(validation.InputDateLayout)
 
 	page := view.DiaryPage{
 		Shell:       h.base.Shell(r, dv.title, dv.active),

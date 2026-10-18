@@ -193,6 +193,47 @@ func (r *MarkRepo) Update(ctx context.Context, id, workTypeID int64, value int) 
 	return requireAffected(result, "update mark")
 }
 
+type MarkChange struct {
+	WorkTypeID int64
+	Value      int
+}
+
+func (r *MarkRepo) SetForStudent(ctx context.Context, lessonID, studentID int64, changes []MarkChange) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	const (
+		upsert = `INSERT INTO marks (lesson_id, student_id, work_type_id, value, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+			ON CONFLICT (lesson_id, student_id, work_type_id) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+		remove = "DELETE FROM marks WHERE lesson_id = ? AND student_id = ? AND work_type_id = ?"
+	)
+
+	now := toMillis(time.Now())
+
+	for _, change := range changes {
+		if change.Value == 0 {
+			if _, err := tx.ExecContext(ctx, remove, lessonID, studentID, change.WorkTypeID); err != nil {
+				return fmt.Errorf("delete student mark: %w", err)
+			}
+
+			continue
+		}
+
+		if _, err := tx.ExecContext(ctx, upsert, lessonID, studentID, change.WorkTypeID, change.Value, now, now); err != nil {
+			return fmt.Errorf("upsert student mark: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit student marks: %w", err)
+	}
+
+	return nil
+}
+
 func (r *MarkRepo) Delete(ctx context.Context, id int64) error {
 	const query = "DELETE FROM marks WHERE id = ?"
 

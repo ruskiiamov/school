@@ -74,7 +74,7 @@ func TestTeacherSummaryPastYear(t *testing.T) {
 	assert.Contains(t, body, `<option value="`+strconv.Itoa(f.past)+`" selected>`)
 	assert.Contains(t, body, "6А · Алгебра")
 	assert.NotContains(t, body, "7А · Алгебра")
-	assert.Contains(t, body, `name="from" value="`+dateValue(start)+`"`)
+	assert.Contains(t, body, `name="from" value="`+inputDate(start)+`"`)
 	assert.Contains(t, body, "year="+strconv.Itoa(f.past))
 
 	query.Set("pair", pairValue(f.pastClass, f.subject))

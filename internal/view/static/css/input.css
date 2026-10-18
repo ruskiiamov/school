@@ -52,6 +52,15 @@
     background: transparent;
   }
 
+  .quiet-date [data-date-pick] {
+    opacity: 0;
+  }
+
+  .quiet-date:hover [data-date-pick],
+  .quiet-date:focus-within [data-date-pick] {
+    opacity: 1;
+  }
+
   .journal-table tbody td {
     @apply border-b border-l border-slate-100 p-0 text-center;
   }
@@ -70,7 +79,14 @@
     @apply border-rose-400 focus:border-rose-500 focus:ring-rose-200;
   }
 
-  .journal-table tbody tr:target > * {
-    @apply bg-indigo-50;
+  .journal-table tbody tr:target > *,
+  .journal-table tbody tr[data-highlight] > * {
+    animation: journal-highlight 1.5s ease-out;
+  }
+}
+
+@keyframes journal-highlight {
+  from {
+    background-color: var(--color-indigo-100);
   }
 }

@@ -297,14 +297,7 @@ templ LessonHomework(homework view.LessonHomework) {
 			@components.FieldError(homework.Errors["text"])
 			<span class="flex flex-wrap items-center gap-2">
 				<label for="lesson-homework-due" class="text-sm font-semibold text-slate-900">Срок</label>
-				<input
-					type="date"
-					id="lesson-homework-due"
-					hx-preserve
-					name="due"
-					value={ homework.Due }
-					class={ components.InputClassFor(homework.Errors["due"]), "w-48" }
-				/>
+				@components.DateInput("due", homework.Due, "Срок", components.InputClassFor(homework.Errors["due"])+" w-48", templ.Attributes{"id": "lesson-homework-due", "hx-preserve": true})
 				@components.FieldError(homework.Errors["due"])
 			</span>
 		</form>

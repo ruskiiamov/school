@@ -33,7 +33,7 @@ func TestTeacherSummaryGrid(t *testing.T) {
 	body := servertest.Get(t, f.env.Handler, "/journal/summary", teacher).Body.String()
 	assert.Contains(t, body, `href="/journal/summary" aria-current="page"`)
 	assert.Contains(t, body, "Выберите класс и предмет")
-	assert.Contains(t, body, `name="from" value="`+dateValue(monthStart(f.today))+`"`)
+	assert.Contains(t, body, `name="from" value="`+inputDate(monthStart(f.today))+`"`)
 	assert.Contains(t, body, ">Этот месяц<")
 
 	first := openLesson(t, f.env, teacher, f.class, f.subject, f.today)
