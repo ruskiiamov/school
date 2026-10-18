@@ -59,10 +59,10 @@ func TestPeriodMonthNavigation(t *testing.T) {
 	assert.Equal(t, date(2026, time.September, 1), next.From)
 	assert.Equal(t, date(2026, time.September, 30), next.To)
 
-	form := web.PeriodForm(period, today, "/journal/summary", map[string]string{"pair": "1-2"})
+	form := web.PeriodForm(period, today, "/diary/summary", map[string]string{"pair": "1-2"})
 	assert.Equal(t, "01.08.2026", form.From)
 	assert.Equal(t, "31.08.2026", form.To)
 	assert.Equal(t, "01.08.2026 — 31.08.2026", form.Label)
-	assert.Equal(t, "/journal/summary?from=2026-09-01&pair=1-2&to=2026-09-30", form.NextHref)
-	assert.Equal(t, "/journal/summary?from=2026-08-01&pair=1-2&to=2026-08-31", form.ThisHref)
+	assert.Equal(t, "/diary/summary?from=2026-09-01&pair=1-2&to=2026-09-30", form.NextHref)
+	assert.Equal(t, "/diary/summary?from=2026-08-01&pair=1-2&to=2026-08-31", form.ThisHref)
 }

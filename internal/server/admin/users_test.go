@@ -340,14 +340,14 @@ func TestUserDeactivateAndActivate(t *testing.T) {
 	id, createdPath := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Смирнова Мария"))
 	_, password := takeCredentials(t, env, admin, createdPath)
 	teacher := servertest.LoginWith(t, env.Handler, "smirnova.m", password)
-	assert.Equal(t, http.StatusOK, servertest.Get(t, env.Handler, "/journal", teacher).Code)
+	assert.Equal(t, http.StatusOK, servertest.Get(t, env.Handler, "/", teacher).Code)
 
 	deactivated := servertest.PostForm(t, env.Handler, userPathFor("/admin/teachers", id, "/deactivate"), nil, []*http.Cookie{admin}, htmx)
 	assert.Equal(t, http.StatusOK, deactivated.Code)
 	assert.NotContains(t, deactivated.Body.String(), "<html")
 	assert.Contains(t, deactivated.Body.String(), "Пока нет учителей")
 
-	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/journal", teacher), "/login")
+	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/", teacher), "/login")
 
 	denied := servertest.PostForm(t, env.Handler, "/login", url.Values{"login": {"smirnova.m"}, "password": {password}}, nil, nil)
 	assert.Equal(t, http.StatusOK, denied.Code)

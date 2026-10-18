@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/server/web"
@@ -20,6 +21,9 @@ const (
 	closeModal  = "journal:close-modal"
 
 	maxCardField = 64 << 10
+
+	msgUploadBroken = "Не удалось прочитать файл"
+	uploadSlack     = 1 << 20
 )
 
 type cardForm struct {
@@ -189,7 +193,7 @@ func (h *Handler) cardView(r *http.Request, lesson journal.Lesson, form cardForm
 	card := view.LessonCard{
 		Title:     "Урок " + view.FormatShortDate(lesson.Date),
 		BackHref:  pairPath(lesson.ClassID, lesson.SubjectID) + "#" + lessonAnchor(lesson.ID),
-		Action:    lessonPath(lesson.ID, "/card"),
+		Action:    lessonPath(lesson.ID, ""),
 		Topic:     lesson.Topic,
 		Text:      homework.Text,
 		Errors:    form.errs,
@@ -229,4 +233,19 @@ func (h *Handler) cardView(r *http.Request, lesson journal.Lesson, form cardForm
 
 func studentMarksPath(lessonID, studentID int64) string {
 	return lessonPath(lessonID, "/students/"+strconv.FormatInt(studentID, 10)+"/marks")
+}
+
+func (h *Handler) prepareUpload(w http.ResponseWriter, r *http.Request) bool {
+	if err := http.NewResponseController(w).SetReadDeadline(time.Now().Add(h.files.TransferTimeout)); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		h.base.ServerError(w, r, "extend read deadline", err)
+		return false
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, h.files.MaxFileSize()*int64(h.files.MaxPerLesson)+uploadSlack)
+
+	return true
+}
+
+func fileLink(file journal.HomeworkFile) view.FileLink {
+	return view.FileLink{Name: file.Name, Size: view.FormatFileSize(file.Size), Href: "/files/" + file.ID}
 }

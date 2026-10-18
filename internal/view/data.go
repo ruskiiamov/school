@@ -12,7 +12,8 @@ const (
 func NavItems(role, active string) []NavItem {
 	items := []NavItem{{Title: "Главная", Href: "/", Icon: IconDashboard}}
 
-	if role == "admin" {
+	switch role {
+	case "admin":
 		items = append(items,
 			NavItem{Title: "Классы", Href: "/admin/classes", Icon: IconClasses, Group: groupSchool},
 			NavItem{Title: "Учителя", Href: "/admin/teachers", Icon: IconTeachers, Group: groupSchool},
@@ -22,13 +23,18 @@ func NavItems(role, active string) []NavItem {
 			NavItem{Title: "Предметы", Href: "/admin/subjects", Icon: IconSubjects, Group: groupCatalogs},
 			NavItem{Title: "Типы работ", Href: "/admin/work-types", Icon: IconWorkTypes, Group: groupCatalogs},
 			NavItem{Title: "Журналы", Href: "/admin/journals", Icon: IconTable, Group: groupReading},
-			NavItem{Title: "Журналы OLD", Href: "/admin/journal", Icon: IconMarks, Group: groupReading},
 			NavItem{Title: "Дневники", Href: "/admin/diary", Icon: IconDiary, Group: groupReading},
 			NavItem{Title: "Сброс пароля", Href: "/admin/password-reset", Icon: IconKey, Group: groupService},
 			NavItem{Title: "Резервная копия", Href: "/admin/backup", Icon: IconArchive, Group: groupService},
 		)
-	} else {
-		items = append(items, sectionItem(role), summaryItem(role), NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey})
+	case "teacher":
+		items = append(items, NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey})
+	default:
+		items = append(items,
+			NavItem{Title: "Дневник", Href: "/diary", Icon: IconDiary},
+			NavItem{Title: "Оценки", Href: "/diary/summary", Icon: IconMarks},
+			NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey},
+		)
 	}
 
 	for i := range items {
@@ -36,22 +42,6 @@ func NavItems(role, active string) []NavItem {
 	}
 
 	return items
-}
-
-func sectionItem(role string) NavItem {
-	if role == "teacher" {
-		return NavItem{Title: "Журнал OLD", Href: "/journal", Icon: IconMarks}
-	}
-
-	return NavItem{Title: "Дневник", Href: "/diary", Icon: IconDiary}
-}
-
-func summaryItem(role string) NavItem {
-	if role == "teacher" {
-		return NavItem{Title: "Сводка OLD", Href: "/journal/summary", Icon: IconTable}
-	}
-
-	return NavItem{Title: "Оценки", Href: "/diary/summary", Icon: IconMarks}
 }
 
 func AdminStats(classes, students, teachers, subjects int) []Stat {

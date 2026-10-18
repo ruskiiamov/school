@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/auth"
-	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/servertest"
 	"github.com/ruskiiamov/school/internal/validation"
@@ -143,8 +142,8 @@ func TestHomeTeacherSeesPairsOfYear(t *testing.T) {
 	assert.Contains(t, body, "В этом году вам не назначены классы и предметы")
 	assert.Contains(t, body, `name="year"`)
 	assert.Contains(t, body, `<noscript><button type="submit"`)
-	assert.Contains(t, body, `href="/journal" class`)
-	assert.Contains(t, body, "Журнал OLD")
+	assert.NotContains(t, body, `href="/journal"`)
+	assert.NotContains(t, body, "OLD")
 	assert.NotContains(t, body, "Урок сегодня")
 
 	seventh, err := env.School.CreateClass(ctx, "7А")
@@ -171,10 +170,7 @@ func TestHomeTeacherSeesPairsOfYear(t *testing.T) {
 
 	open := func(classID, subjectID int64, date time.Time) {
 		t.Helper()
-
-		_, err := env.Journal.OpenLesson(ctx, teacherID, year, today,
-			journal.OpenLessonInput{ClassID: classID, SubjectID: subjectID, Date: date.Format(validation.DateLayout)})
-		require.NoError(t, err)
+		env.CreateLesson(t, teacherID, classID, subjectID, date)
 	}
 
 	open(seventh, algebra, today.AddDate(0, 0, -7))
@@ -253,11 +249,8 @@ func TestHomeStudentSeesTodayAndWeekMarks(t *testing.T) {
 	require.NoError(t, err)
 
 	today := env.School.Today()
-	lessonID, err := env.Journal.OpenLesson(ctx, teacherID, env.School.CurrentYear(), today,
-		journal.OpenLessonInput{ClassID: classID, SubjectID: subjectID, Date: today.Format(validation.DateLayout)})
-	require.NoError(t, err)
-	_, err = env.Journal.AddMark(ctx, teacherID, lessonID, studentID, journal.MarkInput{WorkTypeID: workTypes[0].ID, Value: 5})
-	require.NoError(t, err)
+	lessonID := env.CreateLesson(t, teacherID, classID, subjectID, today)
+	env.SetMark(t, teacherID, lessonID, studentID, workTypes[0].ID, 5)
 
 	lessonHref := "/diary?date=" + today.Format(validation.DateLayout) + "&amp;lesson=" + strconv.FormatInt(lessonID, 10)
 

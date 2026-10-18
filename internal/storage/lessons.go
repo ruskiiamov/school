@@ -57,46 +57,6 @@ const visibleLessons = ` FROM lessons
 				SELECT 1 FROM teaching_assignments a
 				WHERE a.class_id = lessons.class_id AND a.subject_id = lessons.subject_id AND a.teacher_id = ?))`
 
-func (r *LessonRepo) CountVisible(ctx context.Context, teacherID int64, year int) (int, error) {
-	const query = "SELECT COUNT(*)" + visibleLessons
-
-	var count int
-	if err := r.db.QueryRowContext(ctx, query, year, teacherID, teacherID).Scan(&count); err != nil {
-		return 0, fmt.Errorf("count lessons: %w", err)
-	}
-
-	return count, nil
-}
-
-func (r *LessonRepo) ListVisible(ctx context.Context, teacherID int64, year, limit, offset int) ([]Lesson, error) {
-	const query = "SELECT " + lessonColumns + visibleLessons + `
-		ORDER BY date DESC, id DESC
-		LIMIT ? OFFSET ?`
-
-	rows, err := r.db.QueryContext(ctx, query, year, teacherID, teacherID, limit, offset)
-	if err != nil {
-		return nil, fmt.Errorf("select lessons: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var lessons []Lesson
-
-	for rows.Next() {
-		lesson, err := scanLesson(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan lesson: %w", err)
-		}
-
-		lessons = append(lessons, lesson)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate lessons: %w", err)
-	}
-
-	return lessons, nil
-}
-
 func (r *LessonRepo) ListVisibleByYear(ctx context.Context, teacherID int64, year int) ([]Lesson, error) {
 	const query = "SELECT " + lessonColumns + visibleLessons + " ORDER BY date DESC, id DESC"
 
@@ -130,33 +90,6 @@ func (r *LessonRepo) ListByPair(ctx context.Context, classID, subjectID int64) (
 	rows, err := r.db.QueryContext(ctx, query, classID, subjectID)
 	if err != nil {
 		return nil, fmt.Errorf("select pair lessons: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var lessons []Lesson
-
-	for rows.Next() {
-		lesson, err := scanLesson(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan lesson: %w", err)
-		}
-
-		lessons = append(lessons, lesson)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate lessons: %w", err)
-	}
-
-	return lessons, nil
-}
-
-func (r *LessonRepo) ListByPairPeriod(ctx context.Context, classID, subjectID int64, from, to time.Time) ([]Lesson, error) {
-	const query = "SELECT " + lessonColumns + " FROM lessons WHERE class_id = ? AND subject_id = ? AND date BETWEEN ? AND ? ORDER BY date, id"
-
-	rows, err := r.db.QueryContext(ctx, query, classID, subjectID, toDate(from), toDate(to))
-	if err != nil {
-		return nil, fmt.Errorf("select period lessons: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 

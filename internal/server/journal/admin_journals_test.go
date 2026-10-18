@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/auth"
-	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/servertest"
 )
@@ -46,9 +45,8 @@ func TestAdminJournals(t *testing.T) {
 	replaced := openLesson(t, f.env, f.env.LoginAs(t, "substitute"), f.class, f.subject, f.today.AddDate(0, 0, -1))
 	require.NoError(t, f.env.Journal.UpdateTopic(ctx, f.teacher, lesson, "Дроби"))
 	require.NoError(t, f.env.Journal.SaveHomework(ctx, f.teacher, lesson, journalHomework("Упр. 12")))
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, lesson, maria, journalMarkInput(firstWorkType(t, f), 5))
-	require.NoError(t, err)
-	require.NoError(t, f.env.Journal.SaveRecord(ctx, f.teacher, lesson, maria, journal.RecordInput{Absent: true, Comment: "Опоздала"}))
+	f.env.SetMark(t, f.teacher, lesson, maria, firstWorkType(t, f), 5)
+	f.env.SetRecord(t, f.teacher, lesson, maria, true, "Опоздала")
 
 	body := servertest.Get(t, f.env.Handler, "/admin/journals", admin).Body.String()
 	assert.Contains(t, body, `href="/admin/journals" aria-current="page"`)

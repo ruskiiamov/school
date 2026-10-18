@@ -55,20 +55,6 @@ func (r *LessonStudentRepo) ListByLesson(ctx context.Context, lessonID int64) ([
 	return records, nil
 }
 
-func (r *LessonStudentRepo) ListByPairPeriod(ctx context.Context, classID, subjectID int64, from, to time.Time) ([]LessonStudent, error) {
-	const query = `SELECT lesson_id, student_id, absent, comment, updated_at FROM lesson_students
-		WHERE lesson_id IN (SELECT id FROM lessons WHERE class_id = ? AND subject_id = ? AND date BETWEEN ? AND ?)
-		ORDER BY lesson_id, student_id`
-
-	rows, err := r.db.QueryContext(ctx, query, classID, subjectID, toDate(from), toDate(to))
-	if err != nil {
-		return nil, fmt.Errorf("select period lesson students: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	return collectLessonStudents(rows)
-}
-
 func (r *LessonStudentRepo) ListByPair(ctx context.Context, classID, subjectID int64) ([]LessonStudent, error) {
 	const query = `SELECT lesson_id, student_id, absent, comment, updated_at FROM lesson_students
 		WHERE lesson_id IN (SELECT id FROM lessons WHERE class_id = ? AND subject_id = ?)

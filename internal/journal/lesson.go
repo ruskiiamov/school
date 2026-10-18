@@ -15,7 +15,6 @@ import (
 const (
 	msgDateRequired         = "Укажите дату"
 	msgDateInvalid          = "Неверная дата"
-	msgPairUnknown          = "Выберите класс и предмет из списка"
 	msgLessonTaken          = "Урок на эту дату уже создал другой учитель"
 	msgSubstitutionInactive = "На эту дату замена не действует"
 	msgTopicTooLong         = "Тема не длиннее 200 символов"
@@ -34,80 +33,6 @@ type Lesson struct {
 	Year        int
 	ClassName   string
 	SubjectName string
-}
-
-type OpenLessonInput struct {
-	ClassID   int64
-	SubjectID int64
-	Date      string
-}
-
-func (s *Service) OpenLesson(ctx context.Context, teacherID int64, year int, today time.Time, input OpenLessonInput) (int64, error) {
-	errs := validation.Errors{}
-
-	pairs, err := s.Pairs(ctx, teacherID, year, today)
-	if err != nil {
-		return 0, err
-	}
-
-	if !containsPair(pairs, input.ClassID, input.SubjectID) {
-		errs.Add("pair", msgPairUnknown)
-	}
-
-	var date time.Time
-
-	if input.Date == "" {
-		errs.Add("date", msgDateRequired)
-	} else if parsed, ok := validation.ParseDate(input.Date); ok {
-		date = parsed
-	} else {
-		errs.Add("date", msgDateInvalid)
-	}
-
-	if len(errs) > 0 {
-		return 0, errs
-	}
-
-	existing, err := s.lessons.Find(ctx, input.ClassID, input.SubjectID, date)
-	if err == nil {
-		allowed, err := s.canAccess(ctx, teacherID, existing)
-		if err != nil {
-			return 0, err
-		}
-
-		if !allowed {
-			return 0, validation.Errors{"pair": msgLessonTaken}
-		}
-
-		return existing.ID, nil
-	}
-	if !errors.Is(err, storage.ErrNotFound) {
-		return 0, err
-	}
-
-	allowed, err := s.canCreate(ctx, teacherID, input.ClassID, input.SubjectID, date)
-	if err != nil {
-		return 0, err
-	}
-
-	if !allowed {
-		return 0, validation.Errors{"date": msgSubstitutionInactive}
-	}
-
-	id, err := s.lessons.Create(ctx, storage.Lesson{
-		ClassID:   input.ClassID,
-		SubjectID: input.SubjectID,
-		TeacherID: teacherID,
-		Date:      date,
-	})
-	if err != nil {
-		return 0, err
-	}
-
-	s.log.InfoContext(ctx, "lesson created", slog.Int64("id", id), slog.Int64("teacher_id", teacherID),
-		slog.Int64("class_id", input.ClassID), slog.Int64("subject_id", input.SubjectID), slog.String("date", input.Date))
-
-	return id, nil
 }
 
 func (s *Service) LessonForTeacher(ctx context.Context, teacherID, id int64) (Lesson, error) {
@@ -161,76 +86,6 @@ func (s *Service) withNames(ctx context.Context, stored storage.Lesson) (Lesson,
 	lesson.SubjectName = subject.Name
 
 	return lesson, nil
-}
-
-func (s *Service) LessonsByPair(ctx context.Context, classID, subjectID int64) ([]Lesson, map[int64]bool, error) {
-	stored, err := s.lessons.ListByPair(ctx, classID, subjectID)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	withHomework, err := s.homeworkLessons(ctx, classID, subjectID)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	lessons := make([]Lesson, 0, len(stored))
-	for _, item := range stored {
-		lessons = append(lessons, toLesson(item))
-	}
-
-	return lessons, withHomework, nil
-}
-
-func (s *Service) LessonsPage(ctx context.Context, teacherID int64, year, page, size int) ([]Lesson, int, error) {
-	total, err := s.lessons.CountVisible(ctx, teacherID, year)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	stored, err := s.lessons.ListVisible(ctx, teacherID, year, size, (page-1)*size)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	lessons, err := s.withPairNames(ctx, year, stored)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return lessons, total, nil
-}
-
-func (s *Service) withPairNames(ctx context.Context, year int, stored []storage.Lesson) ([]Lesson, error) {
-	classes, err := s.classes.ListByYear(ctx, year, true)
-	if err != nil {
-		return nil, err
-	}
-
-	classNames := make(map[int64]string, len(classes))
-	for _, class := range classes {
-		classNames[class.ID] = class.Name
-	}
-
-	subjects, err := s.subjects.List(ctx, true)
-	if err != nil {
-		return nil, err
-	}
-
-	subjectNames := make(map[int64]string, len(subjects))
-	for _, subject := range subjects {
-		subjectNames[subject.ID] = subject.Name
-	}
-
-	lessons := make([]Lesson, 0, len(stored))
-	for _, item := range stored {
-		lesson := toLesson(item)
-		lesson.ClassName = classNames[item.ClassID]
-		lesson.SubjectName = subjectNames[item.SubjectID]
-		lessons = append(lessons, lesson)
-	}
-
-	return lessons, nil
 }
 
 func (s *Service) UpdateTopic(ctx context.Context, teacherID, id int64, topic string) error {
@@ -315,16 +170,6 @@ func (s *Service) canCreate(ctx context.Context, teacherID, classID, subjectID i
 	}
 
 	return s.substitutions.CoversDate(ctx, classID, subjectID, teacherID, date)
-}
-
-func containsPair(pairs []Pair, classID, subjectID int64) bool {
-	for _, pair := range pairs {
-		if pair.ClassID == classID && pair.SubjectID == subjectID {
-			return true
-		}
-	}
-
-	return false
 }
 
 func toLesson(stored storage.Lesson) Lesson {

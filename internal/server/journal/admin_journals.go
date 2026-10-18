@@ -17,6 +17,10 @@ const (
 	adminJournalsPath        = "/admin/journals"
 	adminJournalsLessonsPath = adminJournalsPath + "/lessons"
 	adminJournalsTarget      = "admin-journals"
+	adminDiaryPath           = "/admin/diary"
+
+	classOption   = "Класс"
+	subjectOption = "Предмет"
 )
 
 func (h *Handler) adminJournals(w http.ResponseWriter, r *http.Request) {
@@ -205,4 +209,44 @@ func adminJournalsURL(lesson journal.Lesson) string {
 	}
 
 	return adminJournalsPath + "?" + query.Encode() + "#" + lessonAnchor(lesson.ID)
+}
+
+func (h *Handler) pairOptions(r *http.Request, classes, subjects *[]view.Option, year int, classID, subjectID int64) error {
+	ctx := r.Context()
+
+	classList, err := h.school.Classes(ctx, year, false)
+	if err != nil {
+		return err
+	}
+
+	subjectList, err := h.school.Subjects(ctx, false)
+	if err != nil {
+		return err
+	}
+
+	*classes = []view.Option{{Name: classOption, Selected: classID == 0}}
+	for _, class := range classList {
+		*classes = append(*classes, view.Option{ID: class.ID, Name: class.Name, Selected: class.ID == classID})
+	}
+
+	*subjects = []view.Option{{Name: subjectOption, Selected: subjectID == 0}}
+	for _, subject := range subjectList {
+		*subjects = append(*subjects, view.Option{ID: subject.ID, Name: subject.Name, Selected: subject.ID == subjectID})
+	}
+
+	return nil
+}
+
+func diaryHomework(homework journal.Homework) *view.DiaryHomework {
+	result := &view.DiaryHomework{Text: homework.Text}
+
+	if !homework.Due.IsZero() {
+		result.Due = view.FormatShortDate(homework.Due)
+	}
+
+	for _, file := range homework.Files {
+		result.Files = append(result.Files, fileLink(file))
+	}
+
+	return result
 }

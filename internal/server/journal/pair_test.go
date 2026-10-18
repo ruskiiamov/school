@@ -53,15 +53,11 @@ func TestPairJournalTable(t *testing.T) {
 	require.NoError(t, f.env.Journal.UpdateTopic(ctx, f.teacher, earlier, "Квадратные уравнения"))
 	require.NoError(t, f.env.Journal.SaveHomework(ctx, f.teacher, earlier, journalHomework("Упр. 12")))
 
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, today, maria, journalMarkInput(test.ID, 4))
-	require.NoError(t, err)
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, today, maria, journalMarkInput(answer.ID, 5))
-	require.NoError(t, err)
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, earlier, maria, journalMarkInput(answer.ID, 4))
-	require.NoError(t, err)
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, earlier, gone, journalMarkInput(answer.ID, 3))
-	require.NoError(t, err)
-	require.NoError(t, f.env.Journal.SaveRecord(ctx, f.teacher, today, petr, journal.RecordInput{Absent: true, Comment: "Болел"}))
+	f.env.SetMark(t, f.teacher, today, maria, test.ID, 4)
+	f.env.SetMark(t, f.teacher, today, maria, answer.ID, 5)
+	f.env.SetMark(t, f.teacher, earlier, maria, answer.ID, 4)
+	f.env.SetMark(t, f.teacher, earlier, gone, answer.ID, 3)
+	f.env.SetRecord(t, f.teacher, today, petr, true, "Болел")
 	require.NoError(t, f.env.School.RemoveClassStudent(ctx, f.class, gone))
 	require.NoError(t, f.env.Auth.SetUserActive(ctx, petr, false))
 
@@ -165,8 +161,7 @@ func TestPairJournalLessons(t *testing.T) {
 
 	created := servertest.PostForm(t, f.env.Handler, create, url.Values{"date": {dateValue(f.today)}}, []*http.Cookie{teacher}, nil)
 	require.Equal(t, http.StatusSeeOther, created.Code)
-	lessons, _, err := f.env.Journal.LessonsByPair(ctx, f.class, f.subject)
-	require.NoError(t, err)
+	lessons := pairLessons(t, f)
 	require.Len(t, lessons, 1)
 	today := lessons[0].ID
 	servertest.AssertRedirect(t, created, path+"#lesson-"+strconv.FormatInt(today, 10))
@@ -197,8 +192,7 @@ func TestPairJournalLessons(t *testing.T) {
 		assert.Contains(t, recorder.Body.String(), `name="date" value="`+html.EscapeString(tc.date)+`" aria-label="Дата нового урока"`, tc.name)
 	}
 
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, today, maria, journalMarkInput(firstWorkType(t, f), 5))
-	require.NoError(t, err)
+	f.env.SetMark(t, f.teacher, today, maria, firstWorkType(t, f), 5)
 
 	moved := f.today.AddDate(0, 0, -3)
 	recorder := servertest.PostForm(t, f.env.Handler, lessonPath(today, "/date"), url.Values{"date": {dateValue(moved)}}, []*http.Cookie{teacher}, nil)
@@ -227,8 +221,7 @@ func TestPairJournalLessons(t *testing.T) {
 	assert.Contains(t, refused.Body.String(), "Урок с оценками или записями удалить нельзя")
 	assert.Contains(t, refused.Body.String(), `value="`+inputDate(moved)+`" aria-label="Дата урока"`)
 
-	lessons, _, err = f.env.Journal.LessonsByPair(ctx, f.class, f.subject)
-	require.NoError(t, err)
+	lessons = pairLessons(t, f)
 	require.Len(t, lessons, 2)
 
 	var empty int64
@@ -299,8 +292,7 @@ func TestPairJournalLessonsSubstitute(t *testing.T) {
 	own := servertest.PostForm(t, f.env.Handler, create, url.Values{"date": {dateValue(f.today.AddDate(0, 0, -1))}}, []*http.Cookie{substituteCookie}, nil)
 	require.Equal(t, http.StatusSeeOther, own.Code)
 
-	lessons, _, err := f.env.Journal.LessonsByPair(ctx, f.class, f.subject)
-	require.NoError(t, err)
+	lessons := pairLessons(t, f)
 	require.Len(t, lessons, 2)
 	replaced := lessons[1].ID
 

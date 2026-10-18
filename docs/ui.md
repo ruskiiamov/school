@@ -8,9 +8,9 @@
 
 | Роль | Пункты |
 |---|---|
-| admin | Главная `/`; **Школа**: Классы `/admin/classes`, Учителя `/admin/teachers`, Ученики `/admin/students`, Родители `/admin/parents`, Замены `/admin/substitutions`; **Справочники**: Предметы `/admin/subjects`, Типы работ `/admin/work-types`; **Просмотр**: Журналы `/admin/journal`, Дневники `/admin/diary`; **Служебное**: Сброс пароля `/admin/password-reset`, Резервная копия `/admin/backup` (группы — D-080) |
-| teacher | Главная `/`, Журнал `/journal` (итерация 3), Сменить пароль `/account/password` |
-| student, parent | Главная `/`, Дневник `/diary` (итерация 4), Сменить пароль `/account/password` |
+| admin | Главная `/`; **Школа**: Классы `/admin/classes`, Учителя `/admin/teachers`, Ученики `/admin/students`, Родители `/admin/parents`, Замены `/admin/substitutions`; **Справочники**: Предметы `/admin/subjects`, Типы работ `/admin/work-types`; **Просмотр**: Журналы `/admin/journals`, Дневники `/admin/diary`; **Служебное**: Сброс пароля `/admin/password-reset`, Резервная копия `/admin/backup` (группы — D-080) |
+| teacher | Главная `/` (пары года, вход в журнал пары), Сменить пароль `/account/password` (D-104) |
+| student, parent | Главная `/`, Дневник `/diary` (итерация 4), Оценки `/diary/summary`, Сменить пароль `/account/password` |
 
 В шапке: ФИО, роль и кнопка «Выйти». У учителя, ученика и родителя
 последний пункт меню — «Сменить пароль» `/account/password` (у админа его
@@ -180,6 +180,10 @@ change"`: главная учителя, «Сводка», «Оценки», ж�
 
 ## Маршруты итерации 3
 
+Страницы `/journal` и урока `/journal/lessons/{id}?student=` с их формами
+удалены в итерации 9 (D-104), раздел оставлен как история; замены
+действуют.
+
 ```
 GET  /admin/substitutions?ended=1&edit={id}   строчный паттерн (D-043): строка добавления «класс, предмет, учитель, с, по», `edit` — одна строка формой только с датами
 POST /admin/substitutions, /{id}, /{id}/delete   → список (HTMX — фрагмент `#substitutions`), `ended` тянется через редиректы
@@ -218,6 +222,11 @@ GET  /admin/diary/{id}?date=&lesson=&q=&year=&class=  дневник учени�
 Чужой урок, чужой ребёнок, не ученик — 404.
 
 ## Маршруты итерации 5
+
+Блок ДЗ старой страницы урока и `/admin/journal…` удалены в итерации 9
+(D-104): ДЗ правится в окне урока журнала пары, админ читает
+«Журналы» `/admin/journals`. Скачивание `/files/{id}` и ДЗ в дневнике
+действуют.
 
 ```
 POST /journal/lessons/{id}/homework                       text, due → редирект на урок (HTMX — фрагмент `#lesson-homework` раскрытым)
@@ -269,6 +278,10 @@ GET  /admin/journal/lessons/{id}?student=                 админ: урок �
 
 ## Маршруты итерации 6
 
+Сводки учителя `/journal/summary` и админа `/admin/journal/summary`
+удалены в итерации 9 (D-104): их заменил журнал пары. «Оценки»
+ученика и родителя и `/admin/diary/{id}/summary` действуют.
+
 ```
 GET  /journal/summary?year=&pair=&from=&to=              учитель: сводка «ученики × даты», фрагмент `#summary`; `year` — учебный год (селект всегда: годы классов, текущий и следующий, D-068, D-070)
 GET  /diary/summary?year=&from=&to=&child=               ученик и родитель: оценки по предметам за период, фрагмент `#marks`
@@ -319,12 +332,12 @@ GET  /admin/backup/download   админ: `school-backup-YYYY-MM-DD.tar.gz` (`sc
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Маршруты итерации 9 (D-087…D-103)
+## Маршруты итерации 9 (D-087…D-104)
 
-Старые маршруты `/journal`, `/journal/lessons/{id}` с `?student=`,
-`/journal/lessons/{id}/marks…`, `/journal/lessons/{id}/students/{sid}`,
-`/journal/summary`, `/admin/journal…` работают как раньше, их пункты
-меню помечены «OLD» (D-088). Окна журнала — один `<dialog id="journal-modal">`
+Старые страницы журнала, урока и сводок (`/journal`,
+`/journal/lessons/{id}?student=…`, `/journal/summary`, `/admin/journal…`)
+удалены (D-104), адрес урока `/journal/lessons/{id}` занят окном урока.
+Окна журнала — один `<dialog id="journal-modal">`
 на странице, содержимое грузится в `#modal-body`: ссылки внутри `tbody`
 ускорены `hx-boost` с целью `#modal-body`, ответы окон несут
 `HX-Push-Url: false`, чтобы адрес окна не попадал в историю (D-097,
@@ -335,9 +348,9 @@ GET  /?year=                                           учитель: селе�
 GET  /journal/class/{class}/subject/{subject}          журнал пары; фрагмент `#journal-content` (у заменяющего строка «Ваши замены» и таблица); чужая пара — 404
 POST /journal/class/{class}/subject/{subject}/lessons  date → создать урок (`journal.CreateLesson`); HTMX — `#journal-content` с подсвеченной строкой, без JS — редирект на журнал `#lesson-{id}`; ошибка — у поля строки нового урока
 POST /journal/lessons/{id}/date                        date → перенести урок (`journal.MoveLesson`); ответы как у создания; пустая date — удалить урок без оценок и записей (`journal.DeleteLesson`, перед этим `app.js` спрашивает подтверждение), иначе ошибка у поля и прежняя дата (D-101)
-POST /journal/lessons/{id}/topic                       тема; `from=journal` (строка) — HTMX отдаёт слот ошибки `#topic-{id}-error`; без него — старая страница урока
-GET  /journal/lessons/{id}/card                        окно «Урок»: ДЗ, на телефоне ещё тема; удаления в окне нет — урок удаляется стиранием даты (D-101); без JS — страница с «← К журналу»
-POST /journal/lessons/{id}/card                        multipart: topic, text, due, remove (ID файлов), files — всё или ничего; HTMX — `#journal-content` через `hx-swap-oob` и закрытие окна, ошибка — окно с введённым; без JS — редирект на журнал `#lesson-{id}`
+POST /journal/lessons/{id}/topic                       тема из строки; HTMX — слот ошибки `#topic-{id}-error`, без JS — редирект на журнал `#lesson-{id}` (ошибка — страница журнала)
+GET  /journal/lessons/{id}                             окно «Урок»: ДЗ, на телефоне ещё тема; удаления в окне нет — урок удаляется стиранием даты (D-101); без JS — страница с «← К журналу»
+POST /journal/lessons/{id}                             multipart: topic, text, due, remove (ID файлов), files — всё или ничего; HTMX — `#journal-content` через `hx-swap-oob` и закрытие окна, ошибка — окно с введённым; без JS — редирект на журнал `#lesson-{id}`
 GET  /journal/lessons/{id}/students/{sid}/marks        окно ученика за урок; без JS — страница
 POST /journal/lessons/{id}/students/{sid}/marks        `type-{id}` (цифра 1–5 или пусто), `absent` (`1` — не был), `comment`; HTMX — `#journal-content` через `hx-swap-oob` и закрытие окна; без JS — редирект на журнал `#lesson-{id}`
 
@@ -346,10 +359,8 @@ GET  /admin/journals/lessons/{id}                      окно урока на 
 GET  /admin/journals/lessons/{id}/students/{sid}       окно ученика на чтение: оценки по типам, «Отсутствовал», комментарий, «Дневник»
 ```
 
-Меню на время итерации: учитель — Главная, Журнал OLD, Сводка OLD,
-Сменить пароль; админ в группе «Просмотр» — Журналы (новая), Журналы
-OLD, Дневники. После удаления OLD у учителя остаются Главная и Сменить
-пароль.
+Меню после удаления OLD: учитель — Главная и Сменить пароль; админ в
+группе «Просмотр» — Журналы и Дневники.
 
 Главная учителя:
 
@@ -525,6 +536,8 @@ OLD, Дневники. После удаления OLD у учителя ост�
 поле поиска по ФИО и строки «ФИО · класс · [Открыть]».
 
 ## Макеты итерации 3
+
+Удалены в итерации 9 (D-104), оставлены как история.
 
 Журнал (десктоп):
 

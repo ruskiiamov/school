@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/auth"
-	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/server/servertest"
 )
 
@@ -25,8 +24,7 @@ func TestAdminDiarySearchAndOpen(t *testing.T) {
 	require.NoError(t, f.env.Auth.SetUserActive(ctx, gone, false))
 
 	algebra := f.openLesson(t, f.class, f.algebra, f.today)
-	_, err := f.env.Journal.AddMark(ctx, f.teacher, algebra, f.student, journal.MarkInput{WorkTypeID: f.workType, Value: 5})
-	require.NoError(t, err)
+	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, 5)
 
 	code, body := get(t, f.env, "/admin/diary", admin, false)
 	require.Equal(t, http.StatusOK, code)

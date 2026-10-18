@@ -27,7 +27,16 @@ type cardField struct {
 	value string
 }
 
-func saveCard(t *testing.T, handler http.Handler, lessonID int64, cookie *http.Cookie, headers map[string]string, fields []cardField, files ...string) *httptest.ResponseRecorder {
+type cardFile struct {
+	name    string
+	content string
+}
+
+func smallFile(name string) cardFile {
+	return cardFile{name: name, content: "content of " + name}
+}
+
+func saveCard(t *testing.T, handler http.Handler, lessonID int64, cookie *http.Cookie, headers map[string]string, fields []cardField, files ...cardFile) *httptest.ResponseRecorder {
 	t.Helper()
 
 	body := &bytes.Buffer{}
@@ -37,16 +46,16 @@ func saveCard(t *testing.T, handler http.Handler, lessonID int64, cookie *http.C
 		require.NoError(t, writer.WriteField(field.name, field.value))
 	}
 
-	for _, name := range files {
-		part, err := writer.CreateFormFile("files", name)
+	for _, file := range files {
+		part, err := writer.CreateFormFile("files", file.name)
 		require.NoError(t, err)
-		_, err = io.WriteString(part, "content of "+name)
+		_, err = io.WriteString(part, file.content)
 		require.NoError(t, err)
 	}
 
 	require.NoError(t, writer.Close())
 
-	req := httptest.NewRequest(http.MethodPost, lessonPath(lessonID, "/card"), body)
+	req := httptest.NewRequest(http.MethodPost, lessonPath(lessonID, ""), body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.AddCookie(cookie)
 
@@ -70,7 +79,7 @@ func TestLessonCard(t *testing.T) {
 	lesson := openLesson(t, f.env, teacher, f.class, f.subject, f.today)
 	id := strconv.FormatInt(lesson, 10)
 
-	page := servertest.Get(t, f.env.Handler, lessonPath(lesson, "/card"), teacher).Body.String()
+	page := servertest.Get(t, f.env.Handler, lessonPath(lesson, ""), teacher).Body.String()
 	assert.Contains(t, page, "Урок "+view.FormatShortDate(f.today))
 	assert.Contains(t, page, "← К журналу")
 	assert.Contains(t, page, `href="`+pairPath(f.class, f.subject)+"#lesson-"+id+`"`)
@@ -81,7 +90,7 @@ func TestLessonCard(t *testing.T) {
 	assert.Contains(t, page, `form="lesson-card-form"`)
 	assert.NotContains(t, page, "Удалить урок")
 
-	window := servertest.Get(t, f.env.Handler, lessonPath(lesson, "/card"), teacher, modalHeaders())
+	window := servertest.Get(t, f.env.Handler, lessonPath(lesson, ""), teacher, modalHeaders())
 	assert.Equal(t, "false", window.Header().Get("HX-Push-Url"))
 	assert.Contains(t, window.Body.String(), `id="journal-modal-title"`)
 	assert.Contains(t, window.Body.String(), "data-modal-close")
@@ -89,7 +98,7 @@ func TestLessonCard(t *testing.T) {
 
 	due := f.today.AddDate(0, 0, 2)
 	saved := saveCard(t, f.env.Handler, lesson, teacher, modalHeaders(),
-		[]cardField{{"topic", "Дроби"}, {"text", "Упр. 12"}, {"due", inputDate(due)}}, "a.txt")
+		[]cardField{{"topic", "Дроби"}, {"text", "Упр. 12"}, {"due", inputDate(due)}}, smallFile("a.txt"))
 	require.Equal(t, http.StatusOK, saved.Code)
 	assert.Equal(t, "journal:close-modal", saved.Header().Get("HX-Trigger"))
 	assert.Contains(t, saved.Body.String(), `id="journal-content" hx-swap-oob="true"`)
@@ -104,7 +113,7 @@ func TestLessonCard(t *testing.T) {
 	require.Len(t, homework.Files, 1)
 
 	invalid := saveCard(t, f.env.Handler, lesson, teacher, modalHeaders(),
-		[]cardField{{"topic", strings.Repeat("а", 201)}, {"text", "Другое"}, {"due", "вчера"}}, "b.txt")
+		[]cardField{{"topic", strings.Repeat("а", 201)}, {"text", "Другое"}, {"due", "вчера"}}, smallFile("b.txt"))
 	require.Equal(t, http.StatusOK, invalid.Code)
 	assert.Empty(t, invalid.Header().Get("HX-Trigger"))
 	assert.Contains(t, invalid.Body.String(), "Неверная дата")
@@ -112,8 +121,12 @@ func TestLessonCard(t *testing.T) {
 	assert.Contains(t, invalid.Body.String(), ">Другое</textarea>")
 
 	tooMany := saveCard(t, f.env.Handler, lesson, teacher, modalHeaders(),
-		[]cardField{{"text", "Другое"}}, "c.txt", "d.txt", "e.txt")
+		[]cardField{{"text", "Другое"}}, smallFile("c.txt"), smallFile("d.txt"), smallFile("e.txt"))
 	assert.Contains(t, tooMany.Body.String(), "Не больше 3 файлов у одного урока")
+
+	tooLarge := saveCard(t, f.env.Handler, lesson, teacher, modalHeaders(),
+		[]cardField{{"text", "Другое"}}, cardFile{name: "big.txt", content: strings.Repeat("а", 1<<20)})
+	assert.Contains(t, tooLarge.Body.String(), "Файл больше 1 МБ")
 
 	homework, err = f.env.Journal.Homework(ctx, lesson)
 	require.NoError(t, err)
@@ -143,7 +156,7 @@ func TestLessonCardForbidden(t *testing.T) {
 	createUser(t, f.env, auth.RoleStudent, "student", "Иванова Мария Петровна")
 
 	for _, cookie := range []*http.Cookie{f.env.LoginAs(t, "stranger"), f.env.LoginAs(t, "student"), servertest.Login(t, f.env.Handler)} {
-		assert.Equal(t, http.StatusNotFound, servertest.Get(t, f.env.Handler, lessonPath(lesson, "/card"), cookie).Code)
+		assert.Equal(t, http.StatusNotFound, servertest.Get(t, f.env.Handler, lessonPath(lesson, ""), cookie).Code)
 		assert.Equal(t, http.StatusNotFound, saveCard(t, f.env.Handler, lesson, cookie, modalHeaders(), []cardField{{"text", "Чужое"}}).Code)
 	}
 }

@@ -9,8 +9,6 @@ const (
 	InputErrorClass        = "min-h-11 w-full rounded-lg border border-rose-400 px-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 focus:outline-none"
 	ButtonPrimaryClass     = "inline-flex min-h-11 min-w-36 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-70"
 	ButtonSecondaryClass   = "inline-flex min-h-11 min-w-36 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 active:bg-slate-100"
-	ButtonDangerClass      = "inline-flex min-h-11 min-w-36 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-medium text-rose-700 ring-1 ring-rose-300 hover:bg-rose-50 active:bg-rose-100"
-	ButtonActiveClass      = "inline-flex min-h-11 min-w-36 items-center justify-center gap-2 rounded-lg bg-amber-100 px-4 text-sm font-semibold text-amber-800 ring-1 ring-amber-300 hover:bg-amber-200 active:bg-amber-300"
 	InputCompactClass      = "h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
 	InputCompactErrorClass = "h-9 rounded-md border border-rose-400 bg-white px-2 text-sm text-slate-900 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 focus:outline-none"
 	InputQuietClass        = "h-9 rounded-md border border-transparent bg-transparent px-2 text-sm text-slate-900 hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 focus:outline-none"

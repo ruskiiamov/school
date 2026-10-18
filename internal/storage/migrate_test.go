@@ -78,22 +78,26 @@ func TestMarksMigrationAllowsOneMarkPerType(t *testing.T) {
 	_, err = provider.Up(ctx)
 	require.NoError(t, err)
 
-	repo := NewMarkRepo(db)
+	insert := func(mark Mark) error {
+		_, err := db.ExecContext(ctx,
+			`INSERT INTO marks (lesson_id, student_id, work_type_id, value, created_at, updated_at) VALUES (?, ?, ?, ?, 0, 0)`,
+			mark.LessonID, mark.StudentID, mark.WorkTypeID, mark.Value)
 
-	_, err = repo.Create(ctx, Mark{LessonID: 1, StudentID: 1, WorkTypeID: 1, Value: 5})
-	require.NoError(t, err)
+		return err
+	}
 
-	_, err = repo.Create(ctx, Mark{LessonID: 1, StudentID: 1, WorkTypeID: 1, Value: 4})
-	require.Error(t, err)
+	require.NoError(t, insert(Mark{LessonID: 1, StudentID: 1, WorkTypeID: 1, Value: 5}))
+	require.Error(t, insert(Mark{LessonID: 1, StudentID: 1, WorkTypeID: 1, Value: 4}))
 
 	for _, mark := range []Mark{
 		{LessonID: 1, StudentID: 1, WorkTypeID: 2, Value: 4},
 		{LessonID: 1, StudentID: 2, WorkTypeID: 1, Value: 3},
 		{LessonID: 2, StudentID: 1, WorkTypeID: 1, Value: 2},
 	} {
-		_, err := repo.Create(ctx, mark)
-		require.NoError(t, err)
+		require.NoError(t, insert(mark))
 	}
+
+	repo := NewMarkRepo(db)
 
 	marks, err := repo.ListByLesson(ctx, 1)
 	require.NoError(t, err)

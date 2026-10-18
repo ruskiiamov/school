@@ -21,11 +21,11 @@ func TestRoleSectionsAreHiddenFromOtherRoles(t *testing.T) {
 	teacher := env.LoginAs(t, "teacher")
 	admin := servertest.Login(t, env.Handler)
 
-	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/journal"), "/login")
+	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/journal/class/1/subject/1"), "/login")
 	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/diary"), "/login")
 
-	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/journal", student).Code)
-	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/journal", admin).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/journal/class/1/subject/1", student).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/journal/class/1/subject/1", admin).Code)
 	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/diary", teacher).Code)
 	assert.Equal(t, http.StatusNotFound, servertest.Get(t, env.Handler, "/diary", admin).Code)
 
@@ -34,8 +34,8 @@ func TestRoleSectionsAreHiddenFromOtherRoles(t *testing.T) {
 	assert.Contains(t, diary.Body.String(), `href="/diary"`)
 	assert.NotContains(t, diary.Body.String(), `href="/admin/classes"`)
 
-	journal := servertest.Get(t, env.Handler, "/journal", teacher)
-	assert.Equal(t, http.StatusOK, journal.Code)
-	assert.Contains(t, journal.Body.String(), `href="/journal"`)
-	assert.NotContains(t, journal.Body.String(), `href="/diary"`)
+	home := servertest.Get(t, env.Handler, "/", teacher)
+	assert.Equal(t, http.StatusOK, home.Code)
+	assert.Contains(t, home.Body.String(), `href="/account/password"`)
+	assert.NotContains(t, home.Body.String(), `href="/diary"`)
 }

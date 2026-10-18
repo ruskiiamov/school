@@ -10,9 +10,8 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 
 Интерфейс полностью на русском; вёрстка должна быть одинаково пригодна на телефоне
 и на десктопе. Готовы итерации 1–8 (до выпуска v0.1.0) и итерация 9
-«журнал пары» (D-087…D-103), кроме среза 9 — удаления старых страниц
-журнала и сводок («OLD» в меню), который делается только по команде
-автора. Меню
+«журнал пары» (D-087…D-104, старые страницы журнала и сводок удалены).
+Меню
 строится по роли в `view.NavItems(role, active)`; у админа пункты несут
 `NavItem.Group` («Школа», «Справочники», «Просмотр», «Служебное», D-080),
 сайдбар рисует подпись перед первым пунктом группы.
@@ -154,45 +153,32 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
   - `server/account` — вход, выход и свой пароль (`login.go`, `password.go`);
     `Routes` сам оборачивает `/account/password` в `RequireAuth` +
     `RequireRole` трёх ролей.
-  - `server/journal` — журнал учителя под `/journal`. Новый журнал
-    (итерация 9): `pair.go` — журнал пары
+  - `server/journal` — журнал учителя под `/journal` и «Журналы» админа
+    (D-087…D-104): `handler.go` (`New`, `Routes`, обёртки `h.teacher(fn)`
+    и `h.admin(fn)`, главная учителя `Handler.Dashboard` →
+    `view.TeacherHome` из `journal.YearPairs`, `pathLesson`, `queryID`,
+    `teacherNames`), `pair.go` — журнал пары
     `/journal/class/{class}/subject/{subject}` (`renderPair`,
     `pairContent` → фрагмент `#journal-content`, `journalTable` — общая
     сборка таблицы «уроки × ученики» для учителя и админа, `sortStudents`,
-    создание урока `pairLessonCreate`, перенос даты `lessonMove`, тема из
-    строки `journalTopic` по `from=journal`), `card.go` — окно урока
-    `/journal/lessons/{id}/card`: GET и POST одной multipart-формы
+    создание урока `pairLessonCreate`, перенос даты `lessonMove`, удаление
+    стёртой датой `lessonClear`, тема строки `lessonTopic`), `card.go` —
+    окно урока `/journal/lessons/{id}`: GET и POST одной multipart-формы
     (`lessonCardSave`: поля до файлов, `journal.CheckLessonCard` до
     первого файла, при ошибке записанные файлы удаляет
-    `DiscardHomeworkFiles`), `cardDone` (окно — таблица через
-    `hx-swap-oob` и закрытие, иначе редирект; удаления в окне нет —
-    урок удаляет пустая дата в строке, `lessonClear` в `pair.go`, D-101),
-    `entry.go` — окно ученика за урок
+    `DiscardHomeworkFiles`; потоковое чтение через `r.MultipartReader` с
+    `http.MaxBytesReader` и продлением дедлайна — `prepareUpload`),
+    `cardDone` (окно — таблица через `hx-swap-oob` и закрытие, иначе
+    редирект), `entry.go` — окно ученика за урок
     `/journal/lessons/{id}/students/{sid}/marks`, `admin_journals.go` —
-    «Журналы» админа `/admin/journals` и окна только на чтение. Окна —
-    один `<dialog id="journal-modal">`, содержимое в `#modal-body`,
-    ссылки `tbody` — `hx-boost`; ответы окон ставят `HX-Push-Url: false`
-    (иначе boost кладёт адрес окна в историю, D-098); без JS окна —
-    отдельные страницы. Главная учителя —
-    `Handler.Dashboard` → `view.TeacherHome` (пары года из
-    `journal.YearPairs`). Старое (OLD): `handler.go` (`New`,
-    `Routes`, обёртка `h.teacher(fn)`, форма пары и список уроков),
-    `lesson.go` (страница урока, тема, удаление, `renderLesson` с режимами
-    `renderPage`/`renderTopic`/`renderBlock`/`renderActions`/`renderRecord`/
-    `renderHomework`), `summary.go` (`/journal/summary` учителя и
-    `/admin/journal/summary` админа: `pairOptions` по году, `gridView` с
-    ссылкой на урок через параметр, `cellText`; год — `web.YearSelection`),
-    `marks.go` (оценки и сборка
-    блока `#lesson`: `lessonBlock`, `studentPanel`, `markFields`),
-    `records.go` (отсутствие и комментарий), `homework.go` (ДЗ: текст и
-    срок, потоковая загрузка файлов через `r.MultipartReader` с
-    `http.MaxBytesReader`, удаление файла, `homeworkView`, статус
-    `homeworkStatus`), `admin.go` (`/admin/journal` и
-    `/admin/journal/lessons/{id}` (OLD) только на чтение под обёрткой `h.admin`,
-    D-066 — исключение из «всё под `/admin` в `admin`», как `/admin/diary`;
-    свои шаблоны `pages.AdminJournal`/`AdminLesson`, список учеников
-    `lessonStudentItem` общий с учителем). Год и «сегодня» берёт из
-    `school` (`CurrentYear`, `Today`) и передаёт в `journal` параметрами.
+    «Журналы» админа `/admin/journals` и окна только на чтение
+    (`pairOptions`, `diaryHomework`; D-066 — исключение из «всё под
+    `/admin` в `admin`», как `/admin/diary`). Окна — один `<dialog
+    id="journal-modal">`, содержимое в `#modal-body`, ссылки `tbody` —
+    `hx-boost`; ответы окон ставят `HX-Push-Url: false` (иначе boost
+    кладёт адрес окна в историю, D-098); без JS окна — отдельные
+    страницы. Год и «сегодня» берёт из `school` (`CurrentYear`, `Today`,
+    `YearBounds`) и передаёт в `journal` параметрами.
   - `server/diary` — дневник: `handler.go` (`/diary` для ученика и
     родителя: `index`, `parentDiary` с вкладками детей через `selectChild`
     (404 на чужого ребёнка), общий `renderDiary(diaryView)` и `diaryURL`,
@@ -212,7 +198,10 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
     `http.ServeContent`.
   - `server/servertest` — окружение для тестов (см. «Как добавить страницу»);
     `env.Files` — хранилище файлов во временном каталоге (`env.FilesDir`) с
-    лимитами 1 МБ и 3 файла на урок.
+    лимитами 1 МБ и 3 файла на урок; данные журнала для тестов —
+    `env.CreateLesson`, `env.SetMark`, `env.SetRecord` (`journal.go`,
+    поверх `CreateLesson` и `SaveMarksEntry`; методов сервиса «только для
+    тестов» нет, D-104).
   Маршруты для одной роли — `base.RequireAuth(web.RequireRole(role...)(h))`
   на каждом маршруте внутри своего пакета: аноним уходит на `/login`, чужая
   роль получает 404 (не 403) — образец `h.teacher` в `server/journal`,
@@ -257,38 +246,37 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
   ввода — `validation.Errors` (D-041), тексты сообщений — константы `msg*`
   рядом с проверкой (в `school`, `auth`, `journal`, а для роли и
   активности пользователя из формы — в `server`).
-- `internal/journal` — журнал: пары «класс, предмет» учителя из нагрузки и
-  действующих замен (`pair.go`: `Pairs` для OLD, `YearPairs` — пары года с
-  видом `PairAssigned`/`PairSubstitution`/`PairOwnLessons`, периодами
-  замен и числом уроков, `YearPair.Shows` — урок внутри периодов замены,
-  D-090), журнал пары (`pair_journal.go`: `PairJournal` по правам учителя,
-  `AdminPairJournal` — все уроки пары и учитель по нагрузке, ячейки
-  `CellKey` → `JournalCell`, итоги учеников), создание и перенос урока
-  (`lesson_date.go`: `CreateLesson`, `MoveLesson` с границами года
-  `YearBounds` от вызывающего), окно ученика (`entry.go`: `MarksEntry`,
-  `AdminMarksEntry`, `SaveMarksEntry` — всё или ничего, оценки одной
-  транзакцией `MarkRepo.SetForStudent`), окно урока (`lesson_card.go`:
+- `internal/journal` — журнал: пары «класс, предмет» учителя за год
+  (`pair.go`: `YearPairs` — пары с видом `PairAssigned`/`PairSubstitution`/
+  `PairOwnLessons`, периодами замен и числом уроков, `YearPair.Shows` —
+  урок внутри периодов замены, D-090), журнал пары (`pair_journal.go`:
+  `PairJournal` по правам учителя, `AdminPairJournal` — все уроки пары и
+  учитель по нагрузке, ячейки `CellKey` → `JournalCell`, итоги учеников),
+  создание и перенос урока (`lesson_date.go`: `CreateLesson`, `MoveLesson`
+  с границами года `YearBounds` от вызывающего), окно ученика
+  (`entry.go`: `MarksEntry`, `AdminMarksEntry`, `SaveMarksEntry` — всё
+  или ничего, оценки одной транзакцией `MarkRepo.SetForStudent`, одна
+  оценка на тип работы, D-088), окно урока (`lesson_card.go`:
   `CheckLessonCard`, `SaveLessonCard` — тема, ДЗ, удаление отмеченных
   файлов; `DiscardHomeworkFiles`), уроки с правами D-031 (`lesson.go`:
-  `OpenLesson` создаёт или открывает, `LessonForTeacher`, `UpdateTopic`,
-  `DeleteLesson` только пустой), оценки (одна на тип работы, D-088) и список учеников
-  урока по D-023 (`mark.go`: `LessonStudents`, `AddMark`/`UpdateMark`/
-  `DeleteMark`), записи об уроке (`record.go`: `SaveRecord`, пустая запись
+  `LessonForTeacher`, `LessonByID`, `UpdateTopic`, `DeleteLesson` только
+  пустой), оценки урока для дневника (`mark.go`: `Marks`), запись об
+  уроке (`record.go`: `validateRecord`, `storeRecord` — пустая запись
   удаляет строку), уборка осиротевших строк (`cleanup.go`), чтение для
   дневника (`diary.go`: `DayLessons` — уроки дня ученика с его оценками,
-  отсутствием, комментарием и ДЗ), сводки (`summary.go`: `TeacherGrid`
-  по видимым учителю урокам пары, `PairGrid` для админа, `StudentSummary`
-  по предметам; среднее считается в сервисе, форматирует
-  `view.FormatAverage`), домашнее задание (`homework.go`:
-  `Homework` — строка `homework` плюс файлы по `lesson_id`, `SaveHomework`
-  удаляет строку при пустых тексте и сроке, `AddHomeworkFile` пишет на
-  диск через `files.Store` и только потом строку, `DeleteHomeworkFile` —
-  сначала строку, потом файл, `OpenHomeworkFile`, `LessonVisibleToStudent`;
-  лимиты — `FileLimits`). Времени не
-  считает: год и «сегодня» приходят параметрами (Q-31 → D-058). Держит свои
-  `*storage.*Repo`; ФИО учеников не знает — их подставляет обработчик из
-  `auth.Users`. «Нет доступа» — `journal.ErrForbidden`, «не найдено» —
-  `journal.ErrNotFound`; обработчик на оба отвечает 404.
+  отсутствием, комментарием и ДЗ), оценки ученика за период
+  (`summary.go`: `StudentSummary` по предметам; среднее считается в
+  сервисе, форматирует `view.FormatAverage`), домашнее задание
+  (`homework.go`: `Homework` — строка `homework` плюс файлы по
+  `lesson_id`, `SaveHomework` удаляет строку при пустых тексте и сроке,
+  `AddHomeworkFile` пишет на диск через `files.Store` и только потом
+  строку и возвращает ID, `DeleteHomeworkFile` — сначала строку, потом
+  файл, `OpenHomeworkFile`, `LessonVisibleToStudent`; лимиты —
+  `FileLimits`). Времени не считает: год и «сегодня» приходят
+  параметрами (Q-31 → D-058). Держит свои `*storage.*Repo`; ФИО учеников
+  не знает — их подставляет обработчик из `auth.Users`. «Нет доступа» —
+  `journal.ErrForbidden`, «не найдено» — `journal.ErrNotFound`;
+  обработчик на оба отвечает 404.
 - `internal/backup` — резервная копия (D-077): `Service.Usage` (число и
   размер файлов ДЗ через `files.Store.IDs`/`Open`), `Prepare(ctx)` снимает
   копию БД во временный файл `backup-*.db` рядом с БД через
@@ -371,7 +359,7 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
 (`IconSubmit`, `IconFormAction`, `AddButton`, `RemoveButton`; классы
 `ButtonIcon{Primary,Secondary,Danger}Class`). Ошибка активации держит
 строку в режиме правки (`rowEdit.open`). Так устроены предметы, типы работ, классы, пользователи,
-замены и оценки на странице урока. Обработчик читает поля через `web.FormValue`
+замены. Обработчик читает поля через `web.FormValue`
 (с `TrimSpace`), `id` из пути — через `web.PathID` (404 при мусоре), зовёт сервис
 и ветвится: `web.FormErrors(err)` → перерисовать страницу с введённым значением и
 ошибкой у своей строки (`rowEdit`, строка остаётся в режиме правки), статус 200; иначе `h.base.HandleServiceError`
@@ -393,9 +381,9 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
 **Подсказки (D-081).** Отдельной страницы документации нет. Под
 `PageHeader` каждого раздела админа — `components.PageHint(text)`, у
 «Классов» и «Замен» ещё `components.PageHelp(summary) { <p>… }`
-(`<details>`, без JS); у учителя — на `/journal`; на общих страницах
-«Сводка», «Дневник», «Оценки» — по подсказке с текстом, нейтральным для
-всех ролей, которые их видят. Тексты
+(`<details>`, без JS); у учителя — свёрнутая справка «Как работать с
+журналом» на журнале пары; на общих страницах «Дневник», «Оценки» — по
+подсказке с текстом, нейтральным для всех ролей, которые их видят. Тексты
 шаблонов — константы `hint*` в `pages/hints.go` (не называть со словом
 password — gosec G101), у разделов пользователей — `userSection.hint` →
 `UsersPage.Hint`. В текстах не писать конкретных названий классов и ФИО:
@@ -477,63 +465,32 @@ cookie). Ошибка: полная страница с введёнными з�
 (D-081): шаги-ссылки с отметкой «готово», родители необязательны, `nil` —
 когда обязательные шаги выполнены. Остальным ролям (D-082) данные
 собирают подпакеты, корневой `home` только кладёт их в `view.HomePage`:
-учителю `journalpages.Handler.Dashboard` → `view.TeacherDashboard` («Мои
-классы» — обычные формы `POST /journal` с парой и сегодняшней датой,
-кнопка «Урок сегодня»; пять последних уроков), ученику и родителю
+учителю `journalpages.Handler.Dashboard` → `view.TeacherHome` (селект
+года, карточки пар «Мои классы» и «Замены» со ссылкой на журнал пары и
+числом уроков, D-092), ученику и родителю
 `diary.Handler.Dashboard` → `diary.Dashboard{Children, Student}`
 («Сегодня» из `DayLessons`, «Оценки за неделю» из `StudentSummary` за
 семь дней; родителю — выбранный ребёнок и вкладки `/?child={id}` обычными
 ссылками, чужой `child` → `school.ErrNotFound` → 404, без детей —
-`NoChildren`). Пункт меню и заголовок страницы — «Главная» (D-083). Общие строки шаблонов — `lessonRowItem` (`journal.templ`)
-и `subjectMarksRow` (`marks.templ`), общая сборка — `lessonRows`,
-`teacherPairOptions`, `subjectRows`, `teacherNames`.
+`NoChildren`). Пункт меню и заголовок страницы — «Главная» (D-083). Общая
+строка шаблонов — `subjectMarksRow` (`marks.templ`), общая сборка —
+`subjectRows`, `teacherNames`.
 Константы с «password» в имени ловит gosec G101 — называть по полю
 (`msgNewTooShort`).
 
-**Журнал учителя (D-058, D-059).** `/journal`: один `<select name="pair">`
-со значением `{class}-{subject}` (`pairValue`/`parsePair`) и дата (по
-умолчанию `school.Today()`), «Открыть» → `OpenLesson` → редирект на
-`/journal/lessons/{id}`; под формой все видимые уроки текущего года от
-новых к старым по 10 на страницу (`?page=N`, `journal.LessonsPage`,
-`view.Pager`, ссылки «← Новее»/«Старее →» через `components.NavLink` в
-`#journal`; страница за пределами — редирект на последнюю, D-083); форма и
-список — фрагмент `#journal`, ошибка формы под HTMX подменяет только его. Страница
-урока: тема — форма `#lesson-topic` (HTMX подменяет только её), блок
-`#lesson` — слева ученики (на телефоне чипы с `view.ShortName`, на
-десктопе колонка с ФИО) с краткими отметками («5, 4 · Н»), справа панель
-выбранного `?student={id}` (неизвестный — первый по ФИО): оценки с правкой
-в строке `?mark={id}`, форма «Поставить», кнопка-переключатель
-«Отсутствовал» в строке с ФИО (сохраняет сразу, ответ — `#lesson`) и
-поле комментария с автосохранением по ходу набора (ответ — только
-`#lesson-record`, режим `renderRecord` по заголовку `HX-Target`;
-`hx-preserve` с ID ученика в `id`, иначе текст переехал бы к соседу),
-обе формы несут скрытым полем текущее значение друг друга; тема тоже
-сохраняется по ходу набора (`#lesson-topic`, `hx-preserve`), кнопок
-«Сохранить» у темы и комментария нет (D-064);
-у ученика «не в классе» форм нет, но оценки правятся и удаляются. Все
-действия панели отвечают HTMX фрагментом `#lesson`, без JS — редирект на
-`?student={sid}`; ссылки учеников — `hx-get` + `hx-push-url`. Кнопка
-«Удалить урок» и ошибка удаления — фрагмент `#lesson-actions` в шапке:
-форма целится в него, а `pages.LessonBlockUpdate` отдаёт его вместе с
-`#lesson` через `hx-swap-oob`, чтобы кнопка пропадала после первой оценки.
-Замены (`admin/substitutions.go`) — строчный паттерн с `?ended=1` и
+**Замены (D-058, D-083, D-091).** `admin/substitutions.go` — строчный паттерн с `?ended=1` и
 правкой только дат; замену, по которой заменявший уже провёл урок внутри
-периода, удалить нельзя (`SubstitutionRepo.HasLessons` →
+периода, удалить нельзя (`SubstitutionRepo.LessonDates` →
 `validation.Errors{"end_date"}`, строка остаётся в правке через
-`substitutionEdit.open`, D-083) — её завершают датой окончания; учителя проверяет `activeUser`, класс и предмет —
+`substitutionEdit.open`, D-083) — её завершают датой окончания, а
+сузить период так, чтобы проведённые уроки оказались снаружи, нельзя
+(D-091); учителя проверяет `activeUser`, класс и предмет —
 `school.CreateSubstitution`.
 
-**Домашнее задание (D-065).** На странице урока сворачиваемый
-`<details id="lesson-homework">` (`pages.LessonHomework`) между темой и
-`#lesson`: свёрнут на полной странице, раскрыт в HTMX-ответе и при ошибке
-формы (`homeworkView(..., open)`); в `<summary>` статус «не задано» /
-«задано» / «к 18.09.2026 · 2 файла». Текст и срок — одна форма с
-автосохранением (`hx-preserve` на полях), файлы — `<input type="file"
-multiple>` в `<label>`-кнопке с `hx-trigger="change"` и
-`hx-encoding="multipart/form-data"`, без кнопки «Загрузить» (без JS файлы
-не загрузить, как и комментарий); у каждого файла своя форма удаления с
-`hx-confirm`. Все три POST отвечают HTMX фрагментом `#lesson-homework`,
-без JS — редиректом на урок. Файлы на диске — `internal/files`, ID
+**Домашнее задание (D-065, D-098).** Правится в окне урока журнала пары
+(`card.go`): текст, срок, отметки удаления файлов и новые файлы — одна
+multipart-форма, сохраняется только по «Сохранить», всё или ничего.
+Файлы на диске — `internal/files`, ID
 случайный hex и он же имя файла; скачивание только через `/files/{id}`.
 Удаление урока (`LessonRepo.DeleteEmpty`) стирает `homework` и
 `homework_files` в одной транзакции, файлы с диска — сервис после.
@@ -543,18 +500,13 @@ multiple>` в `<label>`-кнопке с `hx-trigger="change"` и
 сроку» нет. В дневнике ДЗ — блок под комментарием урока и метка «ДЗ» в
 списке уроков дня.
 
-**Сводки (D-067, D-068).** `/journal/summary` (учитель), `/admin/journal/summary`
-(админ), `/diary/summary` (ученик, родитель), `/admin/diary/{id}/summary`
-(админ): GET-формы с `hx-trigger="submit, change"` и `hx-push-url`,
-фрагменты `#summary` и `#marks`. Период зажат в выбранный учебный год
-(`web.YearPeriod`); селект `year` (годы классов, текущий и следующий)
-показывается всегда, и `year` всегда идёт в ссылки периода и вкладок
-(`web.WithYear`). Сводка учителя без пар в году показывает форму
-с селектом и текстом, а не пустое состояние. Таблица сводки — `overflow-x-auto` с закреплённым
-первым столбцом (`sticky left-0`), сразу за ФИО — «Средний» и «Н» (при
-длинном периоде столбцов уроков сколько угодно, итог не должен уезжать
-за край, D-083), даты столбцов «16.09», ячейка — ссылка на урок с
-учеником. Четвертей и весов нет.
+**Оценки за период (D-067, D-068).** `/diary/summary` (ученик, родитель)
+и `/admin/diary/{id}/summary` (админ): GET-формы с `hx-trigger="submit,
+change"` и `hx-push-url`, фрагмент `#marks`. Период зажат в выбранный
+учебный год (`web.YearPeriod`); селект `year` (годы классов, текущий и
+следующий) показывается всегда, и `year` всегда идёт в ссылки периода
+и вкладок (`web.WithYear`). Четвертей и весов нет. Сводок учителя и
+админа по классу больше нет — их заменил журнал пары (D-104).
 
 **Перевод классов (D-068).** Кнопка «Создать классы из прошлого года» на
 вкладке текущего года в «Классах» (`CanTransfer`), страница
@@ -632,7 +584,7 @@ CSS-переменные `--journal-head`/`--journal-side` (поля полос 
 на границах сравнение через `errors.Is` с сентинелами (`storage.ErrNotFound`,
 `auth.ErrInvalidCredentials`, `auth.ErrUnauthenticated`).
 
-**Журнал пары (D-087…D-103).** Таблица «уроки × ученики» одна для
+**Журнал пары (D-087…D-104).** Таблица «уроки × ученики» одна для
 учителя и админа (`journalTable`): оформление ячеек — правило
 `.journal-table` в `input.css` (ячейка — голые `<td><a>`, иначе страница
 на 170 уроков × 30 учеников весит 1,6 МБ вместо 490 КБ), строки уроков —
@@ -643,8 +595,9 @@ CSS-переменные `--journal-head`/`--journal-side` (поля полос 
 даёт и `change`, и `submit`). Новый урок — первая строка таблицы,
 только поле даты (D-100). Пустая дата в строке урока — удаление урока
 без оценок и записей; подтверждение — `data-confirm-empty` на форме,
-`app.js` перехватывает `htmx:confirm` (D-101). Новые страницы журнала не трогают маршруты OLD: окна — `/card`
-и `/students/{sid}/marks`, тема различает источник по `from=journal`. Даты во всех полях — `ДД.ММ.ГГГГ`
+`app.js` перехватывает `htmx:confirm` (D-101). Окна: урок —
+`/journal/lessons/{id}`, ученик за урок — `/journal/lessons/{id}/students/{sid}/marks`
+(D-104). Даты во всех полях — `ДД.ММ.ГГГГ`
 (`components.DateInput`, не `<input type="date">`: его формат зависит от
 языка браузера).
 

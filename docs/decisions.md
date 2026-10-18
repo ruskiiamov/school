@@ -2103,3 +2103,53 @@ JS-пересчёт ширин.
 
 **Почему:** просьба автора; угол таблицы пустовал, разная ширина «ДЗ»
 сбивала столбец.
+
+## D-104 · 2026-10-19 · принято · Старые страницы журнала и сводок удалены
+
+По команде автора (срез 9 итерации 9) удалено всё, что жило с меткой
+«OLD» (D-088):
+
+- **Страницы и маршруты:** `/journal` (форма «Открыть» и список уроков),
+  старая страница урока `/journal/lessons/{id}?student=…` с формами
+  оценок, записей, темы, удаления и блоком ДЗ (`/marks…`,
+  `/students/{sid}`, `/delete`, `/homework…`), сводка учителя
+  `/journal/summary`, «Журналы OLD» админа `/admin/journal`,
+  `/admin/journal/lessons/{id}` и `/admin/journal/summary`. Пункты меню
+  «Журнал OLD», «Сводка OLD», «Журналы OLD». У учителя в меню остались
+  «Главная» и «Сменить пароль»; у ученика и родителя меню собирается без
+  общих с учителем функций.
+- **Окно урока** переехало с `/journal/lessons/{id}/card` на
+  `/journal/lessons/{id}` (GET — окно или страница без JS, POST —
+  сохранение формы окна). Тема строки — `POST /journal/lessons/{id}/topic`
+  без поля `from=journal`: других источников у неё больше нет.
+- **Код:** шаблоны `journal.templ`, `lesson.templ`, `admin_journal.templ`,
+  `summary.templ`; обработчики `lesson.go`, `marks.go`, `records.go`,
+  `homework.go`, `summary.go`, `admin.go` (общие помощники —
+  `pathLesson`, `queryID`, `teacherNames`, `pairOptions`,
+  `diaryHomework`, `prepareUpload`, `fileLink` — перенесены в живые
+  файлы); view-модели, подсказки `hintJournal`, `hintSummary`,
+  `hintAdminJournal`, иконки «‹ ›», классы кнопок, которыми пользовались
+  только старые страницы. Подсказка дневника: урок появляется, когда
+  учитель «добавил его в журнал».
+- **Сервис и хранилище:** методы, которые были нужны только старым
+  страницам, удалены, а не оставлены ради тестов: `OpenLesson`,
+  `LessonsPage`, `LessonsByPair`, `Pairs`, `LessonStudents`,
+  `ActiveWorkTypes`, `AddMark`, `UpdateMark`, `DeleteMark`, `SaveRecord`,
+  `TeacherGrid`, `PairGrid`; в репозиториях — `MarkRepo.Create`/`Update`/
+  `Delete`/`ByID`/`ListByPairPeriod`, `LessonRepo.ListVisible`/
+  `CountVisible`/`ListByPairPeriod`, `LessonStudentRepo.ListByPairPeriod`,
+  `SubstitutionRepo.ListActiveByTeacher`, `HomeworkRepo.ByLessons`.
+  `DeleteLesson` остался — им удаляет стёртая дата (D-101).
+- **Тесты:** тесты старых страниц удалены; проверки, ещё нужные новой
+  версии, перенесены в тесты окон (лимит размера файла ДЗ, прошлый год в
+  журнале пары и «Журналах» админа, урок после окончания замены).
+  Тесты других пакетов готовят данные через `servertest.Env.CreateLesson`,
+  `SetMark`, `SetRecord` — поверх `CreateLesson` и `SaveMarksEntry`.
+  Проверка уникального индекса оценок в `storage` вставляет строки SQL.
+
+Разделы `ui.md` и `scenarios.md` итераций 3, 5 и 6 оставлены как история
+с пометкой, что заменено.
+
+**Почему:** итерация 9 заменила эти страницы, автор закончил ручные
+проверки. **Отвергнуто:** оставить методы сервиса ради тестовых данных
+(мёртвый код в рабочем пакете).

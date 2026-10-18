@@ -28,7 +28,6 @@ type pairState struct {
 
 const (
 	journalContentID = "journal-content"
-	fromJournal      = "journal"
 )
 
 func (h *Handler) pairShow(w http.ResponseWriter, r *http.Request) {
@@ -116,8 +115,14 @@ func (h *Handler) lessonClear(w http.ResponseWriter, r *http.Request, lesson jou
 	web.Redirect(w, r, pairPath(lesson.ClassID, lesson.SubjectID))
 }
 
-func (h *Handler) journalTopic(w http.ResponseWriter, r *http.Request, lesson journal.Lesson, topic string) {
+func (h *Handler) lessonTopic(w http.ResponseWriter, r *http.Request) {
+	lesson, ok := h.pathLesson(w, r)
+	if !ok {
+		return
+	}
+
 	user, _ := web.UserFromContext(r.Context())
+	topic := web.FormValue(r, "topic")
 
 	err := h.journal.UpdateTopic(r.Context(), user.ID, lesson.ID, topic)
 	errs, invalid := web.FormErrors(err)
@@ -227,7 +232,7 @@ func (h *Handler) pairContent(r *http.Request, classID, subjectID int64, state p
 		row := &content.Table.Rows[i]
 		row.Highlight = lesson.ID == state.highlight
 		row.Edit = rowEdit(lesson, state)
-		row.CardHref = lessonPath(lesson.ID, "/card")
+		row.CardHref = lessonPath(lesson.ID, "")
 
 		if lesson.ID == state.rowID && state.topicErr != "" {
 			row.Topic = state.topic

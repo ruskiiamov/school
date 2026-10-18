@@ -37,24 +37,6 @@ func (r *HomeworkRepo) ByLesson(ctx context.Context, lessonID int64) (Homework, 
 	return homework, nil
 }
 
-func (r *HomeworkRepo) ByLessons(ctx context.Context, lessonIDs []int64) (map[int64]Homework, error) {
-	result := make(map[int64]Homework, len(lessonIDs))
-
-	for _, lessonID := range lessonIDs {
-		homework, err := r.ByLesson(ctx, lessonID)
-		if errors.Is(err, ErrNotFound) {
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		result[lessonID] = homework
-	}
-
-	return result, nil
-}
-
 func (r *HomeworkRepo) LessonIDsByPair(ctx context.Context, classID, subjectID int64) ([]int64, error) {
 	const query = `SELECT lesson_id FROM homework
 		WHERE lesson_id IN (SELECT id FROM lessons WHERE class_id = ? AND subject_id = ?)

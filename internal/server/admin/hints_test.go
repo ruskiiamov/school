@@ -28,7 +28,6 @@ func TestAdminSectionsExplainThemselves(t *testing.T) {
 		{"/admin/parents", "Детей привязывают в строке правки"},
 		{"/admin/substitutions", "Как работают замены"},
 		{"/admin/journals", "Здесь можно только читать"},
-		{"/admin/journal", "Журналы никто не формирует"},
 		{"/admin/diary", "собирается из уроков его класса"},
 		{"/admin/password-reset", "Пароль администратора меняется в конфиге сервера"},
 		{"/admin/backup", "храните не на этом сервере"},

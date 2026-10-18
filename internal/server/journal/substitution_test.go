@@ -3,6 +3,7 @@ package journal_test
 import (
 	"net/http"
 	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,8 +36,7 @@ func TestLessonSurvivesEndedSubstitution(t *testing.T) {
 
 	workTypes, err := f.env.School.WorkTypes(ctx, false)
 	require.NoError(t, err)
-	_, err = f.env.Journal.AddMark(ctx, substitute, lesson, student, journalMarkInput(workTypes[0].ID, 5))
-	require.NoError(t, err)
+	f.env.SetMark(t, substitute, lesson, student, workTypes[0].ID, 5)
 
 	var refused validation.Errors
 	require.ErrorAs(t, f.env.School.DeleteSubstitution(ctx, substitutionID), &refused)
@@ -45,20 +45,23 @@ func TestLessonSurvivesEndedSubstitution(t *testing.T) {
 	period := school.Period{StartDate: dateValue(f.today), EndDate: dateValue(f.today)}
 	require.NoError(t, f.env.School.UpdateSubstitutionPeriod(ctx, substitutionID, period))
 
+	path := pairPath(f.class, f.subject)
+
 	assert.Equal(t, http.StatusOK, servertest.Get(t, f.env.Handler, lessonPath(lesson, ""), substituteCookie).Code)
 	assert.Equal(t, http.StatusOK, servertest.Get(t, f.env.Handler, lessonPath(lesson, ""), f.env.LoginAs(t, "teacher")).Code)
 
-	_, err = f.env.Journal.AddMark(ctx, substitute, lesson, student, journalMarkInput(workTypes[1].ID, 4))
-	require.NoError(t, err)
+	f.env.SetMark(t, substitute, lesson, student, workTypes[1].ID, 4)
 
-	body := servertest.Get(t, f.env.Handler, "/journal", substituteCookie).Body.String()
-	assert.Contains(t, body, `href="`+lessonPath(lesson, "")+`"`)
+	home := servertest.Get(t, f.env.Handler, "/", substituteCookie).Body.String()
+	assert.Contains(t, home, `href="`+path+`"`)
 
-	again := servertest.PostForm(t, f.env.Handler, "/journal",
-		url.Values{"pair": {pairValue(f.class, f.subject)}, "date": {dateValue(f.today.AddDate(0, 0, 1))}},
-		[]*http.Cookie{substituteCookie}, nil)
+	body := servertest.Get(t, f.env.Handler, path, substituteCookie).Body.String()
+	assert.Contains(t, body, `id="lesson-`+strconv.FormatInt(lesson, 10)+`"`)
+
+	again := servertest.PostForm(t, f.env.Handler, path+"/lessons",
+		url.Values{"date": {dateValue(f.today.AddDate(0, 0, 1))}}, []*http.Cookie{substituteCookie}, nil)
 	assert.Equal(t, http.StatusOK, again.Code)
-	assert.NotContains(t, again.Header().Get("Location"), "/journal/lessons/")
+	assert.Contains(t, again.Body.String(), "На эту дату замена не действует")
 
 	diary := servertest.Get(t, f.env.Handler, "/diary", f.env.LoginAs(t, "student")).Body.String()
 	assert.Contains(t, diary, "Кузнецов В.")

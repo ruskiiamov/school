@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/auth"
-	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/servertest"
 	"github.com/ruskiiamov/school/internal/validation"
@@ -71,11 +70,7 @@ func (f fixture) year() string {
 func (f fixture) openLesson(t *testing.T, classID, subjectID int64, date time.Time) int64 {
 	t.Helper()
 
-	id, err := f.env.Journal.OpenLesson(t.Context(), f.teacher, f.env.School.CurrentYear(), f.today,
-		journal.OpenLessonInput{ClassID: classID, SubjectID: subjectID, Date: date.Format(validation.DateLayout)})
-	require.NoError(t, err)
-
-	return id
+	return f.env.CreateLesson(t, f.teacher, classID, subjectID, date)
 }
 
 func createUser(t *testing.T, env *servertest.Env, role auth.Role, login, fullName string) int64 {

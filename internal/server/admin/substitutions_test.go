@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/auth"
-	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/servertest"
 	"github.com/ruskiiamov/school/internal/validation"
@@ -161,9 +160,7 @@ func TestSubstitutionWithLessonsCannotBeDeleted(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = env.Journal.OpenLesson(ctx, viktor, env.School.CurrentYear(), today,
-		journal.OpenLessonInput{ClassID: class, SubjectID: algebra, Date: today.Format(validation.DateLayout)})
-	require.NoError(t, err)
+	env.CreateLesson(t, viktor, class, algebra, today)
 
 	refused := servertest.PostForm(t, env.Handler, substitutionPath(id, "/delete"), nil, []*http.Cookie{admin}, nil)
 	require.Equal(t, http.StatusOK, refused.Code)
@@ -206,9 +203,7 @@ func TestSubstitutionPeriodKeepsLessons(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = env.Journal.OpenLesson(ctx, viktor, env.School.CurrentYear(), today,
-		journal.OpenLessonInput{ClassID: class, SubjectID: algebra, Date: day(-1)})
-	require.NoError(t, err)
+	env.CreateLesson(t, viktor, class, algebra, today.AddDate(0, 0, -1))
 
 	refused := []struct {
 		name  string

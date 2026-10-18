@@ -97,7 +97,7 @@ func TestPasswordResetShowsPasswordOnceAndDropsSessions(t *testing.T) {
 
 	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, createdPath, admin), "/admin/password-reset?q=%D1%81%D0%BC%D0%B8")
 
-	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/journal", teacher), "/login")
+	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, "/", teacher), "/login")
 
 	_, err := env.Auth.Login(t.Context(), "smirnova.m", "smirnova.m-password")
 	assert.ErrorIs(t, err, auth.ErrInvalidCredentials)

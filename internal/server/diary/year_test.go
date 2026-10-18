@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/servertest"
 	"github.com/ruskiiamov/school/internal/storage"
@@ -41,8 +40,7 @@ func newPastFixture(t *testing.T) pastFixture {
 	})
 	require.NoError(t, err)
 
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, f.lesson, f.student, journal.MarkInput{WorkTypeID: f.workType, Value: 4})
-	require.NoError(t, err)
+	f.env.SetMark(t, f.teacher, f.lesson, f.student, f.workType, 4)
 
 	return f
 }

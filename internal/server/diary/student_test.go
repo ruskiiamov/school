@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/server/servertest"
 	"github.com/ruskiiamov/school/internal/view"
 )
@@ -24,7 +23,7 @@ func TestStudentDiaryDayAndLesson(t *testing.T) {
 	code, body := get(t, f.env, "/diary", student, false)
 	require.Equal(t, http.StatusOK, code)
 	assert.Contains(t, body, "Уроков в этот день нет")
-	assert.Contains(t, body, "Урок появляется, когда учитель открыл его в журнале")
+	assert.Contains(t, body, "Урок появляется, когда учитель добавил его в журнал")
 	assert.Contains(t, body, view.FormatDate(f.today))
 	assert.Contains(t, body, `name="date" value="`+f.today.Format("02.01.2006")+`"`)
 	assert.Contains(t, body, `href="`+diaryURL("/diary", f.today.AddDate(0, 0, -1), nil)+`"`)
@@ -36,14 +35,11 @@ func TestStudentDiaryDayAndLesson(t *testing.T) {
 	foreign := f.openLesson(t, f.other, f.algebra, f.today)
 
 	require.NoError(t, f.env.Journal.UpdateTopic(ctx, f.teacher, algebra, "Квадратные уравнения"))
-	_, err := f.env.Journal.AddMark(ctx, f.teacher, algebra, f.student, journal.MarkInput{WorkTypeID: f.workType, Value: 5})
-	require.NoError(t, err)
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, algebra, f.student, journal.MarkInput{WorkTypeID: f.another, Value: 4})
-	require.NoError(t, err)
-	require.NoError(t, f.env.Journal.SaveRecord(ctx, f.teacher, algebra, f.student, journal.RecordInput{Absent: true, Comment: "Опоздала на 10 минут"}))
-	require.NoError(t, f.env.Journal.SaveRecord(ctx, f.teacher, history, f.student, journal.RecordInput{Absent: true}))
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, foreign, f.stranger, journal.MarkInput{WorkTypeID: f.workType, Value: 3})
-	require.NoError(t, err)
+	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, 5)
+	f.env.SetMark(t, f.teacher, algebra, f.student, f.another, 4)
+	f.env.SetRecord(t, f.teacher, algebra, f.student, true, "Опоздала на 10 минут")
+	f.env.SetRecord(t, f.teacher, history, f.student, true, "")
+	f.env.SetMark(t, f.teacher, foreign, f.stranger, f.workType, 3)
 
 	code, body = get(t, f.env, "/diary", student, false)
 	require.Equal(t, http.StatusOK, code)

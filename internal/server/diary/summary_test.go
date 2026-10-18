@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/auth"
-	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/server/servertest"
 	"github.com/ruskiiamov/school/internal/validation"
 )
@@ -29,7 +28,6 @@ func TestStudentMarksSummary(t *testing.T) {
 	t.Parallel()
 
 	f := newFixture(t)
-	ctx := t.Context()
 	student := f.env.LoginAs(t, "student")
 
 	code, body := get(t, f.env, "/diary/summary", student, false)
@@ -41,13 +39,10 @@ func TestStudentMarksSummary(t *testing.T) {
 
 	algebra := f.openLesson(t, f.class, f.algebra, f.today)
 	history := f.openLesson(t, f.class, f.history, f.today.AddDate(0, 0, 1))
-	_, err := f.env.Journal.AddMark(ctx, f.teacher, algebra, f.student, journal.MarkInput{WorkTypeID: f.workType, Value: 5})
-	require.NoError(t, err)
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, algebra, f.student, journal.MarkInput{WorkTypeID: f.another, Value: 4})
-	require.NoError(t, err)
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, history, f.student, journal.MarkInput{WorkTypeID: f.workType, Value: 3})
-	require.NoError(t, err)
-	require.NoError(t, f.env.Journal.SaveRecord(ctx, f.teacher, history, f.student, journal.RecordInput{Absent: true}))
+	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, 5)
+	f.env.SetMark(t, f.teacher, algebra, f.student, f.another, 4)
+	f.env.SetMark(t, f.teacher, history, f.student, f.workType, 3)
+	f.env.SetRecord(t, f.teacher, history, f.student, true, "")
 
 	path := "/diary/summary?" + periodQuery(f.today, f.today.AddDate(0, 0, 1), nil)
 	code, body = get(t, f.env, path, student, true)
@@ -82,8 +77,7 @@ func TestParentAndAdminMarksSummary(t *testing.T) {
 	require.NoError(t, f.env.School.AddChild(ctx, parent, f.student))
 
 	algebra := f.openLesson(t, f.class, f.algebra, f.today)
-	_, err := f.env.Journal.AddMark(ctx, f.teacher, algebra, f.student, journal.MarkInput{WorkTypeID: f.workType, Value: 5})
-	require.NoError(t, err)
+	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, 5)
 
 	cookie := f.env.LoginAs(t, "parent")
 	code, body := get(t, f.env, "/diary/summary", cookie, false)

@@ -9,10 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/auth"
-	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/servertest"
-	"github.com/ruskiiamov/school/internal/validation"
 )
 
 func TestDownloadByRole(t *testing.T) {
@@ -41,9 +39,7 @@ func TestDownloadByRole(t *testing.T) {
 	require.NoError(t, env.School.AddChild(ctx, parent, student))
 
 	today := env.School.Today()
-	lessonID, err := env.Journal.OpenLesson(ctx, teacher, env.School.CurrentYear(), today,
-		journal.OpenLessonInput{ClassID: class, SubjectID: subject, Date: today.Format(validation.DateLayout)})
-	require.NoError(t, err)
+	lessonID := env.CreateLesson(t, teacher, class, subject, today)
 	_, err = env.Journal.AddHomeworkFile(ctx, teacher, lessonID, "задание.txt", strings.NewReader("Упр. 12"))
 	require.NoError(t, err)
 

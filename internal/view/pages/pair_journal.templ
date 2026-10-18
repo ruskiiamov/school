@@ -232,7 +232,6 @@ templ JournalTopic(edit view.JournalRowEdit, topic string) {
 		hx-trigger="submit, input changed delay:500ms"
 		class="hidden sm:block"
 	>
-		<input type="hidden" name="from" value="journal"/>
 		<input
 			name="topic"
 			value={ topic }

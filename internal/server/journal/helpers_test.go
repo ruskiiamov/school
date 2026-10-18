@@ -16,7 +16,7 @@ import (
 	"github.com/ruskiiamov/school/internal/validation"
 )
 
-var lessonLocation = regexp.MustCompile(`^/journal/lessons/(\d+)$`)
+var lessonLocation = regexp.MustCompile(`#lesson-(\d+)$`)
 
 type fixture struct {
 	env     *servertest.Env
@@ -65,10 +65,6 @@ func createUser(t *testing.T, env *servertest.Env, role auth.Role, login, fullNa
 	return 0
 }
 
-func pairValue(classID, subjectID int64) string {
-	return strconv.FormatInt(classID, 10) + "-" + strconv.FormatInt(subjectID, 10)
-}
-
 func dateValue(t time.Time) string {
 	return t.Format(validation.DateLayout)
 }
@@ -80,9 +76,8 @@ func lessonPath(id int64, suffix string) string {
 func openLesson(t *testing.T, env *servertest.Env, cookie *http.Cookie, classID, subjectID int64, date time.Time) int64 {
 	t.Helper()
 
-	recorder := servertest.PostForm(t, env.Handler, "/journal",
-		map[string][]string{"pair": {pairValue(classID, subjectID)}, "date": {dateValue(date)}},
-		[]*http.Cookie{cookie}, nil)
+	recorder := servertest.PostForm(t, env.Handler, pairPath(classID, subjectID)+"/lessons",
+		map[string][]string{"date": {dateValue(date)}}, []*http.Cookie{cookie}, nil)
 	require.Equal(t, http.StatusSeeOther, recorder.Code, recorder.Body.String())
 
 	match := lessonLocation.FindStringSubmatch(recorder.Header().Get("Location"))
@@ -94,18 +89,19 @@ func openLesson(t *testing.T, env *servertest.Env, cookie *http.Cookie, classID,
 	return id
 }
 
-func journalMarkInput(workTypeID int64, value int) journal.MarkInput {
-	return journal.MarkInput{WorkTypeID: workTypeID, Value: value}
-}
-
 func journalHomework(text string) journal.HomeworkInput {
 	return journal.HomeworkInput{Text: text}
 }
 
-func monthStart(t time.Time) time.Time {
-	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
-}
-
 func inputDate(t time.Time) string {
 	return t.Format(validation.InputDateLayout)
+}
+
+func pairLessons(t *testing.T, f fixture) []journal.Lesson {
+	t.Helper()
+
+	pair, err := f.env.Journal.AdminPairJournal(t.Context(), f.class, f.subject)
+	require.NoError(t, err)
+
+	return pair.Lessons
 }

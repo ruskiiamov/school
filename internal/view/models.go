@@ -32,8 +32,6 @@ const (
 	IconRestore   Icon = "restore"
 	IconArchive   Icon = "archive"
 	IconClose     Icon = "close"
-	IconLeft      Icon = "left"
-	IconRight     Icon = "right"
 	IconCalendar  Icon = "calendar"
 )
 
@@ -596,36 +594,6 @@ type SubstitutionsPage struct {
 	New           SubstitutionFields
 }
 
-type PairOption struct {
-	Value    string
-	Name     string
-	Selected bool
-}
-
-type LessonRow struct {
-	Href    string
-	Date    string
-	Class   string
-	Subject string
-	Topic   string
-}
-
-type JournalPage struct {
-	Shell   Shell
-	Pairs   []PairOption
-	Date    string
-	Errors  map[string]string
-	Lessons []LessonRow
-	Pager   Pager
-}
-
-type Pager struct {
-	Label     string
-	Pages     int
-	NewerHref string
-	OlderHref string
-}
-
 type PeriodForm struct {
 	From     string
 	To       string
@@ -633,45 +601,6 @@ type PeriodForm struct {
 	PrevHref string
 	ThisHref string
 	NextHref string
-}
-
-type GridPage struct {
-	Shell    Shell
-	Title    string
-	Path     string
-	Years    []Option
-	Pairs    []PairOption
-	Classes  []Option
-	Subjects []Option
-	Hidden   map[string]string
-	Selected bool
-	Period   PeriodForm
-	Grid     *Grid
-}
-
-type Grid struct {
-	Columns []GridColumn
-	Rows    []GridRow
-}
-
-type GridColumn struct {
-	Date string
-	Href string
-}
-
-type GridRow struct {
-	FullName  string
-	ShortName string
-	Active    bool
-	InClass   bool
-	Cells     []GridCell
-	Absences  string
-	Average   string
-}
-
-type GridCell struct {
-	Text string
-	Href string
 }
 
 type MarksPage struct {
@@ -698,134 +627,6 @@ type MarkChip struct {
 	Value string
 	Title string
 	Href  string
-}
-
-type AdminJournalPage struct {
-	Shell       Shell
-	Path        string
-	Years       []Option
-	Classes     []Option
-	Subjects    []Option
-	Selected    bool
-	SummaryHref string
-	Lessons     []AdminLessonRow
-}
-
-type AdminLessonRow struct {
-	Href     string
-	Date     string
-	Teacher  string
-	Topic    string
-	Homework bool
-}
-
-type AdminLessonPage struct {
-	Shell    Shell
-	Title    string
-	BackHref string
-	Teacher  string
-	Topic    string
-	Homework *DiaryHomework
-	Block    AdminLessonBlock
-}
-
-type AdminLessonBlock struct {
-	Students []LessonStudentItem
-	Selected *AdminStudentPanel
-}
-
-type AdminStudentPanel struct {
-	FullName  string
-	Active    bool
-	InClass   bool
-	DiaryHref string
-	Marks     []DiaryMark
-	Absent    bool
-	Comment   string
-}
-
-type LessonPage struct {
-	Shell       Shell
-	Title       string
-	Path        string
-	Topic       string
-	TopicError  string
-	CanDelete   bool
-	DeleteError string
-	Homework    LessonHomework
-	Block       LessonBlock
-}
-
-type LessonHomework struct {
-	Open         bool
-	Status       string
-	Action       string
-	Text         string
-	Due          string
-	Errors       map[string]string
-	Files        []HomeworkFileRow
-	UploadAction string
-	CanUpload    bool
-	FileError    string
-}
-
-type HomeworkFileRow struct {
-	FileLink
-	DeleteAction string
-}
-
-type LessonStudentItem struct {
-	ID        int64
-	Href      string
-	FullName  string
-	ShortName string
-	Summary   string
-	Active    bool
-	InClass   bool
-	Selected  bool
-}
-
-type MarkFields struct {
-	WorkTypes []Option
-	Values    []Option
-	Errors    map[string]string
-}
-
-type MarkRow struct {
-	ID           int64
-	WorkType     string
-	Value        string
-	Editing      bool
-	Fields       MarkFields
-	Action       string
-	EditHref     string
-	CancelHref   string
-	DeleteAction string
-}
-
-type LessonStudentPanel struct {
-	ID        int64
-	FullName  string
-	Active    bool
-	InClass   bool
-	Marks     []MarkRow
-	AddAction string
-	New       MarkFields
-	Error     string
-	Record    RecordFields
-}
-
-type RecordFields struct {
-	Action  string
-	FieldID string
-	Absent  bool
-	Comment string
-	Error   string
-}
-
-type LessonBlock struct {
-	Students []LessonStudentItem
-	Selected *LessonStudentPanel
 }
 
 type DiaryStudentRow struct {

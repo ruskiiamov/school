@@ -1,7 +1,6 @@
 package journal_test
 
 import (
-	"html"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -48,80 +47,52 @@ func newPastFixture(t *testing.T) pastFixture {
 
 	workTypes, err := f.env.School.WorkTypes(ctx, false)
 	require.NoError(t, err)
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, f.lesson, f.maria, journalMarkInput(workTypes[0].ID, 5))
-	require.NoError(t, err)
+	f.env.SetMark(t, f.teacher, f.lesson, f.maria, workTypes[0].ID, 5)
 
 	return f
 }
 
-func TestTeacherSummaryPastYear(t *testing.T) {
+func TestPairJournalPastYear(t *testing.T) {
 	t.Parallel()
 
 	f := newPastFixture(t)
 	teacher := f.env.LoginAs(t, "teacher")
-	current := f.env.School.CurrentYear()
-	start, _ := f.env.School.YearBounds(f.past)
+	past := strconv.Itoa(f.past)
+	pastPair := pairPath(f.pastClass, f.subject)
 
-	body := servertest.Get(t, f.env.Handler, "/journal/summary", teacher).Body.String()
-	assert.Contains(t, body, `<option value="`+strconv.Itoa(current)+`" selected>`+school.YearName(current)+`</option>`)
-	assert.Contains(t, body, `<option value="`+strconv.Itoa(f.past)+`">`+school.YearName(f.past)+`</option>`)
-	assert.Contains(t, body, "7А · Алгебра")
-	assert.Contains(t, body, "Ячейка ведёт на урок")
-	assert.NotContains(t, body, "6А · Алгебра")
+	home := servertest.Get(t, f.env.Handler, "/", teacher).Body.String()
+	assert.Contains(t, home, `href="`+pairPath(f.class, f.subject)+`"`)
+	assert.NotContains(t, home, `href="`+pastPair+`"`)
 
-	query := url.Values{"year": {strconv.Itoa(f.past)}}
-	body = servertest.Get(t, f.env.Handler, "/journal/summary?"+query.Encode(), teacher).Body.String()
-	assert.Contains(t, body, `<option value="`+strconv.Itoa(f.past)+`" selected>`)
-	assert.Contains(t, body, "6А · Алгебра")
-	assert.NotContains(t, body, "7А · Алгебра")
-	assert.Contains(t, body, `name="from" value="`+inputDate(start)+`"`)
-	assert.Contains(t, body, "year="+strconv.Itoa(f.past))
+	home = servertest.Get(t, f.env.Handler, "/?year="+past, teacher).Body.String()
+	assert.Contains(t, home, `<option value="`+past+`" selected>`+school.YearName(f.past)+`</option>`)
+	assert.Contains(t, home, `href="`+pastPair+`"`)
+	assert.NotContains(t, home, `href="`+pairPath(f.class, f.subject)+`"`)
 
-	query.Set("pair", pairValue(f.pastClass, f.subject))
-	query.Set("from", dateValue(start))
-	query.Set("to", dateValue(start.AddDate(0, 2, 0)))
-	body = servertest.Get(t, f.env.Handler, "/journal/summary?"+query.Encode(), teacher).Body.String()
-	assert.Contains(t, body, `href="`+lessonPath(f.lesson, "")+studentQuery(f.maria)+`"`)
-	assert.Contains(t, body, ">5</a>")
+	body := servertest.Get(t, f.env.Handler, pastPair, teacher).Body.String()
+	assert.Contains(t, body, "6А · Алгебра · "+school.YearName(f.past))
+	assert.Contains(t, body, `href="/?year=`+past+`"`)
+	assert.Contains(t, body, `id="lesson-`+strconv.FormatInt(f.lesson, 10)+`"`)
+	assert.Contains(t, body, `: 5">5`)
 
 	assert.Equal(t, http.StatusOK, servertest.Get(t, f.env.Handler, lessonPath(f.lesson, ""), teacher).Code)
-
-	unknown := servertest.Get(t, f.env.Handler, "/journal/summary?year=1999", teacher).Body.String()
-	assert.Contains(t, unknown, `<option value="`+strconv.Itoa(current)+`" selected>`)
-
-	next := servertest.Get(t, f.env.Handler, "/journal/summary?year="+strconv.Itoa(current+1), teacher).Body.String()
-	assert.Contains(t, next, `<option value="`+strconv.Itoa(current+1)+`" selected>`+school.YearName(current+1)+`</option>`)
-	assert.Contains(t, next, "В этом году вам не назначены классы и предметы")
 }
 
-func TestAdminJournalPastYear(t *testing.T) {
+func TestAdminJournalsPastYear(t *testing.T) {
 	t.Parallel()
 
 	f := newPastFixture(t)
 	admin := servertest.Login(t, f.env.Handler)
 	year := strconv.Itoa(f.past)
-	start, _ := f.env.School.YearBounds(f.past)
 
-	body := servertest.Get(t, f.env.Handler, "/admin/journal", admin).Body.String()
-	assert.Contains(t, body, `name="year"`)
+	body := servertest.Get(t, f.env.Handler, "/admin/journals", admin).Body.String()
 	assert.Contains(t, body, ">7А</option>")
 	assert.NotContains(t, body, ">6А</option>")
 
 	pair := url.Values{"year": {year}, "class": {strconv.FormatInt(f.pastClass, 10)}, "subject": {strconv.FormatInt(f.subject, 10)}}
-	body = servertest.Get(t, f.env.Handler, "/admin/journal?"+pair.Encode(), admin).Body.String()
+	body = servertest.Get(t, f.env.Handler, "/admin/journals?"+pair.Encode(), admin).Body.String()
 	assert.Contains(t, body, `<option value="`+year+`" selected>`)
 	assert.Contains(t, body, ` selected>6А</option>`)
-	assert.Contains(t, body, `href="/admin/journal/lessons/`+strconv.FormatInt(f.lesson, 10)+`"`)
-	assert.Contains(t, body, `href="`+html.EscapeString("/admin/journal/summary?"+pair.Encode())+`"`)
-
-	lesson := servertest.Get(t, f.env.Handler, "/admin/journal/lessons/"+strconv.FormatInt(f.lesson, 10), admin).Body.String()
-	assert.Contains(t, lesson, `href="`+html.EscapeString("/admin/journal?"+pair.Encode())+`"`)
-
-	summary := pair
-	summary.Set("from", dateValue(start))
-	summary.Set("to", dateValue(start.AddDate(0, 2, 0)))
-	body = servertest.Get(t, f.env.Handler, "/admin/journal/summary?"+summary.Encode(), admin).Body.String()
-	assert.Contains(t, body, `<option value="`+year+`" selected>`)
-	assert.Contains(t, body, ">5</a>")
-	assert.Contains(t, body, "year="+year)
+	assert.Contains(t, body, `id="lesson-`+strconv.FormatInt(f.lesson, 10)+`"`)
+	assert.Contains(t, body, `: 5">5`)
 }

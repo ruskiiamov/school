@@ -52,18 +52,6 @@ func (r *SubstitutionRepo) ListByYear(ctx context.Context, year int, today time.
 	return collectSubstitutions(rows)
 }
 
-func (r *SubstitutionRepo) ListActiveByTeacher(ctx context.Context, teacherID int64, today time.Time) ([]Substitution, error) {
-	const query = "SELECT " + substitutionColumns + " FROM substitutions WHERE teacher_id = ? AND COALESCE(end_date, ?) >= ? ORDER BY id"
-
-	rows, err := r.db.QueryContext(ctx, query, teacherID, openEndDate, toDate(today))
-	if err != nil {
-		return nil, fmt.Errorf("select teacher substitutions: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	return collectSubstitutions(rows)
-}
-
 func (r *SubstitutionRepo) ListByTeacherYear(ctx context.Context, teacherID int64, year int) ([]Substitution, error) {
 	const query = "SELECT " + substitutionColumns + ` FROM substitutions
 		WHERE teacher_id = ? AND class_id IN (SELECT id FROM classes WHERE year = ?)

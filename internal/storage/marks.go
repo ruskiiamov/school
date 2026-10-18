@@ -55,20 +55,6 @@ func (r *MarkRepo) ListByLesson(ctx context.Context, lessonID int64) ([]Mark, er
 	return marks, nil
 }
 
-func (r *MarkRepo) ListByPairPeriod(ctx context.Context, classID, subjectID int64, from, to time.Time) ([]Mark, error) {
-	const query = "SELECT " + markColumns + ` FROM marks
-		WHERE lesson_id IN (SELECT id FROM lessons WHERE class_id = ? AND subject_id = ? AND date BETWEEN ? AND ?)
-		ORDER BY id`
-
-	rows, err := r.db.QueryContext(ctx, query, classID, subjectID, toDate(from), toDate(to))
-	if err != nil {
-		return nil, fmt.Errorf("select period marks: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	return collectMarks(rows)
-}
-
 func (r *MarkRepo) ListByPair(ctx context.Context, classID, subjectID int64) ([]Mark, error) {
 	const query = "SELECT " + markColumns + ` FROM marks
 		WHERE lesson_id IN (SELECT id FROM lessons WHERE class_id = ? AND subject_id = ?)
@@ -152,47 +138,6 @@ func collectMarks(rows *sql.Rows) ([]Mark, error) {
 	return marks, nil
 }
 
-func (r *MarkRepo) ByID(ctx context.Context, id int64) (Mark, error) {
-	const query = "SELECT " + markColumns + " FROM marks WHERE id = ?"
-
-	mark, err := scanMark(r.db.QueryRowContext(ctx, query, id))
-	if err != nil {
-		return Mark{}, fmt.Errorf("select mark by id: %w", err)
-	}
-
-	return mark, nil
-}
-
-func (r *MarkRepo) Create(ctx context.Context, mark Mark) (int64, error) {
-	const query = `INSERT INTO marks (lesson_id, student_id, work_type_id, value, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?)`
-
-	now := toMillis(time.Now())
-
-	result, err := r.db.ExecContext(ctx, query, mark.LessonID, mark.StudentID, mark.WorkTypeID, mark.Value, now, now)
-	if err != nil {
-		return 0, fmt.Errorf("insert mark: %w", err)
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		return 0, fmt.Errorf("insert mark: %w", err)
-	}
-
-	return id, nil
-}
-
-func (r *MarkRepo) Update(ctx context.Context, id, workTypeID int64, value int) error {
-	const query = "UPDATE marks SET work_type_id = ?, value = ?, updated_at = ? WHERE id = ?"
-
-	result, err := r.db.ExecContext(ctx, query, workTypeID, value, toMillis(time.Now()), id)
-	if err != nil {
-		return fmt.Errorf("update mark: %w", err)
-	}
-
-	return requireAffected(result, "update mark")
-}
-
 type MarkChange struct {
 	WorkTypeID int64
 	Value      int
@@ -232,17 +177,6 @@ func (r *MarkRepo) SetForStudent(ctx context.Context, lessonID, studentID int64,
 	}
 
 	return nil
-}
-
-func (r *MarkRepo) Delete(ctx context.Context, id int64) error {
-	const query = "DELETE FROM marks WHERE id = ?"
-
-	result, err := r.db.ExecContext(ctx, query, id)
-	if err != nil {
-		return fmt.Errorf("delete mark: %w", err)
-	}
-
-	return requireAffected(result, "delete mark")
 }
 
 func (r *MarkRepo) DeleteOrphaned(ctx context.Context) (int64, error) {
