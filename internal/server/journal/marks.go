@@ -122,7 +122,6 @@ func readMarkInput(r *http.Request) journal.MarkInput {
 	return journal.MarkInput{
 		WorkTypeID: web.FormInt64(r, "work_type_id"),
 		Value:      int(web.FormInt64(r, "value")),
-		Label:      web.FormValue(r, "label"),
 	}
 }
 
@@ -225,7 +224,6 @@ func (h *Handler) studentPanel(r *http.Request, lesson journal.Lesson, entry jou
 			ID:           mark.ID,
 			WorkType:     mark.WorkTypeName,
 			Value:        strconv.Itoa(mark.Value),
-			Label:        mark.Label,
 			Editing:      mark.ID == editing,
 			Action:       lessonPath(lesson.ID, "/marks/"+strconv.FormatInt(mark.ID, 10)) + studentQuery(entry.ID, 0),
 			EditHref:     studentURL(lesson.ID, entry.ID, mark.ID),
@@ -234,7 +232,7 @@ func (h *Handler) studentPanel(r *http.Request, lesson journal.Lesson, entry jou
 		}
 
 		if row.Editing {
-			input := journal.MarkInput{WorkTypeID: mark.WorkTypeID, Value: mark.Value, Label: mark.Label}
+			input := journal.MarkInput{WorkTypeID: mark.WorkTypeID, Value: mark.Value}
 			errs := validation.Errors(nil)
 
 			if form.entered && form.id == mark.ID {
@@ -260,7 +258,6 @@ func markFields(workTypes []journal.WorkType, input journal.MarkInput, errs vali
 	fields := view.MarkFields{
 		WorkTypes: []view.Option{{Name: workTypeOption, Selected: input.WorkTypeID == 0}},
 		Values:    []view.Option{{Name: valueOption, Selected: input.Value == 0}},
-		Label:     input.Label,
 		Errors:    errs,
 	}
 

@@ -17,6 +17,7 @@ const (
 	msgEndBeforeStart      = "Дата окончания раньше начала"
 	msgSubstitutionOverlap = "Период пересекается с другой заменой"
 	msgSubstitutionUsed    = "По замене уже проведены уроки: вместо удаления укажите дату окончания"
+	msgLessonsOutside      = "По замене уже проведены уроки вне нового периода"
 )
 
 type Substitution struct {
@@ -128,6 +129,23 @@ func (s *Service) UpdateSubstitutionPeriod(ctx context.Context, id int64, period
 		return errs
 	}
 
+	first, last, err := s.substitutions.LessonDates(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if !first.IsZero() && start.After(first) {
+		errs.Add("start_date", msgLessonsOutside)
+	}
+
+	if !last.IsZero() && !end.IsZero() && end.Before(last) {
+		errs.Add("end_date", msgLessonsOutside)
+	}
+
+	if len(errs) > 0 {
+		return errs
+	}
+
 	if err := s.requireNoOverlap(ctx, substitution.ClassID, substitution.SubjectID, start, end, id); err != nil {
 		return err
 	}
@@ -144,12 +162,12 @@ func (s *Service) UpdateSubstitutionPeriod(ctx context.Context, id int64, period
 }
 
 func (s *Service) DeleteSubstitution(ctx context.Context, id int64) error {
-	used, err := s.substitutions.HasLessons(ctx, id)
+	first, _, err := s.substitutions.LessonDates(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	if used {
+	if !first.IsZero() {
 		return validation.Errors{"end_date": msgSubstitutionUsed}
 	}
 

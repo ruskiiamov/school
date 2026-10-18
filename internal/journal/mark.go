@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"unicode/utf8"
 
 	"github.com/ruskiiamov/school/internal/storage"
 	"github.com/ruskiiamov/school/internal/validation"
@@ -15,9 +14,7 @@ const (
 	msgWorkTypeRequired  = "Выберите тип работы"
 	msgWorkTypeUnknown   = "Такого типа работы нет"
 	msgValueRange        = "Оценка от 1 до 5"
-	msgLabelTooLong      = "Подпись не длиннее 100 символов"
-
-	maxLabelLength = 100
+	msgWorkTypeTaken     = "Оценка этого типа уже стоит"
 )
 
 type Mark struct {
@@ -26,13 +23,11 @@ type Mark struct {
 	WorkTypeID   int64
 	WorkTypeName string
 	Value        int
-	Label        string
 }
 
 type MarkInput struct {
 	WorkTypeID int64
 	Value      int
-	Label      string
 }
 
 type WorkType struct {
@@ -120,7 +115,6 @@ func (s *Service) Marks(ctx context.Context, lessonID int64) ([]Mark, error) {
 			WorkTypeID:   mark.WorkTypeID,
 			WorkTypeName: names[mark.WorkTypeID],
 			Value:        mark.Value,
-			Label:        mark.Label,
 		})
 	}
 
@@ -156,8 +150,7 @@ func (s *Service) AddMark(ctx context.Context, teacherID, lessonID, studentID in
 		return 0, validation.Errors{"student": msgStudentNotInClass}
 	}
 
-	input, err = s.validateMark(ctx, input)
-	if err != nil {
+	if err := s.validateMark(ctx, lessonID, studentID, 0, input); err != nil {
 		return 0, err
 	}
 
@@ -166,7 +159,6 @@ func (s *Service) AddMark(ctx context.Context, teacherID, lessonID, studentID in
 		StudentID:  studentID,
 		WorkTypeID: input.WorkTypeID,
 		Value:      input.Value,
-		Label:      input.Label,
 	})
 	if err != nil {
 		return 0, err
@@ -179,16 +171,16 @@ func (s *Service) AddMark(ctx context.Context, teacherID, lessonID, studentID in
 }
 
 func (s *Service) UpdateMark(ctx context.Context, teacherID, lessonID, markID int64, input MarkInput) error {
-	if _, err := s.lessonMark(ctx, teacherID, lessonID, markID); err != nil {
-		return err
-	}
-
-	input, err := s.validateMark(ctx, input)
+	mark, err := s.lessonMark(ctx, teacherID, lessonID, markID)
 	if err != nil {
 		return err
 	}
 
-	if err := s.marks.Update(ctx, markID, input.WorkTypeID, input.Value, input.Label); errors.Is(err, storage.ErrNotFound) {
+	if err := s.validateMark(ctx, lessonID, mark.StudentID, markID, input); err != nil {
+		return err
+	}
+
+	if err := s.marks.Update(ctx, markID, input.WorkTypeID, input.Value); errors.Is(err, storage.ErrNotFound) {
 		return ErrNotFound
 	} else if err != nil {
 		return err
@@ -231,7 +223,7 @@ func (s *Service) lessonMark(ctx context.Context, teacherID, lessonID, markID in
 	return mark, nil
 }
 
-func (s *Service) validateMark(ctx context.Context, input MarkInput) (MarkInput, error) {
+func (s *Service) validateMark(ctx context.Context, lessonID, studentID, markID int64, input MarkInput) error {
 	errs := validation.Errors{}
 
 	if input.WorkTypeID == 0 {
@@ -241,7 +233,7 @@ func (s *Service) validateMark(ctx context.Context, input MarkInput) (MarkInput,
 		if errors.Is(err, storage.ErrNotFound) || (err == nil && !workType.Active) {
 			errs.Add("work_type", msgWorkTypeUnknown)
 		} else if err != nil {
-			return input, err
+			return err
 		}
 	}
 
@@ -249,14 +241,33 @@ func (s *Service) validateMark(ctx context.Context, input MarkInput) (MarkInput,
 		errs.Add("value", msgValueRange)
 	}
 
-	input.Label = validation.NormalizeSpaces(input.Label)
-	if utf8.RuneCountInString(input.Label) > maxLabelLength {
-		errs.Add("label", msgLabelTooLong)
-	}
-
 	if len(errs) > 0 {
-		return input, errs
+		return errs
 	}
 
-	return input, nil
+	taken, err := s.workTypeTaken(ctx, lessonID, studentID, markID, input.WorkTypeID)
+	if err != nil {
+		return err
+	}
+
+	if taken {
+		return validation.Errors{"work_type": msgWorkTypeTaken}
+	}
+
+	return nil
+}
+
+func (s *Service) workTypeTaken(ctx context.Context, lessonID, studentID, markID, workTypeID int64) (bool, error) {
+	marks, err := s.marks.ListByLesson(ctx, lessonID)
+	if err != nil {
+		return false, err
+	}
+
+	for _, mark := range marks {
+		if mark.StudentID == studentID && mark.WorkTypeID == workTypeID && mark.ID != markID {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

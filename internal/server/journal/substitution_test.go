@@ -48,7 +48,7 @@ func TestLessonSurvivesEndedSubstitution(t *testing.T) {
 	assert.Equal(t, http.StatusOK, servertest.Get(t, f.env.Handler, lessonPath(lesson, ""), substituteCookie).Code)
 	assert.Equal(t, http.StatusOK, servertest.Get(t, f.env.Handler, lessonPath(lesson, ""), f.env.LoginAs(t, "teacher")).Code)
 
-	_, err = f.env.Journal.AddMark(ctx, substitute, lesson, student, journalMarkInput(workTypes[0].ID, 4))
+	_, err = f.env.Journal.AddMark(ctx, substitute, lesson, student, journalMarkInput(workTypes[1].ID, 4))
 	require.NoError(t, err)
 
 	body := servertest.Get(t, f.env.Handler, "/journal", substituteCookie).Body.String()

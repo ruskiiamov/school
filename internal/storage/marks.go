@@ -14,7 +14,6 @@ type Mark struct {
 	StudentID  int64
 	WorkTypeID int64
 	Value      int
-	Label      string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
@@ -27,7 +26,7 @@ func NewMarkRepo(db *sql.DB) *MarkRepo {
 	return &MarkRepo{db: db}
 }
 
-const markColumns = "id, lesson_id, student_id, work_type_id, value, label, created_at, updated_at"
+const markColumns = "id, lesson_id, student_id, work_type_id, value, created_at, updated_at"
 
 func (r *MarkRepo) ListByLesson(ctx context.Context, lessonID int64) ([]Mark, error) {
 	const query = "SELECT " + markColumns + " FROM marks WHERE lesson_id = ? ORDER BY id"
@@ -77,7 +76,7 @@ type StudentMark struct {
 }
 
 func (r *MarkRepo) ListByStudentPeriod(ctx context.Context, studentID int64, from, to time.Time) ([]StudentMark, error) {
-	const query = `SELECT m.id, m.lesson_id, m.student_id, m.work_type_id, m.value, m.label, m.created_at, m.updated_at, l.subject_id, l.date
+	const query = `SELECT m.id, m.lesson_id, m.student_id, m.work_type_id, m.value, m.created_at, m.updated_at, l.subject_id, l.date
 		FROM marks m JOIN lessons l ON l.id = m.lesson_id
 		WHERE m.student_id = ? AND l.date BETWEEN ? AND ?
 		ORDER BY l.date, m.id`
@@ -98,7 +97,7 @@ func (r *MarkRepo) ListByStudentPeriod(ctx context.Context, studentID int64, fro
 			updatedAt int64
 		)
 
-		err := rows.Scan(&mark.ID, &mark.LessonID, &mark.StudentID, &mark.WorkTypeID, &mark.Value, &mark.Label,
+		err := rows.Scan(&mark.ID, &mark.LessonID, &mark.StudentID, &mark.WorkTypeID, &mark.Value,
 			&createdAt, &updatedAt, &mark.SubjectID, &date)
 		if err != nil {
 			return nil, fmt.Errorf("scan student mark: %w", err)
@@ -151,12 +150,12 @@ func (r *MarkRepo) ByID(ctx context.Context, id int64) (Mark, error) {
 }
 
 func (r *MarkRepo) Create(ctx context.Context, mark Mark) (int64, error) {
-	const query = `INSERT INTO marks (lesson_id, student_id, work_type_id, value, label, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`
+	const query = `INSERT INTO marks (lesson_id, student_id, work_type_id, value, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)`
 
 	now := toMillis(time.Now())
 
-	result, err := r.db.ExecContext(ctx, query, mark.LessonID, mark.StudentID, mark.WorkTypeID, mark.Value, mark.Label, now, now)
+	result, err := r.db.ExecContext(ctx, query, mark.LessonID, mark.StudentID, mark.WorkTypeID, mark.Value, now, now)
 	if err != nil {
 		return 0, fmt.Errorf("insert mark: %w", err)
 	}
@@ -169,10 +168,10 @@ func (r *MarkRepo) Create(ctx context.Context, mark Mark) (int64, error) {
 	return id, nil
 }
 
-func (r *MarkRepo) Update(ctx context.Context, id, workTypeID int64, value int, label string) error {
-	const query = "UPDATE marks SET work_type_id = ?, value = ?, label = ?, updated_at = ? WHERE id = ?"
+func (r *MarkRepo) Update(ctx context.Context, id, workTypeID int64, value int) error {
+	const query = "UPDATE marks SET work_type_id = ?, value = ?, updated_at = ? WHERE id = ?"
 
-	result, err := r.db.ExecContext(ctx, query, workTypeID, value, label, toMillis(time.Now()), id)
+	result, err := r.db.ExecContext(ctx, query, workTypeID, value, toMillis(time.Now()), id)
 	if err != nil {
 		return fmt.Errorf("update mark: %w", err)
 	}
@@ -209,7 +208,7 @@ func scanMark(row scanner) (Mark, error) {
 		updatedAt int64
 	)
 
-	err := row.Scan(&mark.ID, &mark.LessonID, &mark.StudentID, &mark.WorkTypeID, &mark.Value, &mark.Label, &createdAt, &updatedAt)
+	err := row.Scan(&mark.ID, &mark.LessonID, &mark.StudentID, &mark.WorkTypeID, &mark.Value, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Mark{}, ErrNotFound
 	}

@@ -131,7 +131,6 @@ type DiaryLessonItem struct {
 type DiaryMark struct {
 	Value    string
 	WorkType string
-	Label    string
 }
 
 type DiaryLessonPanel struct {
@@ -629,7 +628,6 @@ type LessonStudentItem struct {
 type MarkFields struct {
 	WorkTypes []Option
 	Values    []Option
-	Label     string
 	Errors    map[string]string
 }
 
@@ -637,7 +635,6 @@ type MarkRow struct {
 	ID           int64
 	WorkType     string
 	Value        string
-	Label        string
 	Editing      bool
 	Fields       MarkFields
 	Action       string

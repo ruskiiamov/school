@@ -153,7 +153,6 @@ type SummaryMark struct {
 	Date         time.Time
 	Value        int
 	WorkTypeName string
-	Label        string
 }
 
 func (s *Service) StudentSummary(ctx context.Context, studentID int64, from, to time.Time) (StudentSummary, error) {
@@ -208,7 +207,6 @@ func (s *Service) StudentSummary(ctx context.Context, studentID int64, from, to 
 			Date:         mark.Date,
 			Value:        mark.Value,
 			WorkTypeName: workTypeNames[mark.WorkTypeID],
-			Label:        mark.Label,
 		})
 		current.Average += float64(mark.Value)
 	}

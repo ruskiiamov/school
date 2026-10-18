@@ -27,6 +27,7 @@ type fixture struct {
 	student  int64
 	stranger int64
 	workType int64
+	another  int64
 }
 
 func newFixture(t *testing.T) fixture {
@@ -59,7 +60,7 @@ func newFixture(t *testing.T) fixture {
 
 	return fixture{
 		env: env, today: env.School.Today(), class: class, other: other, algebra: algebra, history: history,
-		teacher: teacher, student: student, stranger: stranger, workType: workTypes[0].ID,
+		teacher: teacher, student: student, stranger: stranger, workType: workTypes[0].ID, another: workTypes[1].ID,
 	}
 }
 

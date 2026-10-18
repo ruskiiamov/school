@@ -62,3 +62,40 @@ func TestUserNamesMigrationSplitsFullName(t *testing.T) {
 		assert.Equal(t, []string{tt.last, tt.first, tt.middle}, []string{user.LastName, user.FirstName, user.MiddleName}, tt.login)
 	}
 }
+
+func TestMarksMigrationAllowsOneMarkPerType(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	db, err := Open(ctx, config.DB{Path: filepath.Join(t.TempDir(), "test.db")})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+
+	provider, err := goose.NewProvider(goose.DialectSQLite3, db, migrations.FS)
+	require.NoError(t, err)
+
+	_, err = provider.Up(ctx)
+	require.NoError(t, err)
+
+	repo := NewMarkRepo(db)
+
+	_, err = repo.Create(ctx, Mark{LessonID: 1, StudentID: 1, WorkTypeID: 1, Value: 5})
+	require.NoError(t, err)
+
+	_, err = repo.Create(ctx, Mark{LessonID: 1, StudentID: 1, WorkTypeID: 1, Value: 4})
+	require.Error(t, err)
+
+	for _, mark := range []Mark{
+		{LessonID: 1, StudentID: 1, WorkTypeID: 2, Value: 4},
+		{LessonID: 1, StudentID: 2, WorkTypeID: 1, Value: 3},
+		{LessonID: 2, StudentID: 1, WorkTypeID: 1, Value: 2},
+	} {
+		_, err := repo.Create(ctx, mark)
+		require.NoError(t, err)
+	}
+
+	marks, err := repo.ListByLesson(ctx, 1)
+	require.NoError(t, err)
+	assert.Len(t, marks, 3)
+}

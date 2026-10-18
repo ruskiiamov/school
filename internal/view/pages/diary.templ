@@ -150,9 +150,6 @@ templ diaryLessonPanel(panel view.DiaryLessonPanel) {
 					<li class="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 sm:p-4">
 						<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-base font-semibold text-indigo-700">{ mark.Value }</span>
 						<span class="text-sm font-medium text-slate-900">{ mark.WorkType }</span>
-						if mark.Label != "" {
-							<span class="text-sm text-slate-600">{ mark.Label }</span>
-						}
 					</li>
 				}
 			</ul>

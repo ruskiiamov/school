@@ -187,3 +187,54 @@ func TestSubstitutionsHiddenFromOtherRoles(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, servertest.PostForm(t, env.Handler, substitutionsPath, url.Values{}, []*http.Cookie{teacher}, nil).Code)
 	servertest.AssertRedirect(t, servertest.Get(t, env.Handler, substitutionsPath), "/login")
 }
+
+func TestSubstitutionPeriodKeepsLessons(t *testing.T) {
+	t.Parallel()
+
+	env := servertest.New(t)
+	admin := servertest.Login(t, env.Handler)
+	ctx := t.Context()
+	today := env.School.Today()
+	day := func(offset int) string { return today.AddDate(0, 0, offset).Format(validation.DateLayout) }
+
+	class := createClass(t, env, admin, env.School.CurrentYear(), "7А")
+	algebra := createSubject(t, env, admin, "Алгебра")
+	viktor, _ := createUserVia(t, env, admin, "/admin/teachers", servertest.NameForm("Кузнецов Виктор"))
+
+	id, err := env.School.CreateSubstitution(ctx, school.SubstitutionInput{
+		ClassID: class, SubjectID: algebra, TeacherID: viktor, StartDate: day(-3),
+	})
+	require.NoError(t, err)
+
+	_, err = env.Journal.OpenLesson(ctx, viktor, env.School.CurrentYear(), today,
+		journal.OpenLessonInput{ClassID: class, SubjectID: algebra, Date: day(-1)})
+	require.NoError(t, err)
+
+	refused := []struct {
+		name  string
+		start string
+		end   string
+	}{
+		{"start after lesson", day(0), ""},
+		{"end before lesson", day(-3), day(-2)},
+	}
+
+	for _, tc := range refused {
+		recorder := servertest.PostForm(t, env.Handler, substitutionPath(id, ""),
+			url.Values{"start_date": {tc.start}, "end_date": {tc.end}}, []*http.Cookie{admin}, nil)
+		require.Equal(t, http.StatusOK, recorder.Code, tc.name)
+		assert.Contains(t, recorder.Body.String(), "По замене уже проведены уроки вне нового периода", tc.name)
+		assert.Contains(t, recorder.Body.String(), `action="`+substitutionPath(id, "")+`"`, tc.name)
+	}
+
+	substitution, err := env.School.SubstitutionByID(ctx, id)
+	require.NoError(t, err)
+	assert.Equal(t, day(-3), substitution.StartDate.Format(validation.DateLayout))
+	assert.True(t, substitution.EndDate.IsZero())
+
+	for _, period := range [][2]string{{day(-1), day(-1)}, {day(-5), day(2)}} {
+		recorder := servertest.PostForm(t, env.Handler, substitutionPath(id, ""),
+			url.Values{"start_date": {period[0]}, "end_date": {period[1]}}, []*http.Cookie{admin}, nil)
+		servertest.AssertRedirect(t, recorder, substitutionsPath)
+	}
+}

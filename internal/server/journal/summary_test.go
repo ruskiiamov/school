@@ -40,7 +40,7 @@ func TestTeacherSummaryGrid(t *testing.T) {
 	second := openLesson(t, f.env, teacher, f.class, f.subject, f.today.AddDate(0, 0, 1))
 	_, err = f.env.Journal.AddMark(ctx, f.teacher, first, maria, journalMarkInput(workTypes[0].ID, 5))
 	require.NoError(t, err)
-	_, err = f.env.Journal.AddMark(ctx, f.teacher, first, maria, journalMarkInput(workTypes[0].ID, 4))
+	_, err = f.env.Journal.AddMark(ctx, f.teacher, first, maria, journalMarkInput(workTypes[1].ID, 4))
 	require.NoError(t, err)
 	_, err = f.env.Journal.AddMark(ctx, f.teacher, second, maria, journalMarkInput(workTypes[0].ID, 3))
 	require.NoError(t, err)

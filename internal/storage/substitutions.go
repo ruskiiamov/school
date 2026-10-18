@@ -200,16 +200,25 @@ func (r *SubstitutionRepo) CoversDate(ctx context.Context, classID, subjectID, t
 	return covers, nil
 }
 
-func (r *SubstitutionRepo) HasLessons(ctx context.Context, id int64) (bool, error) {
-	const query = `SELECT EXISTS (
-		SELECT 1 FROM lessons l
+func (r *SubstitutionRepo) LessonDates(ctx context.Context, id int64) (time.Time, time.Time, error) {
+	const query = `SELECT MIN(l.date), MAX(l.date) FROM lessons l
 		JOIN substitutions s ON s.class_id = l.class_id AND s.subject_id = l.subject_id AND s.teacher_id = l.teacher_id
-		WHERE s.id = ? AND l.date >= s.start_date AND (s.end_date IS NULL OR l.date <= s.end_date))`
+		WHERE s.id = ? AND l.date >= s.start_date AND (s.end_date IS NULL OR l.date <= s.end_date)`
 
-	var exists bool
-	if err := r.db.QueryRowContext(ctx, query, id).Scan(&exists); err != nil {
-		return false, fmt.Errorf("check substitution lessons: %w", err)
+	var first, last sql.NullString
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(&first, &last); err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("select substitution lesson dates: %w", err)
 	}
 
-	return exists, nil
+	firstDate, err := fromNullDate(first)
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("select substitution lesson dates: %w", err)
+	}
+
+	lastDate, err := fromNullDate(last)
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("select substitution lesson dates: %w", err)
+	}
+
+	return firstDate, lastDate, nil
 }

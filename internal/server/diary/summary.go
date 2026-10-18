@@ -173,10 +173,5 @@ func (h *Handler) renderMarksPage(w http.ResponseWriter, r *http.Request, page v
 }
 
 func markTitle(mark journal.SummaryMark) string {
-	title := view.FormatShortDate(mark.Date) + " · " + mark.WorkTypeName
-	if mark.Label != "" {
-		title += " · " + mark.Label
-	}
-
-	return title
+	return view.FormatShortDate(mark.Date) + " · " + mark.WorkTypeName
 }

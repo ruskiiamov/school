@@ -212,7 +212,7 @@ func (h *Handler) adminLessonBlock(r *http.Request, lesson journal.Lesson) (view
 	}
 
 	for _, mark := range selected.Marks {
-		panel.Marks = append(panel.Marks, view.DiaryMark{Value: strconv.Itoa(mark.Value), WorkType: mark.WorkTypeName, Label: mark.Label})
+		panel.Marks = append(panel.Marks, view.DiaryMark{Value: strconv.Itoa(mark.Value), WorkType: mark.WorkTypeName})
 	}
 
 	block.Selected = &panel
