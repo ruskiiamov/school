@@ -18,7 +18,6 @@ import (
 const (
 	journalPath     = "/journal"
 	lessonsPath     = journalPath + "/lessons"
-	pairsPath       = journalPath + "/pairs"
 	homePath        = "/"
 	lessonsPageSize = 10
 )
@@ -38,6 +37,7 @@ func New(base *web.Base, authService *auth.Service, schoolService *school.Servic
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET "+journalPath, h.teacher(h.index))
 	mux.Handle("POST "+journalPath, h.teacher(h.open))
+	mux.Handle("GET "+journalPath+"/class/{class}/subject/{subject}", h.teacher(h.pairShow))
 	mux.Handle("GET "+lessonsPath+"/{id}", h.teacher(h.lessonShow))
 	mux.Handle("POST "+lessonsPath+"/{id}/topic", h.teacher(h.lessonTopic))
 	mux.Handle("POST "+lessonsPath+"/{id}/delete", h.teacher(h.lessonDelete))
@@ -135,7 +135,7 @@ func pairCard(pair journal.YearPair) view.PairCard {
 }
 
 func pairPath(classID, subjectID int64) string {
-	return pairsPath + "/" + strconv.FormatInt(classID, 10) + "/" + strconv.FormatInt(subjectID, 10)
+	return journalPath + "/class/" + strconv.FormatInt(classID, 10) + "/subject/" + strconv.FormatInt(subjectID, 10)
 }
 
 func teacherPairOptions(pairs []journal.Pair, selected string) []view.PairOption {

@@ -169,14 +169,9 @@ func (s *Service) LessonsByPair(ctx context.Context, classID, subjectID int64) (
 		return nil, nil, err
 	}
 
-	ids, err := s.homework.LessonIDsByPair(ctx, classID, subjectID)
+	withHomework, err := s.homeworkLessons(ctx, classID, subjectID)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	withHomework := make(map[int64]bool, len(ids))
-	for _, id := range ids {
-		withHomework[id] = true
 	}
 
 	lessons := make([]Lesson, 0, len(stored))

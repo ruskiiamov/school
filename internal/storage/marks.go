@@ -69,6 +69,20 @@ func (r *MarkRepo) ListByPairPeriod(ctx context.Context, classID, subjectID int6
 	return collectMarks(rows)
 }
 
+func (r *MarkRepo) ListByPair(ctx context.Context, classID, subjectID int64) ([]Mark, error) {
+	const query = "SELECT " + markColumns + ` FROM marks
+		WHERE lesson_id IN (SELECT id FROM lessons WHERE class_id = ? AND subject_id = ?)
+		ORDER BY id`
+
+	rows, err := r.db.QueryContext(ctx, query, classID, subjectID)
+	if err != nil {
+		return nil, fmt.Errorf("select pair marks: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	return collectMarks(rows)
+}
+
 type StudentMark struct {
 	Mark
 	SubjectID int64

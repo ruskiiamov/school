@@ -184,7 +184,7 @@ func TestHomeTeacherSeesPairsOfYear(t *testing.T) {
 	require.NoError(t, env.School.AssignTeacher(ctx, ninth, algebra, otherID))
 
 	pairHref := func(classID, subjectID int64) string {
-		return `href="/journal/pairs/` + strconv.FormatInt(classID, 10) + "/" + strconv.FormatInt(subjectID, 10) + `"`
+		return `href="/journal/class/` + strconv.FormatInt(classID, 10) + "/subject/" + strconv.FormatInt(subjectID, 10) + `"`
 	}
 
 	body = servertest.Get(t, env.Handler, "/", teacher).Body.String()

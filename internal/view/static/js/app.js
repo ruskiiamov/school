@@ -160,3 +160,42 @@
     }
   });
 })();
+
+(function () {
+  "use strict";
+
+  function measure(table) {
+    var scroller = table.parentElement;
+    var head = table.tHead;
+    var corner = head && head.rows[0] && head.rows[0].cells[0];
+
+    if (!corner || scroller.dataset.measured) {
+      return;
+    }
+
+    scroller.dataset.measured = "true";
+
+    function update() {
+      scroller.style.setProperty("--journal-head", head.offsetHeight + "px");
+      scroller.style.setProperty("--journal-side", corner.offsetWidth + "px");
+    }
+
+    update();
+
+    if (window.ResizeObserver) {
+      var observer = new ResizeObserver(update);
+      observer.observe(head);
+      observer.observe(corner);
+    }
+  }
+
+  function measureAll(root) {
+    root.querySelectorAll(".journal-table").forEach(measure);
+  }
+
+  measureAll(document);
+
+  document.addEventListener("htmx:load", function (event) {
+    measureAll(event.detail.elt);
+  });
+})();

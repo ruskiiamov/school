@@ -66,6 +66,24 @@ func (r *LessonStudentRepo) ListByPairPeriod(ctx context.Context, classID, subje
 	}
 	defer func() { _ = rows.Close() }()
 
+	return collectLessonStudents(rows)
+}
+
+func (r *LessonStudentRepo) ListByPair(ctx context.Context, classID, subjectID int64) ([]LessonStudent, error) {
+	const query = `SELECT lesson_id, student_id, absent, comment, updated_at FROM lesson_students
+		WHERE lesson_id IN (SELECT id FROM lessons WHERE class_id = ? AND subject_id = ?)
+		ORDER BY lesson_id, student_id`
+
+	rows, err := r.db.QueryContext(ctx, query, classID, subjectID)
+	if err != nil {
+		return nil, fmt.Errorf("select pair lesson students: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	return collectLessonStudents(rows)
+}
+
+func collectLessonStudents(rows *sql.Rows) ([]LessonStudent, error) {
 	var records []LessonStudent
 
 	for rows.Next() {

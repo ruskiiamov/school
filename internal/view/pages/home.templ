@@ -88,7 +88,6 @@ templ dashboardCardHeader(title, href, label string) {
 
 templ TeacherHome(home view.TeacherHome) {
 	<div id="teacher-home" class="flex flex-col gap-4 lg:gap-6">
-		@components.PageHint(hintTeacherHome)
 		<form
 			method="get"
 			action={ templ.SafeURL(home.Path) }

@@ -111,6 +111,47 @@ type PairCard struct {
 	OwnOnly bool
 }
 
+type PairJournalPage struct {
+	Shell    Shell
+	Title    string
+	BackHref string
+	Periods  string
+	Lessons  string
+	Table    JournalTable
+}
+
+type JournalTable struct {
+	Students []JournalStudentHead
+	Rows     []JournalRow
+}
+
+type JournalStudentHead struct {
+	LastName  string
+	FirstName string
+	FullName  string
+	Active    bool
+	InClass   bool
+	Average   string
+	Absences  int
+}
+
+type JournalRow struct {
+	Anchor    string
+	Date      string
+	ShortDate string
+	Topic     string
+	Homework  bool
+	Author    string
+	Cells     []JournalCell
+}
+
+type JournalCell struct {
+	Href    string
+	Text    string
+	Title   string
+	Comment bool
+}
+
 type StudentDashboard struct {
 	DiaryHref string
 	MarksHref string

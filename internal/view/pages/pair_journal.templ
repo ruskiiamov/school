@@ -1,0 +1,142 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+templ PairJournal(page view.PairJournalPage) {
+	@layout.App(page.Shell) {
+		<div class="flex h-[calc(100dvh-6.5rem-1px)] flex-col gap-4 lg:h-[calc(100dvh-8rem-1px)] lg:gap-6">
+			@components.PageHeader(page.Title) {
+				<a href={ templ.SafeURL(page.BackHref) } class="text-sm font-medium text-indigo-700 hover:underline">← Главная</a>
+			}
+			@components.PageHelp("Как работать с журналом") {
+				<p>В ячейке — оценки ученика за урок по порядку типов работ, «Н» — отсутствовал, точка — есть комментарий учителя. Если навести курсор на ячейку, появится расшифровка</p>
+				<p>Нажмите на ячейку, чтобы поставить или исправить оценки, отметить отсутствие и написать комментарий</p>
+				<p>Метка «ДЗ» зелёная с галочкой, если домашнее задание уже задано. Задание задаётся на странице урока: она открывается по любой ячейке строки</p>
+				<p>Уроки, которые провёл заменяющий учитель, подписаны «замена» с его фамилией</p>
+			}
+			if len(page.Table.Rows) > 0 || page.Periods != "" {
+				<p class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+					if len(page.Table.Rows) > 0 {
+						<span class="font-semibold text-slate-900">Всего: { page.Lessons }</span>
+					}
+					if page.Periods != "" {
+						<span class="text-slate-700">{ page.Periods }</span>
+					}
+				</p>
+			}
+			<section class={ components.CardClass, "flex min-h-0 flex-col" }>
+				if len(page.Table.Rows) == 0 {
+					@components.EmptyState("Уроков пока нет")
+				} else if len(page.Table.Students) == 0 {
+					@components.EmptyState("В классе пока нет учеников")
+				} else {
+					@journalTable(page.Table)
+				}
+			</section>
+		</div>
+	}
+}
+
+templ journalTable(table view.JournalTable) {
+	<div class="journal-scroll min-h-0 flex-1 scroll-pt-[var(--journal-head,15rem)] overflow-auto rounded-xl">
+		<table class="journal-table w-full border-separate border-spacing-0 text-sm">
+			<thead>
+				<tr>
+					<td class="sticky top-0 left-0 z-30 w-px border-b border-slate-200 bg-white"></td>
+					for _, student := range table.Students {
+						@journalStudentHead(student)
+					}
+				</tr>
+			</thead>
+			<tbody>
+				for _, row := range table.Rows {
+					@journalRow(row)
+				}
+			</tbody>
+		</table>
+	</div>
+}
+
+templ journalStudentHead(student view.JournalStudentHead) {
+	<th scope="col" title={ studentTitle(student) } class="sticky top-0 z-20 border-b border-l border-slate-200 bg-white px-1 py-2 align-bottom">
+		<span class="flex flex-col items-center gap-1">
+			<span
+				class={ "mx-auto flex min-w-16 flex-col text-xs leading-tight font-medium whitespace-nowrap sm:min-w-[4.5rem] sm:text-sm",
+					templ.KV("text-slate-900", student.Active && student.InClass),
+					templ.KV("text-slate-400", !student.Active),
+					templ.KV("text-amber-700", student.Active && !student.InClass) }
+			>
+				<span>{ student.LastName }</span>
+				<span>{ student.FirstName }</span>
+			</span>
+			<span class="mt-1 flex w-full flex-col items-center gap-0.5 border-t border-slate-200 pt-1.5">
+				<span title="Средний балл за учебный год" class="text-xs font-semibold text-slate-900 tabular-nums">{ student.Average }</span>
+				<span title="Пропуски за учебный год" class="text-xs text-slate-500 tabular-nums">{ student.Absences }</span>
+			</span>
+		</span>
+	</th>
+}
+
+func studentTitle(student view.JournalStudentHead) string {
+	title := student.FullName
+	if !student.Active {
+		title += " (удалён)"
+	}
+
+	if !student.InClass {
+		title += " (не в классе)"
+	}
+
+	return title
+}
+
+templ journalRow(row view.JournalRow) {
+	<tr id={ row.Anchor }>
+		<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-100 bg-white px-3 py-2 text-left font-normal whitespace-nowrap">
+			<span class="flex items-center gap-3">
+				<span class="font-medium whitespace-nowrap text-slate-900 tabular-nums">
+					<span class="sm:hidden">{ row.ShortDate }</span>
+					<span class="hidden sm:inline">{ row.Date }</span>
+				</span>
+				<span class="hidden w-40 truncate text-slate-700 sm:block xl:w-52" title={ row.Topic }>{ row.Topic }</span>
+				@homeworkBadge(row.Homework)
+			</span>
+			if row.Author != "" {
+				<span class="mt-0.5 block text-xs whitespace-nowrap text-slate-500" title={ "замена · " + row.Author }>
+					<span class="sm:hidden">зам.</span>
+					<span class="hidden sm:inline">замена · { row.Author }</span>
+				</span>
+			}
+		</th>
+		for _, cell := range row.Cells {
+			<td>
+				<a
+					href={ templ.SafeURL(cell.Href) }
+					if cell.Title != "" {
+						title={ cell.Title }
+					}
+				>
+					{ cell.Text }
+					if cell.Comment {
+						<span>•</span>
+					}
+				</a>
+			</td>
+		}
+	</tr>
+}
+
+templ homeworkBadge(set bool) {
+	if set {
+		<span class="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+			@components.Icon(view.IconCheck, "size-3.5")
+			ДЗ
+		</span>
+	} else {
+		<span class="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">ДЗ</span>
+	}
+}
