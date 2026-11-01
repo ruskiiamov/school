@@ -5,3 +5,4 @@
 *_templ.go
 /internal/view/static/css/app.css
 /dist/
+/docs/
