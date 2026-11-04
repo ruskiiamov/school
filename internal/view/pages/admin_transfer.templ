@@ -94,7 +94,7 @@ templ transferStudent(key string, student view.TransferStudentRow) {
 			if !student.Active {
 				@components.InactiveBadge()
 			} else {
-				<span class="text-xs">уже в { student.CurrentClass }</span>
+				<span class="text-xs">уже в { student.CurrentClass } классе</span>
 			}
 		</span>
 	}

@@ -219,9 +219,9 @@ func (h *Handler) renderClassCard(w http.ResponseWriter, r *http.Request, class 
 	}
 
 	page := view.ClassPage{
-		Shell:       h.base.Shell(r, class.Name, classesPath),
+		Shell:       h.base.Shell(r, view.ClassTitle(class.Name), classesPath),
 		ID:          class.ID,
-		Name:        class.Name,
+		Name:        view.ClassTitle(class.Name),
 		YearName:    school.YearName(class.Year),
 		Active:      class.Active,
 		Students:    students,

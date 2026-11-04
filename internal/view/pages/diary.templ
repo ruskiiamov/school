@@ -22,7 +22,7 @@ templ Diary(page view.DiaryPage) {
 					<a href={ templ.SafeURL(page.BackHref) } class={ components.ButtonSecondaryClass }>К поиску</a>
 				}
 			}
-			@components.PageHint(hintDiary)
+			@components.PageHint("Что в дневнике", hintDiary)
 			@DiaryContent(page)
 		</div>
 	}

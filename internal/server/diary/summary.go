@@ -146,12 +146,12 @@ func subjectRows(summary journal.StudentSummary, diary diaryView) []view.Subject
 		row := view.SubjectMarksRow{
 			Name:     subject.SubjectName,
 			Absences: strconv.Itoa(subject.Absences),
-			Average:  view.FormatAverage(subject.Average, len(subject.Marks)),
+			Average:  view.FormatAverage(subject.Average, subject.Graded),
 		}
 
 		for _, mark := range subject.Marks {
 			row.Marks = append(row.Marks, view.MarkChip{
-				Value: view.FormatMark(mark.Value),
+				Value: markChipValue(mark.Value),
 				Title: markTitle(mark),
 				Href:  diaryURL(diary, mark.Date, mark.LessonID),
 			})
@@ -170,6 +170,16 @@ func (h *Handler) renderMarksPage(w http.ResponseWriter, r *http.Request, page v
 	}
 
 	h.base.Render(w, r, pages.Marks(page))
+}
+
+// markChipValue — у комментария без оценки вместо значения «—», как в
+// дневнике (D-116).
+func markChipValue(value string) string {
+	if !journal.Graded(value) {
+		return "—"
+	}
+
+	return view.FormatMark(value)
 }
 
 func markTitle(mark journal.SummaryMark) string {

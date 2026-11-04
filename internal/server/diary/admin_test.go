@@ -35,7 +35,7 @@ func TestAdminDiarySearchAndOpen(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	assert.Contains(t, body, `id="diary-search"`)
 	assert.Contains(t, body, "Иванова Мария Петровна")
-	assert.Contains(t, body, ">7А<")
+	assert.Contains(t, body, ">7А класс<")
 	assert.Contains(t, body, `href="/admin/diary/`+idValue(f.student)+`?q=%D0%B8%D0%B2%D0%B0%D0%BD%D0%BE%D0%B2%D0%B0&amp;year=`+f.year()+`"`)
 	assert.NotContains(t, body, "Иванова Ушедшая Петровна")
 	assert.NotContains(t, body, "Чужой Ученик")

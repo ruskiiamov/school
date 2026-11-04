@@ -155,7 +155,7 @@ func (h *Handler) entryView(r *http.Request, lessonID, studentID int64, form ent
 	}
 
 	if settings.Enabled && entry.Debt > 0 {
-		result.Debt = settings.Name + " — долг, " + settings.Unit + ": " + strconv.Itoa(entry.Debt)
+		result.Debt = settings.Name + " — долг: " + view.FormatPoints(settings.Unit, entry.Debt)
 	}
 
 	if len(result.Rows) == 0 {

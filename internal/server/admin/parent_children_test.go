@@ -65,7 +65,7 @@ func TestParentChildrenInEditRow(t *testing.T) {
 	search := servertest.Get(t, env.Handler, parentsURL(parent, query), admin).Body.String()
 	assert.Contains(t, search, "Иванов Пётр")
 	assert.Contains(t, search, "Иванова Анна")
-	assert.Contains(t, search, ">7А</span>")
+	assert.Contains(t, search, ">7А класс</span>")
 	assert.Contains(t, search, `name="student_id" value="`+strconv.FormatInt(petr, 10)+`"`)
 	assert.Contains(t, search, `action="`+attr(childrenPath(parent, "", query))+`"`)
 	assert.NotContains(t, search, "Петров Иван")

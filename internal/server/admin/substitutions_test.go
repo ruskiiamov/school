@@ -55,7 +55,7 @@ func TestSubstitutionsCreateEditDelete(t *testing.T) {
 
 	body := servertest.Get(t, env.Handler, substitutionsPath, admin).Body.String()
 	assert.Contains(t, body, "Пока нет замен")
-	assert.Contains(t, body, `value="`+strconv.FormatInt(class, 10)+`">7А<`)
+	assert.Contains(t, body, `value="`+strconv.FormatInt(class, 10)+`">7А класс<`)
 	assert.Contains(t, body, `value="`+strconv.FormatInt(algebra, 10)+`">Алгебра<`)
 	assert.Contains(t, body, `value="`+strconv.FormatInt(viktor, 10)+`">Кузнецов Виктор<`)
 	assert.NotContains(t, body, "Ушедший Учитель")
@@ -103,7 +103,7 @@ func TestSubstitutionsCreateEditDelete(t *testing.T) {
 	edit := servertest.Get(t, env.Handler, substitutionsPath+"?edit="+strconv.FormatInt(id, 10), admin).Body.String()
 	assert.Contains(t, edit, `name="start_date" value="`+today.Format(validation.InputDateLayout)+`"`)
 	assert.Contains(t, edit, `action="`+substitutionPath(id, "")+`"`)
-	assert.Contains(t, edit, `hx-confirm="Удалить замену Кузнецов Виктор, 7А · Алгебра?"`)
+	assert.Contains(t, edit, `hx-confirm="Удалить замену Кузнецов Виктор, 7А класс · Алгебра?"`)
 	assert.Contains(t, edit, `formaction="`+substitutionPath(id, "/delete")+`"`)
 
 	yesterday := today.AddDate(0, 0, -1)

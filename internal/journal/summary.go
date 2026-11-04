@@ -16,6 +16,8 @@ type SubjectSummary struct {
 	Marks       []SummaryMark
 	Absences    int
 	Average     float64
+	// Graded — число оценок в среднем, без комментариев без оценки.
+	Graded int
 }
 
 type SummaryMark struct {
@@ -80,7 +82,10 @@ func (s *Service) StudentSummary(ctx context.Context, studentID int64, from, to 
 			Comment:      mark.Comment,
 			WorkTypeName: workTypeNames[mark.WorkTypeID],
 		})
-		current.Average += MarkPoints(mark.Value)
+		if Graded(mark.Value) {
+			current.Graded++
+			current.Average += MarkPoints(mark.Value)
+		}
 	}
 
 	for subjectID, count := range absences {
@@ -88,8 +93,8 @@ func (s *Service) StudentSummary(ctx context.Context, studentID int64, from, to 
 	}
 
 	for i := range rows {
-		if len(rows[i].Marks) > 0 {
-			rows[i].Average /= float64(len(rows[i].Marks))
+		if rows[i].Graded > 0 {
+			rows[i].Average /= float64(rows[i].Graded)
 		}
 	}
 

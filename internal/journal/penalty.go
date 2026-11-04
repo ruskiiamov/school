@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -198,9 +198,9 @@ func (s *Service) PenaltyHistory(ctx context.Context, studentID int64) (PenaltyH
 		})
 	}
 
-	sort.SliceStable(history.Penalties, func(i, j int) bool {
-		return history.Penalties[i].Date.After(history.Penalties[j].Date)
-	})
+	// Новые сверху — ровно обратный порядок погашения, иначе внутри одного
+	// дня погашенное оказывается над непогашенным (D-115).
+	slices.Reverse(history.Penalties)
 
 	workoffs, err := s.workoffs.ListByStudent(ctx, studentID)
 	if err != nil {

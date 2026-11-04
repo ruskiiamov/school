@@ -54,6 +54,7 @@ type NavItem struct {
 type Shell struct {
 	Title      string
 	SchoolName string
+	Version    string
 	User       User
 	Nav        []NavItem
 }
@@ -255,6 +256,7 @@ type JournalStudentHead struct {
 type JournalRow struct {
 	Anchor       string
 	Date         string
+	Day          string
 	Topic        string
 	Homework     bool
 	CardHref     string
@@ -320,6 +322,7 @@ type LessonMarksStudent struct {
 type JournalRowEdit struct {
 	DateAction  string
 	DateValue   string
+	DateISO     string
 	DateError   string
 	TopicAction string
 	TopicID     string
@@ -612,6 +615,7 @@ type UsersPage struct {
 	Shell        Shell
 	Title        string
 	Hint         string
+	HintTitle    string
 	Path         string
 	ListQuery    string
 	Query        string

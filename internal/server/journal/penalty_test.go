@@ -107,11 +107,11 @@ func TestMarksEntrySavesPenalty(t *testing.T) {
 
 	body = servertest.Get(t, f.env.Handler, path, f.cookie).Body.String()
 	assert.Contains(t, body, `value="30"`)
-	assert.Contains(t, body, "м²: 14")
-	assert.Contains(t, body, "Мытьё полов — долг, м²: 14")
+	assert.Contains(t, body, "14 м²")
+	assert.Contains(t, body, "Мытьё полов — долг: 14 м²")
 
 	journalBody := servertest.Get(t, f.env.Handler, pairPath(f.class, f.subject), f.cookie).Body.String()
-	assert.Contains(t, journalBody, "Домашняя работа: выполнено 30 %, м²: 14")
+	assert.Contains(t, journalBody, "Домашняя работа: выполнено 30 %, 14 м²")
 	assert.Contains(t, journalBody, `<span class="text-amber-600">%</span>`)
 
 	recorder = servertest.PostForm(t, f.env.Handler, path, url.Values{field: {"100"}}, []*http.Cookie{f.cookie}, nil)
@@ -190,7 +190,7 @@ func TestPaidPenaltyIsLocked(t *testing.T) {
 
 	path := entryPath(f.lesson, f.maria)
 	body := servertest.Get(t, f.env.Handler, path, f.cookie).Body.String()
-	assert.Contains(t, body, "0 % · м²: 20 · частично")
+	assert.Contains(t, body, "0 % · 20 м² · частично")
 	assert.NotContains(t, body, `name="`+journal.EntryDoneKey(f.homework)+`"`)
 
 	recorder := servertest.PostForm(t, f.env.Handler, path, url.Values{journal.EntryDoneKey(f.homework): {"50"}}, []*http.Cookie{f.cookie}, nil)
@@ -228,7 +228,7 @@ func TestAdminJournalsShowPenalties(t *testing.T) {
 
 	entry := servertest.Get(t, f.env.Handler, "/admin/journals/lessons/"+strconv.FormatInt(f.lesson, 10)+"/students/"+strconv.FormatInt(f.maria, 10), admin)
 	require.Equal(t, http.StatusOK, entry.Code)
-	assert.Contains(t, entry.Body.String(), "Выполнено 30 % · м²: 14 · не погашено")
+	assert.Contains(t, entry.Body.String(), "Выполнено 30 % · 14 м² · не погашено")
 
 	marks := servertest.Get(t, f.env.Handler, "/admin/journals/lessons/"+strconv.FormatInt(f.lesson, 10)+"/marks", admin, cellHeaders())
 	require.Equal(t, http.StatusOK, marks.Code)

@@ -30,10 +30,10 @@ func NavItems(role, active, penalties string) []NavItem {
 		}
 
 		items = append(items,
-			NavItem{Title: "Штрафы", Href: "/admin/penalties", Icon: IconSettings, Group: groupSchool},
 			NavItem{Title: "Предметы", Href: "/admin/subjects", Icon: IconSubjects, Group: groupCatalogs},
 			NavItem{Title: "Журналы", Href: "/admin/journals", Icon: IconTable, Group: groupReading},
 			NavItem{Title: "Дневники", Href: "/admin/diary", Icon: IconDiary, Group: groupReading},
+			NavItem{Title: "Штрафы", Href: "/admin/penalties", Icon: IconSettings, Group: groupService},
 			NavItem{Title: "Сброс пароля", Href: "/admin/password-reset", Icon: IconKey, Group: groupService},
 			NavItem{Title: "Резервная копия", Href: "/admin/backup", Icon: IconArchive, Group: groupService},
 		)

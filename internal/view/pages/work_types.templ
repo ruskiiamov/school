@@ -16,7 +16,7 @@ templ WorkTypes(page view.WorkTypesPage) {
 					@components.InactiveToggle(inactiveToggleURL(page.Base, page.ShowInactive), page.ShowInactive)
 				}
 			}
-			@components.PageHint(hintWorkTypes)
+			@components.PageHint("Как устроены типы работ", hintWorkTypes)
 			if len(page.Subjects) == 0 {
 				<div class={ components.CardClass }>
 					@components.EmptyState("Вам пока не назначены предметы")

@@ -108,7 +108,7 @@ func TestDebtorsList(t *testing.T) {
 	assert.Contains(t, body, "Мытьё полов")
 	assert.Contains(t, body, "Откройте ученика, чтобы записать отработку")
 	assert.Contains(t, body, "Иванова Мария Петровна")
-	assert.Contains(t, body, "Долг, м²: 14")
+	assert.Contains(t, body, "Долг: 14 м²")
 	assert.NotContains(t, body, "Козлов Пётр Ильич")
 	assert.Contains(t, body, `href="`+studentPath(f.maria, "?year="+f.year)+`"`)
 
@@ -131,7 +131,7 @@ func TestWorkoffRecorded(t *testing.T) {
 
 	page := servertest.Get(t, f.env.Handler, studentPath(f.maria, ""), teacher).Body.String()
 	assert.Contains(t, page, "Иванова Мария Петровна · 7А")
-	assert.Contains(t, page, "Долг, м²: 20")
+	assert.Contains(t, page, "Долг: 20 м²")
 	assert.Contains(t, page, `value="`+today+`"`)
 	assert.Contains(t, page, "не погашено")
 
@@ -140,8 +140,8 @@ func TestWorkoffRecorded(t *testing.T) {
 	servertest.AssertRedirect(t, recorder, studentPath(f.maria, "?year="+f.year))
 
 	page = servertest.Get(t, f.env.Handler, studentPath(f.maria, ""), teacher).Body.String()
-	assert.Contains(t, page, "Долг, м²: 4")
-	assert.Contains(t, page, "м²: 16")
+	assert.Contains(t, page, "Долг: 4 м²")
+	assert.Contains(t, page, "16 м²")
 	assert.Contains(t, page, "Сидорова А. А.")
 	assert.Contains(t, page, "коридор 2 этажа")
 	assert.Contains(t, page, "частично")
@@ -217,6 +217,27 @@ func TestWorkoffCoversOlderLessonFirst(t *testing.T) {
 	assert.Equal(t, older, history.Penalties[1].LessonID)
 	assert.Equal(t, journal.PenaltyPaid, history.Penalties[1].Status)
 	assert.Equal(t, 10, history.Debt)
+}
+
+func TestHistorySameDayNewestFirst(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t)
+	classwork, err := f.env.Journal.CreateWorkType(t.Context(), f.teacher, f.subject, "Классная работа", true)
+	require.NoError(t, err)
+
+	f.env.SetPenalty(t, f.teacher, f.lesson, f.maria, classwork, "0")
+	f.env.SetPenalty(t, f.teacher, f.lesson, f.maria, f.homework, "50")
+	f.env.AddWorkoff(t, f.teacher, f.maria, "5")
+
+	history, err := f.env.Journal.PenaltyHistory(t.Context(), f.maria)
+	require.NoError(t, err)
+	require.Len(t, history.Penalties, 2)
+
+	assert.Equal(t, "Домашняя работа", history.Penalties[0].WorkTypeName)
+	assert.Equal(t, journal.PenaltyOpen, history.Penalties[0].Status)
+	assert.Equal(t, "Классная работа", history.Penalties[1].WorkTypeName)
+	assert.Equal(t, journal.PenaltyPartial, history.Penalties[1].Status)
 }
 
 func TestWorkoffDelete(t *testing.T) {

@@ -21,7 +21,7 @@ templ Penalties(page view.PenaltiesPage) {
 templ PenaltiesContent(page view.PenaltiesPage) {
 	<div id="penalties" class="flex flex-col gap-4 lg:gap-6">
 		@components.PageHeader(page.Title)
-		@components.PageHint(hintPenalties)
+		@components.PageHint("Как работать с долгами", hintPenalties)
 		<form
 			method="get"
 			action={ templ.SafeURL(page.Path) }
@@ -192,7 +192,7 @@ templ DiaryPenalties(page view.DiaryPenaltiesPage) {
 					<a href={ templ.SafeURL(page.BackHref) } class={ components.ButtonSecondaryClass }>К дневнику</a>
 				}
 			}
-			@components.PageHint(hintDiaryPenalties)
+			@components.PageHint("Как гасится долг", hintDiaryPenalties)
 			if page.NoChildren {
 				<div class={ components.CardClass }>
 					@components.EmptyState("К вашему аккаунту не привязаны дети")

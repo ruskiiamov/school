@@ -31,10 +31,10 @@ func TestPairJournalTable(t *testing.T) {
 	teacher := f.env.LoginAs(t, "teacher")
 
 	body := servertest.Get(t, f.env.Handler, pairPath(f.class, f.subject), teacher).Body.String()
-	assert.Contains(t, body, "7А · Алгебра · "+school.YearName(f.env.School.CurrentYear()))
+	assert.Contains(t, body, "7А класс · Алгебра · "+school.YearName(f.env.School.CurrentYear()))
 	assert.Contains(t, body, `href="/" class`)
 	assert.Contains(t, body, "Уроков пока нет")
-	assert.Contains(t, body, "Всего: 0 уроков")
+	assert.Contains(t, body, "Всего: </span>0 уроков")
 
 	maria := createUser(t, f.env, auth.RoleStudent, "maria", "Иванова Мария Петровна")
 	petr := createUser(t, f.env, auth.RoleStudent, "petr", "Козлов Пётр Ильич")
@@ -62,11 +62,11 @@ func TestPairJournalTable(t *testing.T) {
 
 	body = servertest.Get(t, f.env.Handler, pairPath(f.class, f.subject), teacher).Body.String()
 	assert.NotContains(t, body, "Уроков пока нет")
-	assert.Contains(t, body, "Всего: 2 урока")
+	assert.Contains(t, body, "Всего: </span>2 урока")
 	assert.Contains(t, body, "Как работать с журналом")
 	assert.Contains(t, body, `id="lesson-`+strconv.FormatInt(today, 10)+`"`)
 	assert.Less(t, strings.Index(body, `id="lesson-`+strconv.FormatInt(today, 10)+`"`), strings.Index(body, `id="lesson-`+strconv.FormatInt(earlier, 10)+`"`))
-	assert.Contains(t, body, `name="date" value="`+inputDate(f.today)+`"`)
+	assert.Contains(t, body, `name="date" value="`+view.FormatDayMonth(f.today)+`"`)
 	assert.Contains(t, body, "Квадратные уравнения")
 
 	assert.Less(t, strings.Index(body, "<span>Иванова</span> <span>Мария</span>"), strings.Index(body, "<span>Козлов</span> <span>Пётр</span>"))
@@ -169,7 +169,7 @@ func TestPairJournalLessons(t *testing.T) {
 	require.Equal(t, http.StatusOK, fragment.Code)
 	assert.Contains(t, fragment.Body.String(), `id="journal-content"`)
 	assert.Contains(t, fragment.Body.String(), "data-highlight")
-	assert.Contains(t, fragment.Body.String(), "Всего: 2 урока")
+	assert.Contains(t, fragment.Body.String(), "Всего: </span>2 урока")
 	assert.NotContains(t, fragment.Body.String(), "<html")
 
 	cases := []struct {
@@ -208,7 +208,18 @@ func TestPairJournalLessons(t *testing.T) {
 	conflict := servertest.PostForm(t, f.env.Handler, lessonPath(today, "/date"), url.Values{"date": {dateValue(f.today.AddDate(0, 0, -1))}}, []*http.Cookie{teacher}, htmx)
 	require.Equal(t, http.StatusOK, conflict.Code)
 	assert.Contains(t, conflict.Body.String(), "Урок на "+view.FormatShortDate(f.today.AddDate(0, 0, -1))+" уже есть")
-	assert.Contains(t, conflict.Body.String(), `value="`+inputDate(f.today.AddDate(0, 0, -1))+`" aria-label="Дата урока"`)
+	assert.Contains(t, conflict.Body.String(), `value="`+view.FormatDayMonth(f.today.AddDate(0, 0, -1))+`" aria-label="Дата урока"`)
+
+	// Дата без года (D-119): год берётся из учебного года журнала
+	movedAgain := f.today.AddDate(0, 0, -4)
+	short := servertest.PostForm(t, f.env.Handler, lessonPath(today, "/date"), url.Values{"date": {view.FormatDayMonth(movedAgain)}}, []*http.Cookie{teacher}, htmx)
+	require.Equal(t, http.StatusOK, short.Code)
+	lesson, err = f.env.Journal.LessonForTeacher(ctx, f.teacher, today)
+	require.NoError(t, err)
+	assert.True(t, lesson.Date.Equal(movedAgain))
+
+	recorder = servertest.PostForm(t, f.env.Handler, lessonPath(today, "/date"), url.Values{"date": {view.FormatDayMonth(moved)}}, []*http.Cookie{teacher}, nil)
+	servertest.AssertRedirect(t, recorder, path+"#lesson-"+strconv.FormatInt(today, 10))
 
 	same := servertest.PostForm(t, f.env.Handler, lessonPath(today, "/date"), url.Values{"date": {dateValue(moved)}}, []*http.Cookie{teacher}, htmx)
 	require.Equal(t, http.StatusOK, same.Code)
@@ -218,7 +229,7 @@ func TestPairJournalLessons(t *testing.T) {
 	refused := servertest.PostForm(t, f.env.Handler, lessonPath(today, "/date"), url.Values{"date": {""}}, []*http.Cookie{teacher}, htmx)
 	require.Equal(t, http.StatusOK, refused.Code)
 	assert.Contains(t, refused.Body.String(), "Урок с оценками или записями удалить нельзя")
-	assert.Contains(t, refused.Body.String(), `value="`+inputDate(moved)+`" aria-label="Дата урока"`)
+	assert.Contains(t, refused.Body.String(), `value="`+view.FormatDayMonth(moved)+`" aria-label="Дата урока"`)
 
 	lessons = pairLessons(t, f)
 	require.Len(t, lessons, 2)
@@ -232,7 +243,7 @@ func TestPairJournalLessons(t *testing.T) {
 
 	cleared := servertest.PostForm(t, f.env.Handler, lessonPath(empty, "/date"), url.Values{"date": {""}}, []*http.Cookie{teacher}, htmx)
 	require.Equal(t, http.StatusOK, cleared.Code)
-	assert.Contains(t, cleared.Body.String(), "Всего: 1 урок")
+	assert.Contains(t, cleared.Body.String(), "Всего: </span>1 урок")
 	assert.NotContains(t, cleared.Body.String(), `id="lesson-`+strconv.FormatInt(empty, 10)+`"`)
 
 	_, err = f.env.Journal.LessonForTeacher(ctx, f.teacher, empty)

@@ -15,7 +15,7 @@ const (
 
 templ PairJournal(page view.PairJournalPage) {
 	@layout.App(page.Shell) {
-		<div class="flex h-[calc(100dvh-6.5rem-1px)] flex-col gap-4 lg:h-[calc(100dvh-8rem-1px)] lg:gap-6">
+		<div class="flex h-[calc(100dvh-6.5rem-1px)] flex-col gap-4 lg:h-[calc(100dvh-8rem-1px)] lg:gap-6 short:h-auto">
 			@components.PageHeader(page.Title) {
 				<a href={ templ.SafeURL(page.BackHref) } class="text-sm font-medium text-indigo-700 hover:underline">← Главная</a>
 			}
@@ -27,7 +27,7 @@ templ PairJournal(page view.PairJournalPage) {
 				<p>Перед первой оценкой заведите типы работ: в разделе «Типы работ» или в строке «Новый тип работы» под раскрытым уроком</p>
 				<p>Оценку и комментарий одному ученику — нажмите на ячейку</p>
 				<p>Чтобы поставить оценки всему классу, нажмите стрелку у урока: под ним откроются строки типов работ</p>
-				<p>Новый урок — введите его дату в первой строке таблицы</p>
+				<p>Новый урок — дата в первой строке таблицы: введите её или выберите в календаре</p>
 				<p>Чтобы удалить урок без оценок и записей, сотрите его дату</p>
 			}
 			@PairJournalContent(page.Content, false)
@@ -61,7 +61,7 @@ templ PairJournalContent(content view.PairJournalContent, oob bool) {
 		if oob {
 			hx-swap-oob="true"
 		}
-		class="flex min-h-0 flex-1 flex-col gap-4 lg:gap-6"
+		class="flex min-h-0 flex-1 flex-col gap-4 lg:gap-6 short:h-[calc(100dvh-5rem)] short:flex-none"
 	>
 		if content.Periods != "" {
 			<p class="text-sm text-slate-700">{ content.Periods }</p>
@@ -77,7 +77,7 @@ templ journalTable(content view.PairJournalContent) {
 		<table class="journal-table w-full border-separate border-spacing-0 text-sm">
 			<thead>
 				<tr>
-					<td class="sticky top-0 left-0 z-30 w-px border-b border-slate-200 bg-white px-5 align-middle text-sm font-semibold whitespace-nowrap text-slate-900">Всего: { content.Lessons }</td>
+					<td class="sticky top-0 left-0 z-30 w-px border-b border-slate-200 bg-white px-3 align-middle sm:px-5 text-sm font-semibold whitespace-nowrap text-slate-900"><span class="max-sm:hidden">Всего: </span>{ content.Lessons }</td>
 					for _, student := range content.Table.Students {
 						@journalStudentHead(student, false)
 					}
@@ -122,7 +122,7 @@ templ newLessonRow(form view.NewLessonForm, cells int) {
 				hx-sync="this:drop"
 				class="flex items-center gap-2"
 			>
-				@components.DateInput("date", form.Date, "Дата нового урока", components.InputCompactClassFor(form.Error)+" w-[8.25rem] font-medium", templ.Attributes{"id": "new-lesson-date", "title": "Новый урок"})
+				@components.DatePickButton("date", form.Date, "Дата нового урока", "ДД.ММ", "Новый", components.InputCompactClassFor(form.Error)+" w-[5.5rem] font-medium sm:w-[6.5rem]", templ.Attributes{"id": "new-lesson-date", "title": "Новый урок"})
 				@components.NoScriptSubmit("Добавить")
 			</form>
 			if form.Error != "" {
@@ -202,42 +202,44 @@ templ journalLessonRow(row view.JournalRow, oob bool) {
 		data-highlight?={ row.Highlight }
 	>
 		<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-100 bg-white px-3 py-1 text-left font-normal whitespace-nowrap">
-			<span class="flex items-center gap-1">
-				if row.Edit != nil {
-					<form
-						method="post"
-						action={ templ.SafeURL(row.Edit.DateAction) }
-						hx-post={ row.Edit.DateAction }
-						hx-target={ "#" + journalContentID }
-						hx-swap="outerHTML"
-						hx-trigger="submit, change"
-						hx-sync="this:drop"
-						data-confirm-empty={ "Удалить урок " + row.Date + "?" }
-						class="quiet-date"
-					>
-						@components.DateInput("date", row.Edit.DateValue, "Дата урока", components.InputQuietClassFor(row.Edit.DateError)+" w-[8.25rem] font-medium", nil)
-					</form>
-					@JournalTopic(*row.Edit, row.Topic)
-				} else {
-					<span class="px-2 font-medium text-slate-900 tabular-nums">{ row.Date }</span>
-					<span class="ml-2 hidden w-54 truncate text-slate-700 sm:block" title={ row.Topic }>{ row.Topic }</span>
-				}
-				<span class="ml-2">
+			<span class="flex flex-col items-start sm:flex-row sm:items-center sm:gap-1">
+				<span class="flex items-center gap-1">
+					if row.Edit != nil {
+						<form
+							method="post"
+							action={ templ.SafeURL(row.Edit.DateAction) }
+							hx-post={ row.Edit.DateAction }
+							hx-target={ "#" + journalContentID }
+							hx-swap="outerHTML"
+							hx-trigger="submit, change"
+							hx-sync="this:drop"
+							data-confirm-empty={ "Удалить урок " + row.Date + "?" }
+							class="quiet-date"
+						>
+							@components.DateInput("date", row.Edit.DateValue, "Дата урока", components.InputQuietClassFor(row.Edit.DateError)+" w-[5.5rem] font-medium", templ.Attributes{"data-date-iso": row.Edit.DateISO})
+						</form>
+						@JournalTopic(*row.Edit, row.Topic)
+					} else {
+						<span class="px-2 font-medium text-slate-900 tabular-nums" title={ row.Date }>{ row.Day }</span>
+						<span class="ml-2 hidden w-54 truncate text-slate-700 sm:block" title={ row.Topic }>{ row.Topic }</span>
+					}
+				</span>
+				<span class="flex items-center pb-1 pl-2 sm:ml-2 sm:p-0">
 					if row.CardHref != "" {
 						@homeworkBadge(row.CardHref, row.Homework)
 					} else {
 						@homeworkLabel(row.Homework)
 					}
+					if row.MarksHref != "" {
+						@marksToggle(row)
+					}
+					if row.Author != "" {
+						<span title={ "Урок провёл " + row.Author } class="ml-1 text-slate-400">
+							@components.Icon(view.IconSwap, "size-4")
+							<span class="sr-only">Урок провёл { row.Author }</span>
+						</span>
+					}
 				</span>
-				if row.MarksHref != "" {
-					@marksToggle(row)
-				}
-				if row.Author != "" {
-					<span title={ "Урок провёл " + row.Author } class="ml-1 text-slate-400">
-						@components.Icon(view.IconSwap, "size-4")
-						<span class="sr-only">Урок провёл { row.Author }</span>
-					</span>
-				}
 			</span>
 			if row.Edit != nil && row.Edit.DateError != "" {
 				<span class="block max-w-xs text-xs whitespace-normal text-rose-600">{ row.Edit.DateError }</span>
@@ -333,10 +335,10 @@ templ marksToggle(row view.JournalRow) {
 templ lessonMarksRows(block view.LessonMarksBlock, live bool) {
 	for _, row := range block.Rows {
 		<tr data-marks-of={ block.Lesson }>
-			<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-100 bg-slate-50 py-1 pr-3 pl-5 text-left text-sm font-normal whitespace-nowrap sm:pl-10">
+			<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-100 bg-slate-50 py-1 pr-3 pl-3 text-left text-sm font-normal whitespace-nowrap sm:pl-10">
 				<span
 					title={ row.Name }
-					class={ "block max-w-28 truncate sm:max-w-54", templ.KV("pl-4 text-xs text-amber-700", row.Done && row.Active),
+					class={ "block max-w-22 truncate sm:max-w-54", templ.KV("text-xs text-amber-700 sm:pl-4", row.Done && row.Active),
 						templ.KV("text-slate-700", !row.Done && row.Active), templ.KV("text-slate-400", !row.Active) }
 				>{ row.Name }</span>
 			</th>
@@ -346,7 +348,7 @@ templ lessonMarksRows(block view.LessonMarksBlock, live bool) {
 		</tr>
 	}
 	<tr data-marks-of={ block.Lesson }>
-		<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-200 bg-slate-50 py-1 pr-3 pl-5 text-left font-normal whitespace-nowrap sm:pl-10">
+		<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-200 bg-slate-50 py-1 pr-3 pl-3 text-left font-normal whitespace-nowrap sm:pl-10">
 			if len(block.Rows) == 0 && block.Empty != "" {
 				<span class="block py-1 text-sm text-slate-500">{ block.Empty }</span>
 			}
@@ -366,7 +368,7 @@ templ newWorkTypeForm(form view.NewWorkTypeForm) {
 		hx-post={ form.Action }
 		hx-target={ "#" + journalContentID }
 		hx-swap="outerHTML"
-		class="flex items-center gap-2"
+		class="relative flex items-center gap-2"
 	>
 		<input
 			name="name"
@@ -374,8 +376,11 @@ templ newWorkTypeForm(form view.NewWorkTypeForm) {
 			placeholder="Новый тип работы"
 			aria-label="Новый тип работы"
 			autocomplete="off"
-			class={ components.InputCompactClass, "peer w-32 sm:w-54" }
+			class={ components.InputCompactClass, "peer w-22 placeholder:text-slate-400 max-sm:placeholder:text-transparent sm:w-54" }
 		/>
+		// Атрибут placeholder не меняется по ширине экрана: на телефоне
+		// подсказка короче и стоит поверх поля, пока оно пустое (D-118).
+		<span aria-hidden="true" class="pointer-events-none absolute top-1/2 left-[calc(0.5rem+1px)] hidden -translate-y-1/2 text-sm text-slate-400 max-sm:peer-placeholder-shown:block">Новый тип</span>
 		@components.IconSubmit(view.IconPlus, "Добавить тип работы", components.ButtonIconCompactClass+" peer-placeholder-shown:hidden")
 	</form>
 }

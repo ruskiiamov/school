@@ -241,9 +241,10 @@ func (s *Service) fillJournalCells(ctx context.Context, journal *PairJournal, in
 			continue
 		}
 
-		current := student(mark.StudentID)
-		current.MarkCount++
-		current.Average += MarkPoints(mark.Value)
+		if current := student(mark.StudentID); Graded(mark.Value) {
+			current.MarkCount++
+			current.Average += MarkPoints(mark.Value)
+		}
 
 		key := CellKey{LessonID: mark.LessonID, StudentID: mark.StudentID}
 		cell := journal.Cells[key]

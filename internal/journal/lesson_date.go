@@ -53,7 +53,7 @@ func (s *Service) MoveLesson(ctx context.Context, teacherID, lessonID int64, dat
 		return err
 	}
 
-	if parsed, ok := validation.ParseDate(date); ok && parsed.Equal(lesson.Date) {
+	if parsed, ok := parseLessonDate(date, bounds); ok && parsed.Equal(lesson.Date) {
 		return nil
 	}
 
@@ -78,7 +78,7 @@ func (s *Service) checkLessonDate(ctx context.Context, teacherID, classID, subje
 		return time.Time{}, validation.Errors{"date": msgDateRequired}
 	}
 
-	parsed, ok := validation.ParseDate(date)
+	parsed, ok := parseLessonDate(date, bounds)
 	if !ok {
 		return time.Time{}, validation.Errors{"date": msgDateInvalid}
 	}
@@ -114,4 +114,31 @@ func (s *Service) checkLessonDate(ctx context.Context, teacherID, classID, subje
 	}
 
 	return parsed, nil
+}
+
+// parseLessonDate принимает полную дату или «ДД.ММ» без года (D-119): в
+// журнале пары даты уроков показаны без года, а день и месяц однозначно
+// задают дату внутри учебного года — с начала года до 31.12 это год
+// начала, дальше — следующий.
+func parseLessonDate(raw string, bounds YearBounds) (time.Time, bool) {
+	if parsed, ok := validation.ParseDate(raw); ok {
+		return parsed, true
+	}
+
+	dayMonth, err := time.ParseInLocation("2.1", raw, time.UTC)
+	if err != nil {
+		return time.Time{}, false
+	}
+
+	date := time.Date(bounds.Start.Year(), dayMonth.Month(), dayMonth.Day(), 0, 0, 0, 0, time.UTC)
+	if date.Before(bounds.Start) {
+		date = date.AddDate(1, 0, 0)
+	}
+
+	// 29.02 в невисокосный год time.Date переносит на 1 марта
+	if date.Day() != dayMonth.Day() {
+		return time.Time{}, false
+	}
+
+	return date, true
 }

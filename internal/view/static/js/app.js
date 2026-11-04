@@ -339,7 +339,8 @@
     var native = wrapper.querySelector("[data-date-native]");
     var input = textInput(wrapper);
 
-    native.value = isoDate(input.value);
+    // У дат уроков в поле только «ДД.ММ» (D-119) — полная дата в data-date-iso.
+    native.value = isoDate(input.value) || input.getAttribute("data-date-iso") || "";
 
     try {
       native.showPicker();

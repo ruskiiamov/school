@@ -231,10 +231,9 @@ func (s *Service) SaveLessonMarks(ctx context.Context, teacherID, lessonID int64
 			continue
 		}
 
-		change := storage.MarkChange{StudentID: key.StudentID, WorkTypeID: key.WorkTypeID, Value: value}
-		if value != "" {
-			change.Comment = current.Comment
-		}
+		// Стёртая оценка с комментарием остаётся комментарием без оценки
+		// (D-116), без комментария — удаляется.
+		change := storage.MarkChange{StudentID: key.StudentID, WorkTypeID: key.WorkTypeID, Value: value, Comment: current.Comment}
 
 		changes = append(changes, change)
 	}

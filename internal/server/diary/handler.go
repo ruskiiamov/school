@@ -296,8 +296,12 @@ func (h *Handler) requestedDate(r *http.Request) time.Time {
 func diarySummary(lesson journal.DiaryLesson) string {
 	summary := ""
 
-	for i, mark := range lesson.Marks {
-		if i > 0 {
+	for _, mark := range lesson.Marks {
+		if !journal.Graded(mark.Value) {
+			continue
+		}
+
+		if summary != "" {
 			summary += ", "
 		}
 

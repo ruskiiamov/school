@@ -44,7 +44,7 @@ func TestStudentPenaltiesPage(t *testing.T) {
 	code, body := get(t, f.env, "/diary/penalties", cookie, false)
 	require.Equal(t, http.StatusOK, code)
 	assert.Contains(t, body, "Мытьё полов")
-	assert.Contains(t, body, "Долг, м²: 10")
+	assert.Contains(t, body, "Долг: 10 м²")
 	assert.Contains(t, body, "Алгебра · Домашняя работа")
 	assert.Contains(t, body, "30 %")
 	assert.Contains(t, body, "частично")
@@ -61,16 +61,16 @@ func TestStudentDiaryShowsPenalty(t *testing.T) {
 
 	_, body := get(t, f.env, diaryURL("/diary", f.today, url.Values{"lesson": {idValue(f.lesson)}}), cookie, false)
 	assert.Contains(t, body, "Домашняя работа")
-	assert.Contains(t, body, "Выполнено 30 % · м²: 14 · не погашено")
+	assert.Contains(t, body, "Выполнено 30 % · 14 м² · не погашено")
 
 	_, body = get(t, f.env, "/", cookie, false)
-	assert.Contains(t, body, "Долг, м²: 14")
+	assert.Contains(t, body, "Долг: 14 м²")
 	assert.Contains(t, body, `href="/diary/penalties"`)
 
 	f.env.AddWorkoff(t, f.teacher, f.student, "14")
 
 	_, body = get(t, f.env, "/", cookie, false)
-	assert.NotContains(t, body, "Долг, м²:")
+	assert.NotContains(t, body, "Долг:")
 }
 
 func TestParentPenalties(t *testing.T) {
@@ -83,7 +83,7 @@ func TestParentPenalties(t *testing.T) {
 
 	code, body := get(t, f.env, "/diary/penalties", cookie, false)
 	require.Equal(t, http.StatusOK, code)
-	assert.Contains(t, body, "Долг, м²: 14")
+	assert.Contains(t, body, "Долг: 14 м²")
 	assert.Contains(t, body, html.EscapeString(diaryURL("/diary", f.today, url.Values{"child": {idValue(f.student)}, "lesson": {idValue(f.lesson)}})))
 
 	_, body = get(t, f.env, "/", cookie, false)
@@ -107,7 +107,7 @@ func TestAdminDiaryPenalties(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	assert.Contains(t, body, "Мытьё полов · Иванова Мария Петровна · 7А")
 	assert.Contains(t, body, "К дневнику")
-	assert.Contains(t, body, "Долг, м²: 14")
+	assert.Contains(t, body, "Долг: 14 м²")
 
 	code, _ = get(t, f.env, "/admin/diary/"+idValue(f.teacher)+"/penalties", admin, false)
 	assert.Equal(t, http.StatusNotFound, code)

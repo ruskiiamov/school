@@ -119,7 +119,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 
 	for i, class := range classes {
 		order[class.ID] = i
-		page.Classes = append(page.Classes, view.Option{ID: class.ID, Name: class.Name, Selected: class.ID == f.classID})
+		page.Classes = append(page.Classes, view.Option{ID: class.ID, Name: view.ClassTitle(class.Name), Selected: class.ID == f.classID})
 	}
 
 	if _, known := order[f.classID]; !known {
@@ -181,7 +181,7 @@ func (h *Handler) debtors(r *http.Request, f filter, order map[int64]int) ([]vie
 		found = append(found, debtor{
 			row: view.DebtorRow{
 				FullName:  student.FullName,
-				ClassName: class.Name,
+				ClassName: view.ClassTitle(class.Name),
 				Debt:      view.FormatDebt(settings.Unit, debt),
 				Href:      studentsPath + "/" + strconv.FormatInt(student.ID, 10) + f.suffix(),
 			},
@@ -374,7 +374,7 @@ func (h *Handler) renderStudent(w http.ResponseWriter, r *http.Request, form *vi
 	}
 
 	if class.Name != "" {
-		title += " · " + class.Name
+		title += " · " + view.ClassTitle(class.Name)
 	}
 
 	h.base.Render(w, r, pages.PenaltyStudent(view.PenaltyStudentPage{

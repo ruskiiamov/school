@@ -17,8 +17,8 @@ templ Classes(page view.ClassesPage) {
 			@components.PageHeader("Классы") {
 				@components.InactiveToggle(page.ToggleHref, page.ShowInactive)
 			}
-			@components.PageHint(hintClasses)
 			@components.PageHelp("Как устроены классы") {
+				<p>{ hintClasses }</p>
 				<p>Каждый учебный год — свои классы: седьмой класс этого года и восьмой следующего — разные классы с отдельными журналами. Вкладки сверху переключают годы</p>
 				<p>В начале нового года нажмите «Создать классы из прошлого года»: приложение предложит новые названия и перенесёт учеников</p>
 				<p>Пока в карточке класса учителю не назначен предмет, этого класса нет в его журнале. Класс, в котором есть ученики, удалить нельзя</p>
@@ -37,7 +37,7 @@ templ ClassesList(page view.ClassesPage) {
 	<div id="classes" class="flex flex-col gap-4 lg:gap-6">
 		if page.CanCreate {
 			@components.CreateForm(classURL(0, "", page.Year, page.ShowInactive),
-				"Новый класс", "Название нового класса", page.NewName, page.NewError, classesTarget)
+				"Новый класс, например 5А", "Название нового класса", page.NewName, page.NewError, classesTarget)
 		}
 		if page.TransferHref != "" {
 			<a href={ templ.SafeURL(page.TransferHref) } class={ components.ButtonSecondaryClass, "self-start" }>Создать классы из прошлого года</a>
@@ -80,9 +80,9 @@ templ classRow(row view.ClassRow, year int, showInactive bool) {
 		} else {
 			<a href={ templ.SafeURL(row.Href) } class="flex min-w-0 flex-1 items-center gap-2 p-3 hover:bg-slate-50 sm:p-4">
 				if row.Active {
-					<span class="min-w-0 truncate text-sm font-medium text-indigo-700">{ row.Name }</span>
+					<span class="min-w-0 truncate text-sm font-medium text-indigo-700">{ view.ClassTitle(row.Name) }</span>
 				} else {
-					<span class="min-w-0 truncate text-sm text-slate-500">{ row.Name }</span>
+					<span class="min-w-0 truncate text-sm text-slate-500">{ view.ClassTitle(row.Name) }</span>
 					@components.InactiveBadge()
 				}
 				<span class="shrink-0 text-sm text-slate-500">{ row.Students }</span>

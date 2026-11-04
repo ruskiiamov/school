@@ -185,7 +185,7 @@ func (h *Handler) renderSubstitutions(w http.ResponseWriter, r *http.Request, ne
 
 		row := view.SubstitutionRow{
 			ID:            substitution.ID,
-			Class:         classByID[substitution.ClassID].Name,
+			Class:         view.ClassTitle(classByID[substitution.ClassID].Name),
 			Subject:       subject.Name,
 			Teacher:       teacher.FullName,
 			SubjectActive: subject.Active,
@@ -216,7 +216,7 @@ func (h *Handler) renderSubstitutions(w http.ResponseWriter, r *http.Request, ne
 	newFields.Classes = []view.Option{{Name: classOption, Selected: true}}
 	for _, class := range classes {
 		if class.Active {
-			newFields.Classes = append(newFields.Classes, view.Option{ID: class.ID, Name: class.Name})
+			newFields.Classes = append(newFields.Classes, view.Option{ID: class.ID, Name: view.ClassTitle(class.Name)})
 		}
 	}
 

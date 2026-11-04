@@ -249,7 +249,7 @@ func (h *Handler) adminJournalsEntry(w http.ResponseWriter, r *http.Request) {
 			mark.Penalty = web.PenaltySummary(settings, *workType.Penalty)
 		}
 
-		if mark.Value != "" || mark.Penalty != "" {
+		if mark.Value != "" || mark.Comment != "" || mark.Penalty != "" {
 			result.Marks = append(result.Marks, mark)
 		}
 	}
@@ -296,7 +296,7 @@ func (h *Handler) pairOptions(r *http.Request, classes, subjects *[]view.Option,
 
 	*classes = []view.Option{{Name: classOption}}
 	for _, class := range classList {
-		*classes = append(*classes, view.Option{ID: class.ID, Name: class.Name, Selected: class.ID == classID})
+		*classes = append(*classes, view.Option{ID: class.ID, Name: view.ClassTitle(class.Name), Selected: class.ID == classID})
 	}
 
 	*subjects = []view.Option{{Name: subjectOption}}

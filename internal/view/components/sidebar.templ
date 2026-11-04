@@ -2,7 +2,7 @@ package components
 
 import "github.com/ruskiiamov/school/internal/view"
 
-templ Sidebar(items []view.NavItem) {
+templ Sidebar(items []view.NavItem, version string) {
 	<div
 		id="nav-overlay"
 		data-state="closed"
@@ -27,6 +27,7 @@ templ Sidebar(items []view.NavItem) {
 				@navLink(item)
 			}
 		</nav>
+		<p class="shrink-0 truncate border-t border-slate-200 px-4 py-3 text-xs text-slate-400" title={ version }>Версия { version }</p>
 	</aside>
 }
 

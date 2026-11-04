@@ -151,7 +151,8 @@ func TestLessonMarksCellSave(t *testing.T) {
 	marks = lessonMarks(t, f.fixture, f.lesson)
 	assert.Equal(t, map[journal.MarkKey]journal.LessonMark{
 		{WorkTypeID: f.answer.ID, StudentID: f.petr}: {Value: "0"},
-	}, marks.Marks)
+		{WorkTypeID: f.test.ID, StudentID: f.maria}:  {Comment: "Отлично"},
+	}, marks.Marks, "erased mark keeps its comment as a comment without mark")
 
 	plain := servertest.PostForm(t, f.env.Handler, marksURL, url.Values{
 		markField(f.answer.ID, f.maria): {"5"},
@@ -159,14 +160,16 @@ func TestLessonMarksCellSave(t *testing.T) {
 	}, cookies, nil)
 	require.Equal(t, http.StatusOK, plain.Code)
 	assert.Contains(t, plain.Body.String(), "Иванова Мария · Контрольная работа: Оценка")
-	assert.Len(t, lessonMarks(t, f.fixture, f.lesson).Marks, 1)
+	assert.Len(t, lessonMarks(t, f.fixture, f.lesson).Marks, 2)
 
 	redirect := servertest.PostForm(t, f.env.Handler, marksURL, url.Values{
 		markField(f.answer.ID, f.maria): {"5"},
 		markField(f.test.ID, f.maria):   {"3+"},
 	}, cookies, nil)
 	servertest.AssertRedirect(t, redirect, pairPath(f.class, f.subject)+"#lesson-"+strconv.FormatInt(f.lesson, 10))
-	assert.Len(t, lessonMarks(t, f.fixture, f.lesson).Marks, 3)
+	marks = lessonMarks(t, f.fixture, f.lesson)
+	assert.Len(t, marks.Marks, 3)
+	assert.Equal(t, journal.LessonMark{Value: "3+", Comment: "Отлично"}, marks.Marks[journal.MarkKey{WorkTypeID: f.test.ID, StudentID: f.maria}])
 }
 
 func TestLessonMarksRules(t *testing.T) {

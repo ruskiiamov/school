@@ -206,7 +206,7 @@ func (h *Handler) renderLessonMarksPage(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	title := pair.Pair.ClassName + " · " + pair.Pair.SubjectName + " · " + view.FormatShortDate(lesson.Date)
+	title := view.ClassTitle(pair.Pair.ClassName) + " · " + pair.Pair.SubjectName + " · " + view.FormatShortDate(lesson.Date)
 
 	page := view.LessonMarksPage{
 		Shell:    h.base.Shell(r, title, homePath),

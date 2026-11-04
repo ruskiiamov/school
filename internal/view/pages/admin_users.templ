@@ -21,7 +21,7 @@ templ UsersPage(page view.UsersPage) {
 		@components.PageHeader(page.Title) {
 			@components.InactiveToggle(page.ToggleHref, page.ShowInactive)
 		}
-		@components.PageHint(page.Hint)
+		@components.PageHint(page.HintTitle, page.Hint)
 		<form
 			method="get"
 			action={ templ.SafeURL(page.Path) }

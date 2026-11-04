@@ -212,7 +212,7 @@ func TestStudentClassInFormListAndFilter(t *testing.T) {
 
 	form := servertest.Get(t, env.Handler, "/admin/students", admin).Body.String()
 	assert.Contains(t, form, `value="0" selected>Без класса<`)
-	assert.Contains(t, form, `value="`+a+`">7А<`)
+	assert.Contains(t, form, `value="`+a+`">7А класс<`)
 	assert.NotContains(t, form, "6А")
 
 	forged := servertest.PostForm(t, env.Handler, "/admin/students", withNameFields(url.Values{"full_name": {"Смирнова Мария"}, "class": {strconv.FormatInt(past, 10)}}), []*http.Cookie{admin}, nil)
@@ -242,18 +242,18 @@ func TestStudentClassInFormListAndFilter(t *testing.T) {
 	assert.Contains(t, all, "Смирнова Мария")
 	assert.Contains(t, all, "Петров Иван")
 	assert.Contains(t, all, "без класса")
-	assert.Contains(t, all, ">7А<")
+	assert.Contains(t, all, ">7А класс<")
 
 	filtered := servertest.Get(t, env.Handler, "/admin/students?class="+b, admin).Body.String()
 	assert.Contains(t, filtered, "Петров Иван")
 	assert.NotContains(t, filtered, "Смирнова Мария")
 	assert.NotContains(t, filtered, "Кузнецов Олег")
-	assert.Contains(t, filtered, `value="`+b+`" selected>7Б<`)
+	assert.Contains(t, filtered, `value="`+b+`" selected>7Б класс<`)
 	assert.Contains(t, filtered, `href="/admin/students?class=`+b+`&amp;edit=`+strconv.FormatInt(inB, 10)+`"`)
 	assert.Contains(t, filtered, `href="/admin/students?class=`+b+`&amp;inactive=1"`)
 
 	edit := servertest.Get(t, env.Handler, "/admin/students?edit="+strconv.FormatInt(inA, 10), admin).Body.String()
-	assert.Contains(t, edit, `value="`+a+`" selected>7А<`)
+	assert.Contains(t, edit, `value="`+a+`" selected>7А класс<`)
 	assert.Contains(t, edit, `name="last_name" value="Смирнова"`)
 	assert.Contains(t, edit, `name="first_name" value="Мария"`)
 	assert.Contains(t, edit, `action="`+userPathFor("/admin/students", inA, "")+`"`)

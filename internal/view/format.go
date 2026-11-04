@@ -40,6 +40,12 @@ func FormatShortDate(t time.Time) string {
 	return t.Format("02.01.2006")
 }
 
+// FormatDayMonth — дата урока в журнале пары: «04.11». Год виден в
+// заголовке журнала, журнал всегда за один учебный год (D-119).
+func FormatDayMonth(t time.Time) string {
+	return t.Format("02.01")
+}
+
 func FormatPeriod(start, end time.Time) string {
 	if end.IsZero() {
 		return FormatShortDate(start) + " — до отмены"
@@ -117,10 +123,22 @@ func FormatPercent(percent int) string {
 	return strconv.Itoa(percent) + " %"
 }
 
+// FormatPoints пишет баллы с единицей после числа: «14 м²». Единица —
+// сокращение, которое не склоняется (D-115).
 func FormatPoints(unit string, points int) string {
-	return unit + ": " + strconv.Itoa(points)
+	return strconv.Itoa(points) + " " + unit
 }
 
 func FormatDebt(unit string, debt int) string {
-	return "Долг, " + unit + ": " + strconv.Itoa(debt)
+	return "Долг: " + FormatPoints(unit, debt)
+}
+
+// ClassTitle — имя класса в интерфейсе: «7А класс». В БД хранится одно
+// слово без «класс» (D-115); пустое имя — «нет класса», остаётся пустым.
+func ClassTitle(name string) string {
+	if name == "" {
+		return ""
+	}
+
+	return name + " класс"
 }

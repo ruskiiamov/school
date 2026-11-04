@@ -106,7 +106,7 @@ func (h *Handler) lessonClear(w http.ResponseWriter, r *http.Request, lesson jou
 
 	err := h.journal.DeleteLesson(r.Context(), user.ID, lesson.ID)
 	if errs, ok := web.FormErrors(err); ok {
-		h.renderPair(w, r, lesson.ClassID, lesson.SubjectID, pairState{rowID: lesson.ID, rowDate: lesson.Date.Format(validation.InputDateLayout), dateError: errs["lesson"]})
+		h.renderPair(w, r, lesson.ClassID, lesson.SubjectID, pairState{rowID: lesson.ID, rowDate: view.FormatDayMonth(lesson.Date), dateError: errs["lesson"]})
 		return
 	}
 	if err != nil {
@@ -144,7 +144,7 @@ func (h *Handler) lessonTopic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if invalid {
-		h.renderPair(w, r, lesson.ClassID, lesson.SubjectID, pairState{rowID: lesson.ID, rowDate: lesson.Date.Format(validation.InputDateLayout), topic: topic, topicErr: errs["topic"]})
+		h.renderPair(w, r, lesson.ClassID, lesson.SubjectID, pairState{rowID: lesson.ID, rowDate: view.FormatDayMonth(lesson.Date), topic: topic, topicErr: errs["topic"]})
 		return
 	}
 
@@ -194,7 +194,7 @@ func (h *Handler) renderPair(w http.ResponseWriter, r *http.Request, classID, su
 		return
 	}
 
-	title := pair.Pair.ClassName + " · " + pair.Pair.SubjectName
+	title := view.ClassTitle(pair.Pair.ClassName) + " · " + pair.Pair.SubjectName
 
 	page := view.PairJournalPage{
 		Shell:     h.base.Shell(r, title, homePath),
@@ -279,7 +279,8 @@ func newLessonForm(pair journal.PairJournal, state pairState) *view.NewLessonFor
 func rowEdit(lesson journal.Lesson, state pairState) *view.JournalRowEdit {
 	edit := &view.JournalRowEdit{
 		DateAction:  lessonPath(lesson.ID, "/date"),
-		DateValue:   lesson.Date.Format(validation.InputDateLayout),
+		DateValue:   view.FormatDayMonth(lesson.Date),
+		DateISO:     lesson.Date.Format(validation.DateLayout),
 		TopicAction: lessonPath(lesson.ID, "/topic"),
 		TopicID:     topicTarget(lesson.ID),
 	}
@@ -338,6 +339,7 @@ func (h *Handler) journalTable(r *http.Request, pair journal.PairJournal, viewer
 		row := view.JournalRow{
 			Anchor:   lessonAnchor(lesson.ID),
 			Date:     view.FormatShortDate(lesson.Date),
+			Day:      view.FormatDayMonth(lesson.Date),
 			Topic:    lesson.Topic,
 			Homework: pair.WithHomework[lesson.ID],
 		}
@@ -392,7 +394,10 @@ func journalCell(cell journal.JournalCell, href string, settings school.PenaltyS
 
 	for _, mark := range cell.Marks {
 		value := view.FormatMark(mark.Value)
-		values = append(values, value)
+		if journal.Graded(mark.Value) {
+			values = append(values, value)
+		}
+
 		details = append(details, markDetail(mark.WorkTypeName, value, mark.Comment))
 		commented = commented || mark.Comment != ""
 	}
@@ -425,8 +430,11 @@ func journalCell(cell journal.JournalCell, href string, settings school.PenaltyS
 }
 
 func markDetail(workType, value, comment string) string {
-	if comment == "" {
+	switch {
+	case comment == "":
 		return workType + ": " + value
+	case value == "":
+		return workType + ": " + comment
 	}
 
 	return workType + ": " + value + " (" + comment + ")"

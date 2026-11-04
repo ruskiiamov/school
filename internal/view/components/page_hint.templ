@@ -1,7 +1,11 @@
 package components
 
-templ PageHint(text string) {
-	<p class="-mt-2 text-sm text-slate-500 lg:-mt-3">{ text }</p>
+// PageHint — подсказка раздела в одну мысль, свёрнутая, как PageHelp: на
+// телефоне развёрнутый текст съедал полэкрана (D-117).
+templ PageHint(summary, text string) {
+	@PageHelp(summary) {
+		<p>{ text }</p>
+	}
 }
 
 templ PageHelp(summary string) {

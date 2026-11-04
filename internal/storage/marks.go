@@ -162,7 +162,7 @@ func (r *MarkRepo) Set(ctx context.Context, lessonID int64, changes []MarkChange
 	now := toMillis(time.Now())
 
 	for _, change := range changes {
-		if change.Value == "" {
+		if change.Value == "" && change.Comment == "" {
 			if _, err := tx.ExecContext(ctx, remove, lessonID, change.StudentID, change.WorkTypeID); err != nil {
 				return fmt.Errorf("delete mark: %w", err)
 			}

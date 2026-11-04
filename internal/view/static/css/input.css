@@ -2,6 +2,16 @@
 
 @source "../../../view";
 
+/* Низкий экран — телефон в альбомной ориентации: журнал пары не влезает в
+   высоту окна, страница прокручивается, таблица занимает экран под шапкой
+   (D-116). */
+@custom-variant short (@media (max-height: 32rem));
+
+/* Скрипты работают: можно прятать то, что без JS нужно видеть, — поле
+   даты нового урока на телефоне (D-118). Старый браузер без этого
+   медиазапроса просто показывает поле. */
+@custom-variant js (@media (scripting: enabled));
+
 @theme {
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }

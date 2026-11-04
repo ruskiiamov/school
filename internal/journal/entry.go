@@ -262,11 +262,8 @@ func markChange(studentID int64, workType EntryType, rawValue, rawComment string
 
 	comment := validation.NormalizeSpaces(rawComment)
 
-	switch {
-	case utf8.RuneCountInString(comment) > maxMarkCommentLength:
+	if utf8.RuneCountInString(comment) > maxMarkCommentLength {
 		return storage.MarkChange{}, msgMarkCommentTooLong
-	case value == "" && comment != "":
-		return storage.MarkChange{}, msgMarkCommentWithoutValue
 	}
 
 	return storage.MarkChange{StudentID: studentID, WorkTypeID: workType.ID, Value: value, Comment: comment}, ""

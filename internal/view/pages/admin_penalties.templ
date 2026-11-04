@@ -10,8 +10,8 @@ templ PenaltySettings(page view.PenaltySettingsPage) {
 	@layout.App(page.Shell) {
 		<div class="flex flex-col gap-4 lg:gap-6">
 			@components.PageHeader("Штрафы")
-			@components.PageHint(hintPenaltySettings)
-			@components.PageHelp("Как это работает") {
+			@components.PageHelp("Как работают штрафы") {
+				<p>{ hintPenaltySettings }</p>
 				<p>Учитель отмечает у своего типа работы галочку «Со штрафом». Тогда у такой работы появляется поле «выполнено, %»: пустое поле — 100 %</p>
 				<p>Начисление = полный штраф × (100 % − выполнено), с округлением до целого. Долг ученика — сумма начислений по всем предметам минус отработанное</p>
 				<p>Отработку записывают учителя и администратор на странице с названием штрафа. Отработка гасит сначала самые старые начисления, погашенные учитель уже не меняет</p>
@@ -26,7 +26,7 @@ templ PenaltySettings(page view.PenaltySettingsPage) {
 					Включить штрафы
 				</label>
 				@settingsField("name", page.Name, "Название", "Так называются пункт меню и страница со штрафами", "30", page.Errors["name"])
-				@settingsField("unit", page.Unit, "Единица", "В чём считаются баллы: например, «баллы» или «м²»", "20", page.Errors["unit"])
+				@settingsField("unit", page.Unit, "Единица", "Сокращение, которое пишется после числа: например, «м²», «ч» или «б.» — «Долг: 25 м²»", "20", page.Errors["unit"])
 				@settingsField("full", page.Full, "Полный штраф", "Столько начисляется за работу, не выполненную совсем", "4", page.Errors["full"])
 				<div class="flex justify-end">
 					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>

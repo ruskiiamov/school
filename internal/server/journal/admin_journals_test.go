@@ -55,7 +55,7 @@ func TestAdminJournals(t *testing.T) {
 	assert.Contains(t, body, `name="year"`)
 
 	body = servertest.Get(t, f.env.Handler, adminJournalsQuery(f), admin).Body.String()
-	assert.Contains(t, body, "Всего: 2 урока")
+	assert.Contains(t, body, "Всего: </span>2 урока")
 	assert.Contains(t, body, "Учитель: Сидорова А. А.")
 	assert.Contains(t, body, `title="Урок провёл Кузнецов В. П."`)
 	assert.Contains(t, body, `id="journal-modal"`)

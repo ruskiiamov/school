@@ -146,11 +146,6 @@ func TestMarksEntryValuesAndComments(t *testing.T) {
 		assert.Contains(t, invalid.Body.String(), "Оценка: цифра от 1 до 5, можно с + или −, или 0", raw)
 	}
 
-	orphan := servertest.PostForm(t, f.env.Handler, marksPath(lesson, maria),
-		url.Values{typeField(answer.ID): {""}, "comment-" + strconv.FormatInt(answer.ID, 10): {"Без оценки"}}, cookies, modalHeaders())
-	assert.Contains(t, orphan.Body.String(), "Комментарий без оценки")
-	assert.Contains(t, orphan.Body.String(), `value="Без оценки"`)
-
 	long := servertest.PostForm(t, f.env.Handler, marksPath(lesson, maria),
 		url.Values{typeField(answer.ID): {"5"}, "comment-" + strconv.FormatInt(answer.ID, 10): {strings.Repeat("а", 201)}}, cookies, modalHeaders())
 	assert.Contains(t, long.Body.String(), "Комментарий к оценке не длиннее 200 символов")
@@ -189,6 +184,67 @@ func TestMarksEntryValuesAndComments(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, map[int64]string{answer.ID: "4+", written.ID: "0"}, entryValues(entry))
 	assert.Empty(t, entry.Types[1].Comment)
+}
+
+func TestMarksEntryCommentWithoutMark(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t)
+	ctx := t.Context()
+	require.NoError(t, f.env.School.AssignTeacher(ctx, f.class, f.subject, f.teacher))
+	teacher := f.env.LoginAs(t, "teacher")
+	cookies := []*http.Cookie{teacher}
+
+	maria := createUser(t, f.env, auth.RoleStudent, "maria", "Иванова Мария Петровна")
+	require.NoError(t, f.env.School.AddClassStudent(ctx, f.class, maria))
+
+	workTypes := f.env.EnsureWorkTypes(t, f.teacher, f.subject)
+	answer, test := workTypes[0], workTypes[1]
+	lesson := openLesson(t, f.env, teacher, f.class, f.subject, f.today)
+
+	saved := servertest.PostForm(t, f.env.Handler, marksPath(lesson, maria), url.Values{
+		typeField(answer.ID):                        {"4"},
+		typeField(test.ID):                          {""},
+		"comment-" + strconv.FormatInt(test.ID, 10): {"Хорошо отвечал"},
+	}, cookies, modalHeaders())
+	require.Equal(t, http.StatusOK, saved.Code)
+	assert.Equal(t, "journal:close-modal", saved.Header().Get("HX-Trigger"))
+
+	entry, err := f.env.Journal.MarksEntry(ctx, f.teacher, lesson, maria)
+	require.NoError(t, err)
+	assert.Equal(t, map[int64]string{answer.ID: "4"}, entryValues(entry))
+	assert.Equal(t, "Хорошо отвечал", entry.Types[1].Comment)
+
+	table := servertest.Get(t, f.env.Handler, pairPath(f.class, f.subject), teacher).Body.String()
+	assert.Contains(t, table, test.Name+": Хорошо отвечал")
+	assert.Contains(t, table, ">4,00<", "comment without mark is not in the average")
+	assert.Contains(t, table, ">4 <span>•</span></a>")
+
+	summary, err := f.env.Journal.StudentSummary(ctx, maria, f.today, f.today)
+	require.NoError(t, err)
+	require.Len(t, summary.Subjects, 1)
+	assert.Len(t, summary.Subjects[0].Marks, 2)
+	assert.Equal(t, 1, summary.Subjects[0].Graded)
+	assert.InDelta(t, 4.0, summary.Subjects[0].Average, 0.001)
+
+	student := f.env.LoginAs(t, "maria")
+	marks := servertest.Get(t, f.env.Handler, "/diary/summary", student).Body.String()
+	assert.Contains(t, marks, ">—</a>")
+	assert.Contains(t, marks, "Хорошо отвечал")
+
+	cleared := servertest.PostForm(t, f.env.Handler, marksPath(lesson, maria), url.Values{
+		typeField(answer.ID): {"4"},
+		typeField(test.ID):   {""},
+	}, cookies, modalHeaders())
+	require.Equal(t, http.StatusOK, cleared.Code)
+
+	entry, err = f.env.Journal.MarksEntry(ctx, f.teacher, lesson, maria)
+	require.NoError(t, err)
+	assert.Empty(t, entry.Types[1].Comment)
+
+	summary, err = f.env.Journal.StudentSummary(ctx, maria, f.today, f.today)
+	require.NoError(t, err)
+	assert.Len(t, summary.Subjects[0].Marks, 1)
 }
 
 func TestMarksEntryForbidden(t *testing.T) {

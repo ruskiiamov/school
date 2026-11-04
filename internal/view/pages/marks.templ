@@ -16,7 +16,7 @@ templ Marks(page view.MarksPage) {
 					<a href={ templ.SafeURL(page.BackHref) } class={ components.ButtonSecondaryClass }>К дневнику</a>
 				}
 			}
-			@components.PageHint(hintMarks)
+			@components.PageHint("Как считается средний балл", hintMarks)
 			@MarksContent(page)
 		</div>
 	}

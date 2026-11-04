@@ -2,6 +2,7 @@ package admin_test
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,6 +37,12 @@ func TestAdminSectionsExplainThemselves(t *testing.T) {
 	for _, tt := range tests {
 		recorder := servertest.Get(t, env.Handler, tt.path, admin)
 		require.Equal(t, http.StatusOK, recorder.Code, tt.path)
-		assert.Contains(t, recorder.Body.String(), tt.hint, tt.path)
+		body := recorder.Body.String()
+		assert.Contains(t, body, tt.hint, tt.path)
+
+		details := strings.Index(body, "<details")
+		assert.Positive(t, details, tt.path)
+		assert.Less(t, details, strings.Index(body, tt.hint), "hint is collapsed: "+tt.path)
+		assert.Less(t, strings.Index(body, tt.hint), strings.Index(body, "</details>"), "hint is collapsed: "+tt.path)
 	}
 }

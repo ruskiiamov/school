@@ -65,7 +65,7 @@ func (s *Service) CreateClass(ctx context.Context, name string) (int64, error) {
 	name = validation.NormalizeSpaces(name)
 
 	errs := validation.Errors{}
-	validateName(errs, name)
+	validateClassName(errs, name)
 
 	if len(errs) > 0 {
 		return 0, errs
@@ -96,7 +96,7 @@ func (s *Service) UpdateClass(ctx context.Context, id int64, name string) error 
 	name = validation.NormalizeSpaces(name)
 
 	errs := validation.Errors{}
-	validateName(errs, name)
+	validateClassName(errs, name)
 
 	if len(errs) > 0 {
 		return errs

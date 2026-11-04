@@ -97,7 +97,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 	for _, class := range classList {
 		selected := class.ID == filter.classID
 		known = known || selected
-		page.Classes = append(page.Classes, view.Option{ID: class.ID, Name: class.Name, Selected: selected})
+		page.Classes = append(page.Classes, view.Option{ID: class.ID, Name: view.ClassTitle(class.Name), Selected: selected})
 	}
 
 	if !known {
@@ -127,7 +127,7 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 
 			page.Students = append(page.Students, view.DiaryStudentRow{
 				FullName:  student.FullName,
-				ClassName: class.Name,
+				ClassName: view.ClassTitle(class.Name),
 				Href:      adminDiaryPath + "/" + strconv.FormatInt(student.ID, 10) + filter.suffix(),
 			})
 		}
@@ -193,7 +193,7 @@ func (h *Handler) adminStudent(w http.ResponseWriter, r *http.Request, year int)
 
 	title := student.FullName
 	if class.Name != "" {
-		title += " · " + class.Name
+		title += " · " + view.ClassTitle(class.Name)
 	}
 
 	return student, title, true

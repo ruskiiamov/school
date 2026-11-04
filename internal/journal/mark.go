@@ -8,10 +8,9 @@ import (
 )
 
 const (
-	msgValueRange              = "Оценка: цифра от 1 до 5, можно с + или −, или 0"
-	msgMarkCommentTooLong      = "Комментарий к оценке не длиннее 200 символов"
-	msgMarkCommentWithoutValue = "Комментарий без оценки"
-	maxMarkCommentLength       = 200
+	msgValueRange         = "Оценка: цифра от 1 до 5, можно с + или −, или 0"
+	msgMarkCommentTooLong = "Комментарий к оценке не длиннее 200 символов"
+	maxMarkCommentLength  = 200
 )
 
 type Mark struct {
@@ -71,6 +70,12 @@ func parseMarkValue(raw string) (string, bool) {
 	default:
 		return value, true
 	}
+}
+
+// Graded — входит ли оценка в среднее и число оценок. Пустое значение —
+// комментарий без оценки (D-116): строка есть, баллов нет.
+func Graded(value string) bool {
+	return value != ""
 }
 
 func MarkPoints(value string) float64 {

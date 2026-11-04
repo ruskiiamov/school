@@ -151,7 +151,7 @@ func (s *Service) Transfer(ctx context.Context, input TransferInput) error {
 		key := strconv.FormatInt(item.ClassID, 10)
 
 		name := validation.NormalizeSpaces(item.Name)
-		validateName(errs, name)
+		validateClassName(errs, name)
 
 		if message, found := errs["name"]; found {
 			delete(errs, "name")
@@ -213,6 +213,7 @@ func (s *Service) transferSources(ctx context.Context) ([]storage.Class, error) 
 }
 
 func NextClassName(name string) string {
+	name = strings.ReplaceAll(name, " ", "")
 	digits := leadingDigits(name)
 	if digits == "" {
 		return name

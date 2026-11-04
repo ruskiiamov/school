@@ -10,7 +10,7 @@ templ Backup(page view.BackupPage) {
 	@layout.App(page.Shell) {
 		<div class="flex flex-col gap-4 lg:gap-6">
 			@components.PageHeader("Резервная копия")
-			@components.PageHint(hintBackup)
+			@components.PageHint("Что в архиве", hintBackup)
 			@components.PageHelp("Как восстановить данные из архива") {
 				<ol class="list-decimal space-y-2 pl-5">
 					<li>Остановите сервер</li>

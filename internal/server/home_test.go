@@ -11,11 +11,24 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/auth"
+	"github.com/ruskiiamov/school/internal/buildinfo"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/servertest"
 	"github.com/ruskiiamov/school/internal/validation"
 	"github.com/ruskiiamov/school/internal/view"
 )
+
+func TestSidebarShowsVersion(t *testing.T) {
+	t.Parallel()
+
+	env := servertest.New(t)
+	env.CreateUser(t, auth.RoleTeacher, "teacher", "Сидорова Анна Андреевна")
+
+	for _, cookie := range []*http.Cookie{servertest.Login(t, env.Handler), env.LoginAs(t, "teacher")} {
+		body := servertest.Get(t, env.Handler, "/", cookie).Body.String()
+		assert.Contains(t, body, "Версия "+buildinfo.Version())
+	}
+}
 
 func TestHomeShowsSetupStepsForAdmin(t *testing.T) {
 	t.Parallel()
@@ -185,10 +198,10 @@ func TestHomeTeacherSeesPairsOfYear(t *testing.T) {
 
 	body = servertest.Get(t, env.Handler, "/", teacher).Body.String()
 	assert.NotContains(t, body, "В этом году вам не назначены классы и предметы")
-	assert.Less(t, strings.Index(body, ">Мои классы<"), strings.Index(body, ">7А · Алгебра<"))
-	assert.Less(t, strings.Index(body, ">7А · Алгебра<"), strings.Index(body, ">Замены<"))
-	assert.Less(t, strings.Index(body, ">Замены<"), strings.Index(body, ">8А · Геометрия<"))
-	assert.Less(t, strings.Index(body, ">8А · Геометрия<"), strings.Index(body, ">9Б · Алгебра<"))
+	assert.Less(t, strings.Index(body, ">Мои классы<"), strings.Index(body, ">7А класс · Алгебра<"))
+	assert.Less(t, strings.Index(body, ">7А класс · Алгебра<"), strings.Index(body, ">Замены<"))
+	assert.Less(t, strings.Index(body, ">Замены<"), strings.Index(body, ">8А класс · Геометрия<"))
+	assert.Less(t, strings.Index(body, ">8А класс · Геометрия<"), strings.Index(body, ">9Б класс · Алгебра<"))
 	assert.Contains(t, body, pairHref(seventh, algebra))
 	assert.Contains(t, body, pairHref(eighth, geometry))
 	assert.Contains(t, body, pairHref(ninth, algebra))

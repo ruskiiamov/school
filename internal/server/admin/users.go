@@ -29,18 +29,21 @@ type userSection struct {
 	recipient string
 	empty     string
 	hint      string
+	hintTitle string
 }
 
 var userSections = []userSection{
 	{
 		role: auth.RoleTeacher, path: "/admin/teachers", title: "Учителя",
 		created: "Учитель создан", recipient: "учителю", empty: "Пока нет учителей",
-		hint: "Логин и одноразовый пароль приложение придумывает само и показывает один раз после создания. Какие классы и предметы ведёт учитель, задаётся в карточке класса",
+		hint:      "Логин и одноразовый пароль приложение придумывает само и показывает один раз после создания. Какие классы и предметы ведёт учитель, задаётся в карточке класса",
+		hintTitle: "Как завести учителя",
 	},
 	{
 		role: auth.RoleStudent, path: "/admin/students", title: "Ученики",
 		created: "Ученик создан", recipient: "ученику", empty: "Пока нет учеников",
-		hint: "Логин и одноразовый пароль приложение придумывает само и показывает один раз после создания. Класс ученика можно указать сразу или позже, в строке правки",
+		hint:      "Логин и одноразовый пароль приложение придумывает само и показывает один раз после создания. Класс ученика можно указать сразу или позже, в строке правки",
+		hintTitle: "Как завести ученика",
 	},
 	parentsSection,
 }
@@ -48,7 +51,8 @@ var userSections = []userSection{
 var parentsSection = userSection{
 	role: auth.RoleParent, path: "/admin/parents", title: "Родители",
 	created: "Родитель создан", recipient: "родителю", empty: "Пока нет родителей",
-	hint: "Родитель видит дневники и оценки своих детей. Детей привязывают в строке правки: нажмите на строку родителя и найдите ученика по ФИО",
+	hint:      "Родитель видит дневники и оценки своих детей. Детей привязывают в строке правки: нажмите на строку родителя и найдите ученика по ФИО",
+	hintTitle: "Как привязать детей",
 }
 
 func (sec userSection) hasClass() bool {
@@ -269,6 +273,7 @@ func (h *Handler) renderUsers(w http.ResponseWriter, r *http.Request, sec userSe
 		Shell:        h.base.Shell(r, sec.title, sec.path),
 		Title:        sec.title,
 		Hint:         sec.hint,
+		HintTitle:    sec.hintTitle,
 		Path:         sec.path,
 		ListQuery:    listQuery(query, classID, inactive),
 		Query:        query,
@@ -328,7 +333,7 @@ func (h *Handler) renderUsers(w http.ResponseWriter, r *http.Request, sec userSe
 			ID:        user.ID,
 			FullName:  user.FullName,
 			Login:     user.Login,
-			ClassName: class.Name,
+			ClassName: view.ClassTitle(class.Name),
 			Active:    user.Active,
 			Editing:   user.ID == editing,
 		}
@@ -387,7 +392,7 @@ func classOptions(classes []school.Class, selected int64, first string) []view.O
 	options = append(options, view.Option{Name: first, Selected: selected == 0})
 
 	for _, class := range classes {
-		options = append(options, view.Option{ID: class.ID, Name: class.Name, Selected: class.ID == selected})
+		options = append(options, view.Option{ID: class.ID, Name: view.ClassTitle(class.Name), Selected: class.ID == selected})
 	}
 
 	return options

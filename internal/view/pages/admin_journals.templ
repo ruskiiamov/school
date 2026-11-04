@@ -8,9 +8,13 @@ import (
 
 templ AdminJournals(page view.AdminJournalsPage) {
 	@layout.App(page.Shell) {
-		<div class="flex h-[calc(100dvh-6.5rem-1px)] flex-col gap-4 lg:h-[calc(100dvh-8rem-1px)] lg:gap-6">
+		<div class="flex h-[calc(100dvh-6.5rem-1px)] flex-col gap-4 lg:h-[calc(100dvh-8rem-1px)] lg:gap-6 short:h-auto">
 			@components.PageHeader("Журналы")
-			@components.PageHint(hintAdminJournals)
+			@components.PageHelp("Как читать журнал") {
+				<p>Таблица «уроки × ученики» по классу и предмету. Здесь можно только читать</p>
+				<p>В ячейке — оценки за урок по порядку типов работ, «Н» — отсутствие, точка — комментарий учителя, «%» — начислен штраф</p>
+				<p>По ячейке — оценки ученика за урок, по «ДЗ» — домашнее задание, по стрелке у урока — оценки всего класса по типам работ</p>
+			}
 			@AdminJournalsContent(page)
 		</div>
 		@journalModal()
@@ -40,7 +44,7 @@ templ AdminJournalsContent(page view.AdminJournalsPage) {
 			</div>
 		} else {
 			<p class="text-sm text-slate-700">{ page.Teacher }</p>
-			<section class={ components.CardClass, "flex min-h-0 flex-col" }>
+			<section class={ components.CardClass, "flex min-h-0 flex-col short:h-[calc(100dvh-5rem)] short:flex-none" }>
 				@journalTable(*page.Content)
 			</section>
 		}

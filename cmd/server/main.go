@@ -11,6 +11,7 @@ import (
 	_ "time/tzdata"
 
 	"github.com/ruskiiamov/school/internal/app"
+	"github.com/ruskiiamov/school/internal/buildinfo"
 	"github.com/ruskiiamov/school/internal/config"
 	"github.com/ruskiiamov/school/internal/logger"
 )
@@ -28,7 +29,7 @@ func run() error {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Println(buildVersion())
+		fmt.Println(buildinfo.Version())
 
 		return nil
 	}
@@ -52,7 +53,7 @@ func run() error {
 	defer stop()
 	context.AfterFunc(ctx, stop)
 
-	log.InfoContext(ctx, "server starting", slog.String("version", buildVersion()))
+	log.InfoContext(ctx, "server starting", slog.String("version", buildinfo.Version()))
 
 	application, err := app.New(ctx, cfg, log)
 	if err != nil {

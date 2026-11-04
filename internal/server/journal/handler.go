@@ -92,7 +92,7 @@ func (h *Handler) Dashboard(r *http.Request, teacherID int64) (view.TeacherHome,
 func pairCard(pair journal.YearPair) view.PairCard {
 	card := view.PairCard{
 		Href:    pairPath(pair.ClassID, pair.SubjectID),
-		Name:    pair.ClassName + " · " + pair.SubjectName,
+		Name:    view.ClassTitle(pair.ClassName) + " · " + pair.SubjectName,
 		Lessons: "Уроков пока нет",
 		OwnOnly: pair.Kind == journal.PairOwnLessons,
 	}

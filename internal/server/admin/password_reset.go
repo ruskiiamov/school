@@ -77,7 +77,7 @@ func (h *Handler) findUsers(r *http.Request, query string) ([]view.PasswordReset
 			ID:        user.ID,
 			FullName:  user.FullName,
 			Role:      view.RoleTitle(string(user.Role)),
-			ClassName: classes[user.ID].Name,
+			ClassName: view.ClassTitle(classes[user.ID].Name),
 			Login:     user.Login,
 			Action:    passwordResetURL(user.ID, "") + search,
 		})

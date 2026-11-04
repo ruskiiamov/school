@@ -214,6 +214,38 @@ templ DateInput(name, value, label, class string, attrs templ.Attributes) {
 	</span>
 }
 
+// DatePickButton — поле даты, которое на телефоне при работающем JS
+// сжимается в кнопку календаря с подписью: выбор даты пишет её в скрытое
+// текстовое поле и шлёт change, как у DateInput. Без JS и на широком
+// экране — обычный DateInput (D-118).
+templ DatePickButton(name, value, label, placeholder, buttonText, class string, attrs templ.Attributes) {
+	<span class="relative flex min-w-0" data-date>
+		<input
+			name={ name }
+			value={ value }
+			aria-label={ label }
+			placeholder={ placeholder }
+			inputmode="numeric"
+			maxlength="10"
+			autocomplete="off"
+			{ attrs... }
+			class={ class, "pr-9 tabular-nums js:max-sm:hidden" }
+		/>
+		<button
+			type="button"
+			data-date-pick
+			tabindex="-1"
+			aria-label="Выбрать в календаре"
+			title="Календарь"
+			class="absolute inset-y-0 right-0 flex w-9 items-center justify-center rounded-r-md text-slate-400 hover:text-indigo-700 js:max-sm:static js:max-sm:h-9 js:max-sm:w-auto js:max-sm:gap-1.5 js:max-sm:px-2.5 js:max-sm:rounded-md js:max-sm:border js:max-sm:border-slate-300 js:max-sm:bg-white js:max-sm:text-sm js:max-sm:font-medium js:max-sm:text-slate-700"
+		>
+			@Icon(view.IconCalendar, "size-4 shrink-0")
+			<span class="hidden js:max-sm:inline">{ buttonText }</span>
+		</button>
+		<input type="date" tabindex="-1" aria-hidden="true" data-date-native class="pointer-events-none absolute bottom-0 left-0 size-px opacity-0"/>
+	</span>
+}
+
 templ NoScriptSubmit(label string) {
 	<noscript>
 		<button type="submit" class={ ButtonPrimaryClass, "shrink-0" }>{ label }</button>

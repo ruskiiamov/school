@@ -109,7 +109,7 @@ func TestTransferCreatesClasses(t *testing.T) {
 
 	again := servertest.Get(t, f.env.Handler, transferURL, f.admin).Body.String()
 	assert.Contains(t, again, "Такой класс уже есть")
-	assert.Contains(t, again, ">11А</h2>")
+	assert.Contains(t, again, ">11А класс</h2>")
 	assert.NotContains(t, again, `name="transfer-`+f.key(f.eleventh)+`" value="1" checked`)
 	assert.NotContains(t, again, `name="transfer-`+f.key(f.seventh)+`" value="1" checked`)
 }
@@ -134,6 +134,11 @@ func TestTransferErrors(t *testing.T) {
 			name:    "empty name",
 			form:    url.Values{"transfer-" + f.key(f.seventh): {"1"}, "name-" + f.key(f.seventh): {""}},
 			message: "Укажите название",
+		},
+		{
+			name:    "name with space",
+			form:    url.Values{"transfer-" + f.key(f.seventh): {"1"}, "name-" + f.key(f.seventh): {"8 А"}},
+			message: "Название класса — одно слово без пробелов",
 		},
 		{
 			name: "inactive student",

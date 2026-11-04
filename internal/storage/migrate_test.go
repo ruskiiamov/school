@@ -272,3 +272,53 @@ func TestPenaltiesMigrationKeepsWorkTypes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, list, 1)
 }
+
+func TestClassNamesMigrationDropsWordClass(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	db, err := Open(ctx, config.DB{Path: filepath.Join(t.TempDir(), "test.db")})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+
+	provider, err := goose.NewProvider(goose.DialectSQLite3, db, migrations.FS)
+	require.NoError(t, err)
+
+	_, err = provider.UpTo(ctx, 10)
+	require.NoError(t, err)
+
+	names := []struct {
+		year int
+		old  string
+		want string
+	}{
+		{2026, "7 класс", "7"},
+		{2026, "5 А", "5А"},
+		{2026, "10Б Класс", "10Б"},
+		{2026, "Подготовительный класс", "Подготовительный"},
+		{2026, "8А", "8А"},
+		{2026, "класс", "класс"},
+		{2026, "9 класс", "9 класс"},
+		{2026, "9", "9"},
+		{2025, "9 класс", "9"},
+		{2025, "6 Б", "6 Б"},
+		{2025, "6Б класс", "6Б класс"},
+	}
+
+	for _, n := range names {
+		_, err := db.ExecContext(ctx,
+			`INSERT INTO classes (year, name, created_at, updated_at) VALUES (?, ?, 0, 0)`, n.year, n.old)
+		require.NoError(t, err)
+	}
+
+	_, err = provider.Up(ctx)
+	require.NoError(t, err)
+
+	for _, n := range names {
+		var count int
+		err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM classes WHERE year = ? AND name = ?`, n.year, n.want).Scan(&count)
+		require.NoError(t, err)
+		assert.Equal(t, 1, count, "%d %q → %q", n.year, n.old, n.want)
+	}
+}

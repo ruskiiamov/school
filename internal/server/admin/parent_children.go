@@ -158,7 +158,7 @@ func (d childrenData) member(student auth.User, removeAction string) view.Member
 	return view.MemberRow{
 		ID:           student.ID,
 		FullName:     student.FullName,
-		ClassName:    d.classes[student.ID].Name,
+		ClassName:    view.ClassTitle(d.classes[student.ID].Name),
 		Active:       student.Active,
 		RemoveAction: removeAction,
 	}

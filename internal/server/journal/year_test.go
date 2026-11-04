@@ -69,7 +69,7 @@ func TestPairJournalPastYear(t *testing.T) {
 	assert.NotContains(t, home, `href="`+pairPath(f.class, f.subject)+`"`)
 
 	body := servertest.Get(t, f.env.Handler, pastPair, teacher).Body.String()
-	assert.Contains(t, body, "6А · Алгебра · "+school.YearName(f.past))
+	assert.Contains(t, body, "6А класс · Алгебра · "+school.YearName(f.past))
 	assert.Contains(t, body, `href="/?year=`+past+`"`)
 	assert.Contains(t, body, `id="lesson-`+strconv.FormatInt(f.lesson, 10)+`"`)
 	assert.Contains(t, body, `: 5">5`)
@@ -85,13 +85,13 @@ func TestAdminJournalsPastYear(t *testing.T) {
 	year := strconv.Itoa(f.past)
 
 	body := servertest.Get(t, f.env.Handler, "/admin/journals", admin).Body.String()
-	assert.Contains(t, body, ">7А</option>")
-	assert.NotContains(t, body, ">6А</option>")
+	assert.Contains(t, body, ">7А класс</option>")
+	assert.NotContains(t, body, ">6А класс</option>")
 
 	pair := url.Values{"year": {year}, "class": {strconv.FormatInt(f.pastClass, 10)}, "subject": {strconv.FormatInt(f.subject, 10)}}
 	body = servertest.Get(t, f.env.Handler, "/admin/journals?"+pair.Encode(), admin).Body.String()
 	assert.Contains(t, body, `<option value="`+year+`" selected>`)
-	assert.Contains(t, body, ` selected>6А</option>`)
+	assert.Contains(t, body, ` selected>6А класс</option>`)
 	assert.Contains(t, body, `id="lesson-`+strconv.FormatInt(f.lesson, 10)+`"`)
 	assert.Contains(t, body, `: 5">5`)
 }

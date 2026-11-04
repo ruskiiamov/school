@@ -123,7 +123,7 @@ func (h *Handler) renderTransfer(w http.ResponseWriter, r *http.Request, plan sc
 
 		row := view.TransferClassRow{
 			ID:            item.Class.ID,
-			Name:          item.Class.Name,
+			Name:          view.ClassTitle(item.Class.Name),
 			NewName:       class.Name,
 			Transfer:      class.Transfer,
 			Graduating:    item.Graduating,

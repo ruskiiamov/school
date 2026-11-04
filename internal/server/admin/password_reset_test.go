@@ -49,7 +49,7 @@ func TestPasswordResetSearchShowsActiveUsersOfAllRoles(t *testing.T) {
 	assert.Contains(t, found, ">Учитель<")
 	assert.Contains(t, found, ">Ученик<")
 	assert.Contains(t, found, ">Родитель<")
-	assert.Contains(t, found, ">7А<")
+	assert.Contains(t, found, ">7А класс<")
 	assert.Contains(t, found, ">smirnova.t<")
 	assert.Contains(t, found, `action="/admin/password-reset/`+strconv.FormatInt(studentID, 10)+`?q=%D1%81%D0%BC%D0%B8%D1%80%D0%BD"`)
 	assert.Contains(t, found, `hx-confirm="Сбросить пароль пользователю Смирнова Анна?"`)
