@@ -1,0 +1,55 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+templ PenaltySettings(page view.PenaltySettingsPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader("Штрафы")
+			@components.PageHint(hintPenaltySettings)
+			@components.PageHelp("Как это работает") {
+				<p>Учитель отмечает у своего типа работы галочку «Со штрафом». Тогда у такой работы появляется поле «выполнено, %»: пустое поле — 100 %</p>
+				<p>Начисление = полный штраф × (100 % − выполнено), с округлением до целого. Долг ученика — сумма начислений по всем предметам минус отработанное</p>
+				<p>Отработку записывают учителя и администратор на странице с названием штрафа. Отработка гасит сначала самые старые начисления, погашенные учитель уже не меняет</p>
+				<p>Смена полного штрафа старые начисления не пересчитывает. Выключение прячет штрафы, но ничего не удаляет</p>
+			}
+			<form method="post" action={ templ.SafeURL(page.Action) } class={ components.CardClass, "flex flex-col gap-4 p-4 sm:p-6" }>
+				if page.Done {
+					@components.Success("Сохранено")
+				}
+				<label class={ checkboxLabelClass, "font-medium text-slate-900" }>
+					<input type="checkbox" name="enabled" value="1" checked?={ page.Enabled } class={ checkboxClass }/>
+					Включить штрафы
+				</label>
+				@settingsField("name", page.Name, "Название", "Так называются пункт меню и страница со штрафами", "30", page.Errors["name"])
+				@settingsField("unit", page.Unit, "Единица", "В чём считаются баллы: например, «баллы» или «м²»", "20", page.Errors["unit"])
+				@settingsField("full", page.Full, "Полный штраф", "Столько начисляется за работу, не выполненную совсем", "4", page.Errors["full"])
+				<div class="flex justify-end">
+					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
+				</div>
+			</form>
+		</div>
+	}
+}
+
+templ settingsField(name, value, label, note, maxLength, message string) {
+	<label class="flex flex-col gap-1.5">
+		<span class="text-sm font-medium text-slate-700">{ label }</span>
+		<input
+			name={ name }
+			value={ value }
+			maxlength={ maxLength }
+			autocomplete="off"
+			if name == "full" {
+				inputmode="numeric"
+			}
+			class={ components.InputClassFor(message), "sm:max-w-sm" }
+		/>
+		@components.FieldError(message)
+		<span class="text-sm text-slate-500">{ note }</span>
+	</label>
+}

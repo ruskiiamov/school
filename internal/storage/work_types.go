@@ -16,6 +16,7 @@ type WorkType struct {
 	Name      string
 	SortOrder int
 	Active    bool
+	Penalized bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -29,7 +30,7 @@ func NewWorkTypeRepo(db *sql.DB) *WorkTypeRepo {
 }
 
 const (
-	workTypeColumns = "id, teacher_id, subject_id, name, sort_order, active, created_at, updated_at"
+	workTypeColumns = "id, teacher_id, subject_id, name, sort_order, active, penalized, created_at, updated_at"
 	sortOrderStep   = 10
 )
 
@@ -101,13 +102,13 @@ func (r *WorkTypeRepo) ByID(ctx context.Context, id int64) (WorkType, error) {
 	return workType, nil
 }
 
-func (r *WorkTypeRepo) Create(ctx context.Context, teacherID, subjectID int64, name string, sortOrder int) (int64, error) {
-	const query = `INSERT INTO work_types (teacher_id, subject_id, name, sort_order, active, created_at, updated_at)
-		VALUES (?, ?, ?, ?, 1, ?, ?)`
+func (r *WorkTypeRepo) Create(ctx context.Context, teacherID, subjectID int64, name string, sortOrder int, penalized bool) (int64, error) {
+	const query = `INSERT INTO work_types (teacher_id, subject_id, name, sort_order, active, penalized, created_at, updated_at)
+		VALUES (?, ?, ?, ?, 1, ?, ?, ?)`
 
 	now := toMillis(time.Now())
 
-	result, err := r.db.ExecContext(ctx, query, teacherID, subjectID, name, sortOrder, now, now)
+	result, err := r.db.ExecContext(ctx, query, teacherID, subjectID, name, sortOrder, penalized, now, now)
 	if err != nil {
 		return 0, fmt.Errorf("insert work type: %w", err)
 	}
@@ -120,10 +121,10 @@ func (r *WorkTypeRepo) Create(ctx context.Context, teacherID, subjectID int64, n
 	return id, nil
 }
 
-func (r *WorkTypeRepo) Update(ctx context.Context, id int64, name string) error {
-	const query = "UPDATE work_types SET name = ?, updated_at = ? WHERE id = ?"
+func (r *WorkTypeRepo) Update(ctx context.Context, id int64, name string, penalized bool) error {
+	const query = "UPDATE work_types SET name = ?, penalized = ?, updated_at = ? WHERE id = ?"
 
-	result, err := r.db.ExecContext(ctx, query, name, toMillis(time.Now()), id)
+	result, err := r.db.ExecContext(ctx, query, name, penalized, toMillis(time.Now()), id)
 	if err != nil {
 		return fmt.Errorf("update work type: %w", err)
 	}
@@ -196,7 +197,7 @@ func scanWorkType(row scanner) (WorkType, error) {
 		updatedAt int64
 	)
 
-	err := row.Scan(&workType.ID, &workType.TeacherID, &workType.SubjectID, &workType.Name, &workType.SortOrder, &workType.Active, &createdAt, &updatedAt)
+	err := row.Scan(&workType.ID, &workType.TeacherID, &workType.SubjectID, &workType.Name, &workType.SortOrder, &workType.Active, &workType.Penalized, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return WorkType{}, ErrNotFound
 	}

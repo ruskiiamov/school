@@ -12,9 +12,11 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 и на десктопе. Готовы итерации 1–8 (до выпуска v0.1.0), итерация 9
 «журнал пары» (D-087…D-104, старые страницы журнала и сводок удалены) и
 итерация 10 (D-105…D-109, выпуск v0.3.0) и доработки v0.4.0 (D-110, D-111): свои типы работ учителя, оценки «±» и «0»,
-комментарий к оценке, оценки уроку раскрывающейся строкой журнала.
+комментарий к оценке, оценки уроку раскрывающейся строкой журнала, и
+итерация 11 (D-112, выпуск v0.5.0) — штрафы за невыполненные работы.
 Меню
-строится по роли в `view.NavItems(role, active)`; у админа пункты несут
+строится по роли в `view.NavItems(role, active, penalties)` (`penalties` —
+название штрафа из настроек или пусто, если штрафы выключены); у админа пункты несут
 `NavItem.Group` («Школа», «Справочники», «Просмотр», «Служебное», D-080),
 сайдбар рисует подпись перед первым пунктом группы.
 
@@ -73,7 +75,7 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
 
 Зависимости идут строго в одну сторону: `cmd/server` → `internal/app` →
 `internal/server` → {`server/admin`, `server/account`, `server/journal`,
-`server/diary`, `server/files`} → `server/web` → {`internal/auth`,
+`server/diary`, `server/penalties`, `server/files`} → `server/web` → {`internal/auth`,
 `internal/school`, `internal/journal`, `internal/backup`} →
 {`internal/storage`, `internal/files`}. `auth`, `school`, `journal` и
 `backup` друг о друге не знают;
@@ -126,7 +128,8 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
     знает про сессии и оболочку: `Base` (сервис `auth`, имя школы, cookie,
     логгер) с методами `Render`, `Shell`, `ServerError`, `HandleServiceError`
     (`ErrNotFound` → 404), `Authenticate`, `SessionID`, `SetSessionCookie`,
-    `ClearSessionCookie`, `RequireAuth`; свободные `Redirect`, `IsHTMX`,
+    `ClearSessionCookie`, `RequireAuth` (`Base` держит и `*school.Service`:
+    `Shell` строит меню по настройкам штрафов); свободные `Redirect`, `IsHTMX`,
     `RequireRole`, `PathID`, `PathValue`, `FormValue`, `FormInt64`,
     `FormErrors`, `UserFromContext`; период сводок — `Period`,
     `ParsePeriod(r, today, min, max)` (две даты `from`/`to`, по умолчанию
@@ -137,7 +140,10 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
     селект показывается всегда),
     `WithYear` добавляет `year` в скрытые параметры ссылок, `YearPeriod`
     зажимает период в границы выбранного года с якорем «сегодня» или
-    началом прошлого года. `HandleServiceError` превращает в 404
+    началом прошлого года; штрафы — `penalty.go`: `PenaltyStatus`
+    (подпись статуса погашения), `PenaltySummary` («Выполнено 30 % ·
+    м²: 14 · не погашено»), `PenaltyHistory` — общая сборка истории для
+    страницы отработки и дневника. `HandleServiceError` превращает в 404
     `ErrNotFound` всех трёх сервисов и `journal.ErrForbidden`. Обработчиков
     в `web` нет и не добавлять.
   - `server/admin` — всё под `/admin`: `Handler` (`handler.go`: `New`,
@@ -146,6 +152,8 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
     `subjects.go`, `users.go`, `parent_children.go`,
     `password_reset.go`, `substitutions.go`, `transfer.go` — перевод
     классов `/admin/classes/transfer`, обычная форма без HTMX,
+    `penalties.go` — настройки штрафов `/admin/penalties` (обычная форма
+    без HTMX, успех — редирект на `?done=1`),
     `backup.go` — страница `/admin/backup` и скачивание
     `/admin/backup/download`: `backup.Prepare` до заголовков, чтобы ошибка
     копии БД ушла как 500, затем `Content-Disposition: attachment` и
@@ -208,7 +216,19 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
     исключение из «всё под `/admin` в `admin`»), `summary.go`
     (`/diary/summary` и `/admin/diary/{id}/summary` — оценки по предметам
     за период с селектом года, `renderMarks`, чипы оценок ведут на день
-    дневника). Только чтение, фрагменты `#diary` и `#marks`.
+    дневника), `penalties.go` (`/diary/penalties` ученику и родителю с
+    вкладками детей и `/admin/diary/{id}/penalties` — долг и история
+    штрафов, при выключенных штрафах 404; карточка долга на главной —
+    `penaltyCard`; строки работ урока со штрафом — `diaryMarks`). Только
+    чтение, фрагменты `#diary` и `#marks`.
+  - `server/penalties` — отработка штрафов для админа и учителя (D-112):
+    `/penalties?year=&class=&q=` — должники (активные ученики в классах
+    выбранного года, долг больше нуля, порядок — класс, потом ФИО),
+    `/penalties/students/{sid}` — долг, форма отработки и история
+    (фрагмент `#penalty-student`), `POST …/workoffs` и
+    `POST /penalties/workoffs/{id}/delete` (админ — любую, учитель —
+    свою, иначе 404). Обёртка `h.staff` — `RequireAuth` + роли + 404 при
+    выключенных штрафах.
   - `server/files` — `GET /files/{id}`: скачивание файла ДЗ для всех ролей
     с проверкой доступа в обработчике (`allowed`: админ всегда, учитель —
     `LessonForTeacher`, ученик — `LessonVisibleToStudent`, родитель — через
@@ -218,7 +238,9 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
     `env.Files` — хранилище файлов во временном каталоге (`env.FilesDir`) с
     лимитами 1 МБ и 3 файла на урок; данные журнала для тестов —
     `env.CreateLesson`, `env.SetMark` (значение строкой: `"4+"`),
-    `env.SetCommentedMark`, `env.SetRecord`, `env.EnsureWorkTypes`
+    `env.SetCommentedMark`, `env.SetRecord`, штрафы — `env.EnablePenalties`
+    («Мытьё полов», «м²», 20), `env.DisablePenalties`, `env.SetPenalty`
+    (процент строкой), `env.AddWorkoff`, `env.EnsureWorkTypes`
     (заводит паре «учитель, предмет» шесть типов `WorkTypeNames`, если
     у неё нет ни одного) (`journal.go`,
     поверх `CreateLesson` и `SaveMarksEntry`; методов сервиса «только для
@@ -257,7 +279,10 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
   `ClassRepo.Transfer`; колонка `classes.graduating` в схеме есть, но не
   используется — D-071), число учеников по классам года
   (`ClassSizes`), счётчики дашборда (`stats.go`), общая проверка
-  названий (`name.go`). Классы из репозитория идут в естественном
+  названий (`name.go`), настройки штрафов (`settings.go`:
+  `PenaltySettings` — из памяти, `LoadSettings` при старте в `app` и
+  `servertest`, `SavePenaltySettings` пишет таблицу `settings` и
+  обновляет копию в памяти). Классы из репозитория идут в естественном
   порядке (`ORDER BY CAST(name AS INTEGER), name`), `journal.Pairs`
   держит тот же порядок. Держит конкретные `*storage.*Repo`. Учебный год — не
   сущность (D-042): `Service.CurrentYear()` (`year.go`) считает его по
@@ -307,7 +332,18 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
   `AddHomeworkFile` пишет на диск через `files.Store` и только потом
   строку и возвращает ID, `DeleteHomeworkFile` — сначала строку, потом
   файл, `OpenHomeworkFile`, `LessonVisibleToStudent`; лимиты —
-  `FileLimits`). Времени не считает: год и «сегодня» приходят
+  `FileLimits`), штрафы (`penalty.go`, D-112: начисление у ячейки «урок
+  × ученик × тип работы» — `penalties`, баллы `PenaltyPoints` целые с
+  округлением половины вверх и запоминаются при сохранении; отработки
+  `penalty_workoffs`; `buildLedger` гасит начисления по дате урока, при
+  одной дате — по порядку внесения (порядок задаёт
+  `PenaltyRepo.ListByStudents`: `l.date`, `created_at`, `id`, D-114), и
+  даёт статусы и долг; погашенное
+  полностью или частично — `Penalty.Locked`, менять нельзя;
+  `donePenaltyChange` — общая проверка поля «выполнено, %» для окна
+  ученика и раскрытого урока; полный штраф приходит параметром в
+  `MarksEntryInput`/`LessonMarksInput`, `Done == nil` — поля штрафов
+  не сохраняются). Времени не считает: год и «сегодня» приходят
   параметрами (Q-31 → D-058). Держит свои `*storage.*Repo`; ФИО учеников
   не знает — их подставляет обработчик из `auth.Users`. «Нет доступа» —
   `journal.ErrForbidden`, «не найдено» — `journal.ErrNotFound`;
@@ -543,6 +579,18 @@ change"` и `hx-push-url`, фрагмент `#marks`. Период зажат в
 следующий) показывается всегда, и `year` всегда идёт в ссылки периода
 и вкладок (`web.WithYear`). Четвертей и весов нет. Сводок учителя и
 админа по классу больше нет — их заменил журнал пары (D-104).
+
+**Штрафы (D-112).** Абстрактные штрафные баллы, во что их переводить —
+решает школа; включение, название, единица и полный штраф — в БД
+(`settings`), не в конфиге. Выключенные штрафы не видны нигде (меню,
+поля, метки, страницы — 404), присланные поля игнорируются, данные
+остаются. Галочка «Со штрафом» у типа работы (`work_types.penalized`)
+меняется только при включённых штрафах: `RenameWorkType` с `nil`
+оставляет флаг. Поле «выполнено, %» — `done-{type}` в окне ученика и
+`d-{type}-{sid}` в раскрытом уроке (`MarkKey.DoneField`); пусто или
+100 — начисления нет. Урок с начислением не пустой (`HasRecords`,
+`DeleteEmpty`). Число с единицей пишется без склонения: «Долг, м²: 13»,
+«м²: 14».
 
 **Перевод классов (D-068).** Кнопка «Создать классы из прошлого года» на
 вкладке текущего года в «Классах» (`CanTransfer`), страница

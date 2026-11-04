@@ -156,13 +156,14 @@ func (h *Handler) studentDiary(w http.ResponseWriter, r *http.Request) {
 	path := adminDiaryPath + "/" + strconv.FormatInt(student.ID, 10)
 
 	h.renderDiary(w, r, diaryView{
-		title:       "Дневник · " + title,
-		active:      adminDiaryPath,
-		path:        path,
-		student:     student.ID,
-		hidden:      filter.hidden(),
-		backHref:    adminDiaryPath + filter.suffix(),
-		summaryHref: path + "/summary" + filter.suffix(),
+		title:         "Дневник · " + title,
+		active:        adminDiaryPath,
+		path:          path,
+		student:       student.ID,
+		hidden:        filter.hidden(),
+		backHref:      adminDiaryPath + filter.suffix(),
+		summaryHref:   path + "/summary" + filter.suffix(),
+		penaltiesHref: h.adminPenaltiesHref(path, filter),
 	})
 }
 
@@ -196,4 +197,13 @@ func (h *Handler) adminStudent(w http.ResponseWriter, r *http.Request, year int)
 	}
 
 	return student, title, true
+}
+
+func (h *Handler) adminPenaltiesHref(path string, filter adminFilter) string {
+	settings := h.school.PenaltySettings()
+	if !settings.Enabled {
+		return ""
+	}
+
+	return path + "/penalties" + filter.suffix()
 }

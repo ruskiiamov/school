@@ -75,14 +75,20 @@ templ marksEntryForm(entry view.MarksEntry, modal bool) {
 							placeholder="Комментарий"
 							aria-label={ "Комментарий: " + row.Name }
 							autocomplete="off"
-							class={ components.InputCompactClassFor(""), "basis-full sm:basis-48" }
+							class={ components.InputCompactClassFor(""), "min-w-0 basis-full sm:basis-48" }
 						/>
 						if row.Error != "" {
 							<span class="basis-full text-right text-xs text-rose-600">{ row.Error }</span>
 						}
 					</li>
+					if row.Done != nil {
+						@doneRow(row.Name, *row.Done)
+					}
 				}
 			</ul>
+		}
+		if entry.Debt != "" {
+			<p class="px-4 pb-2 text-sm font-medium text-amber-700">{ entry.Debt }</p>
 		}
 		if entry.InClass {
 			<div class="flex flex-col gap-1 px-4 pb-3">
@@ -109,4 +115,28 @@ templ attendanceOption(value, label string, checked bool, checkedClass string) {
 		<input type="radio" name="absent" value={ value } checked?={ checked } class="peer sr-only"/>
 		<span class={ "inline-flex h-9 min-w-20 items-center justify-center rounded-md px-3 text-sm font-medium text-slate-500 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-400 hover:text-slate-900", checkedClass }>{ label }</span>
 	</label>
+}
+
+templ doneRow(name string, done view.DoneField) {
+	<li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 pr-4 pl-8">
+		<label for={ done.Field } class="min-w-0 flex-1 text-sm text-slate-600">выполнено, %</label>
+		if done.Locked != "" {
+			<span title="Штраф погашен, изменить нельзя" class="text-sm text-slate-700">{ done.Locked }</span>
+		} else {
+			<input
+				id={ done.Field }
+				name={ done.Field }
+				value={ done.Value }
+				inputmode="numeric"
+				maxlength="3"
+				autocomplete="off"
+				aria-label={ "Выполнено, %: " + name }
+				class={ components.InputCompactClassFor(done.Error), "w-14 text-center text-base font-semibold" }
+			/>
+			<span class="basis-full text-sm text-slate-500 sm:basis-48">{ done.Points }</span>
+		}
+		if done.Error != "" {
+			<span class="basis-full text-right text-xs text-rose-600">{ done.Error }</span>
+		}
+	</li>
 }

@@ -33,6 +33,8 @@ const (
 	IconArchive   Icon = "archive"
 	IconClose     Icon = "close"
 	IconCalendar  Icon = "calendar"
+	IconPenalty   Icon = "penalty"
+	IconSettings  Icon = "settings"
 )
 
 type User struct {
@@ -114,10 +116,11 @@ type PairCard struct {
 }
 
 type PairJournalPage struct {
-	Shell    Shell
-	Title    string
-	BackHref string
-	Content  PairJournalContent
+	Shell     Shell
+	Title     string
+	BackHref  string
+	Penalties bool
+	Content   PairJournalContent
 }
 
 type PairJournalContent struct {
@@ -167,6 +170,7 @@ type MarksEntry struct {
 	Absent       bool
 	Comment      string
 	CommentError string
+	Debt         string
 }
 
 type MarksEntryRow struct {
@@ -177,6 +181,15 @@ type MarksEntryRow struct {
 	Comment      string
 	Error        string
 	Autofocus    bool
+	Done         *DoneField
+}
+
+type DoneField struct {
+	Field  string
+	Value  string
+	Points string
+	Error  string
+	Locked string
 }
 
 type AdminJournalsPage struct {
@@ -269,6 +282,7 @@ type LessonMarksBlock struct {
 type LessonMarksRow struct {
 	Name   string
 	Active bool
+	Done   bool
 	Cells  []LessonMarkCell
 }
 
@@ -278,8 +292,10 @@ type LessonMarkCell struct {
 	Label    string
 	Value    string
 	Comment  string
+	Note     string
 	Error    string
 	Editable bool
+	Percent  bool
 }
 
 type NewWorkTypeForm struct {
@@ -315,6 +331,7 @@ type JournalCell struct {
 	Text    string
 	Title   string
 	Comment bool
+	Penalty bool
 }
 
 type StudentDashboard struct {
@@ -322,6 +339,13 @@ type StudentDashboard struct {
 	MarksHref string
 	Lessons   []DiaryLessonItem
 	Subjects  []SubjectMarksRow
+	Penalty   *PenaltyCard
+}
+
+type PenaltyCard struct {
+	Title string
+	Debt  string
+	Href  string
 }
 
 type PasswordPage struct {
@@ -345,6 +369,7 @@ type DiaryMark struct {
 	Value    string
 	WorkType string
 	Comment  string
+	Penalty  string
 }
 
 type DiaryLessonPanel struct {
@@ -376,21 +401,23 @@ type DiaryChild struct {
 }
 
 type DiaryPage struct {
-	Shell       Shell
-	Title       string
-	BackHref    string
-	SummaryHref string
-	Children    []DiaryChild
-	NoChildren  bool
-	Date        string
-	DateLabel   string
-	DateAction  string
-	Hidden      map[string]string
-	PrevHref    string
-	TodayHref   string
-	NextHref    string
-	Lessons     []DiaryLessonItem
-	Selected    *DiaryLessonPanel
+	Shell         Shell
+	Title         string
+	BackHref      string
+	SummaryHref   string
+	PenaltiesHref string
+	PenaltiesName string
+	Children      []DiaryChild
+	NoChildren    bool
+	Date          string
+	DateLabel     string
+	DateAction    string
+	Hidden        map[string]string
+	PrevHref      string
+	TodayHref     string
+	NextHref      string
+	Lessons       []DiaryLessonItem
+	Selected      *DiaryLessonPanel
 }
 
 type SubjectRow struct {
@@ -410,13 +437,14 @@ type SubjectsPage struct {
 }
 
 type WorkTypeRow struct {
-	ID      int64
-	Name    string
-	Active  bool
-	Editing bool
-	CanUp   bool
-	CanDown bool
-	Error   string
+	ID        int64
+	Name      string
+	Active    bool
+	Penalized bool
+	Editing   bool
+	CanUp     bool
+	CanDown   bool
+	Error     string
 }
 
 type WorkTypesPage struct {
@@ -425,7 +453,9 @@ type WorkTypesPage struct {
 	Subjects     []SubjectTab
 	WorkTypes    []WorkTypeRow
 	ShowInactive bool
+	Penalties    bool
 	NewName      string
+	NewPenalized bool
 	NewError     string
 }
 
@@ -619,6 +649,91 @@ type BackupPage struct {
 	Shell        Shell
 	DownloadPath string
 	Files        string
+}
+
+type PenaltySettingsPage struct {
+	Shell   Shell
+	Action  string
+	Enabled bool
+	Name    string
+	Unit    string
+	Full    string
+	Errors  map[string]string
+	Done    bool
+}
+
+type PenaltiesPage struct {
+	Shell   Shell
+	Title   string
+	Path    string
+	Query   string
+	Years   []Option
+	Classes []Option
+	Debtors []DebtorRow
+	Empty   string
+}
+
+type DebtorRow struct {
+	FullName  string
+	ClassName string
+	Debt      string
+	Href      string
+}
+
+type PenaltyStudentPage struct {
+	Shell    Shell
+	Title    string
+	BackHref string
+	Block    PenaltyStudentBlock
+}
+
+type PenaltyStudentBlock struct {
+	Form    *WorkoffForm
+	History PenaltyHistory
+}
+
+type WorkoffForm struct {
+	Action  string
+	Date    string
+	Points  string
+	Comment string
+	Unit    string
+	Errors  map[string]string
+}
+
+type PenaltyHistory struct {
+	Debt      string
+	Unit      string
+	Penalties []PenaltyHistoryRow
+	Workoffs  []WorkoffRow
+}
+
+type PenaltyHistoryRow struct {
+	Date     string
+	Href     string
+	Subject  string
+	WorkType string
+	Done     string
+	Points   string
+	Status   string
+}
+
+type WorkoffRow struct {
+	Date         string
+	Points       string
+	RecordedBy   string
+	Comment      string
+	DeleteAction string
+	Confirm      string
+}
+
+type DiaryPenaltiesPage struct {
+	Shell      Shell
+	Title      string
+	BackHref   string
+	Children   []DiaryChild
+	NoChildren bool
+	History    PenaltyHistory
 }
 
 type PasswordResetPage struct {

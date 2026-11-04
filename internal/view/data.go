@@ -3,13 +3,16 @@ package view
 import "strconv"
 
 const (
+	PenaltiesPath      = "/penalties"
+	DiaryPenaltiesPath = "/diary/penalties"
+
 	groupSchool   = "Школа"
 	groupCatalogs = "Справочники"
 	groupReading  = "Просмотр"
 	groupService  = "Служебное"
 )
 
-func NavItems(role, active string) []NavItem {
+func NavItems(role, active, penalties string) []NavItem {
 	items := []NavItem{{Title: "Главная", Href: "/", Icon: IconDashboard}}
 
 	switch role {
@@ -20,6 +23,14 @@ func NavItems(role, active string) []NavItem {
 			NavItem{Title: "Ученики", Href: "/admin/students", Icon: IconStudents, Group: groupSchool},
 			NavItem{Title: "Родители", Href: "/admin/parents", Icon: IconParents, Group: groupSchool},
 			NavItem{Title: "Замены", Href: "/admin/substitutions", Icon: IconSwap, Group: groupSchool},
+		)
+
+		if penalties != "" {
+			items = append(items, NavItem{Title: penalties, Href: PenaltiesPath, Icon: IconPenalty, Group: groupSchool})
+		}
+
+		items = append(items,
+			NavItem{Title: "Штрафы", Href: "/admin/penalties", Icon: IconSettings, Group: groupSchool},
 			NavItem{Title: "Предметы", Href: "/admin/subjects", Icon: IconSubjects, Group: groupCatalogs},
 			NavItem{Title: "Журналы", Href: "/admin/journals", Icon: IconTable, Group: groupReading},
 			NavItem{Title: "Дневники", Href: "/admin/diary", Icon: IconDiary, Group: groupReading},
@@ -27,16 +38,24 @@ func NavItems(role, active string) []NavItem {
 			NavItem{Title: "Резервная копия", Href: "/admin/backup", Icon: IconArchive, Group: groupService},
 		)
 	case "teacher":
-		items = append(items,
-			NavItem{Title: "Типы работ", Href: "/journal/work-types", Icon: IconWorkTypes},
-			NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey},
-		)
+		items = append(items, NavItem{Title: "Типы работ", Href: "/journal/work-types", Icon: IconWorkTypes})
+
+		if penalties != "" {
+			items = append(items, NavItem{Title: penalties, Href: PenaltiesPath, Icon: IconPenalty})
+		}
+
+		items = append(items, NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey})
 	default:
 		items = append(items,
 			NavItem{Title: "Дневник", Href: "/diary", Icon: IconDiary},
 			NavItem{Title: "Оценки", Href: "/diary/summary", Icon: IconMarks},
-			NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey},
 		)
+
+		if penalties != "" {
+			items = append(items, NavItem{Title: penalties, Href: DiaryPenaltiesPath, Icon: IconPenalty})
+		}
+
+		items = append(items, NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey})
 	}
 
 	for i := range items {

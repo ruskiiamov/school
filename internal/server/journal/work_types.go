@@ -13,11 +13,18 @@ import (
 const workTypesPath = journalPath + "/work-types"
 
 type workTypeEdit struct {
-	id      int64
-	name    string
-	entered bool
-	open    bool
-	message string
+	id        int64
+	name      string
+	penalized bool
+	entered   bool
+	open      bool
+	message   string
+}
+
+type workTypeNew struct {
+	name      string
+	penalized bool
+	message   string
 }
 
 func workTypesBase(subjectID int64) string {
@@ -48,7 +55,7 @@ func (h *Handler) workTypesList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderWorkTypes(w, r, subjectID, "", "", workTypeEdit{})
+	h.renderWorkTypes(w, r, subjectID, workTypeNew{}, workTypeEdit{})
 }
 
 func (h *Handler) workTypeCreate(w http.ResponseWriter, r *http.Request) {
@@ -65,11 +72,13 @@ func (h *Handler) workTypeCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := web.FormValue(r, "name")
+	created := workTypeNew{name: web.FormValue(r, "name"), penalized: h.penalizedField(r)}
 
-	_, err := h.journal.CreateWorkType(r.Context(), user.ID, subjectID, name)
+	_, err := h.journal.CreateWorkType(r.Context(), user.ID, subjectID, created.name, created.penalized)
 	if errs, ok := web.FormErrors(err); ok {
-		h.renderWorkTypes(w, r, subjectID, name, errs["name"], workTypeEdit{})
+		created.message = errs["name"]
+		h.renderWorkTypes(w, r, subjectID, created, workTypeEdit{})
+
 		return
 	}
 	if err != nil {
@@ -89,9 +98,21 @@ func (h *Handler) workTypeUpdate(w http.ResponseWriter, r *http.Request) {
 	user, _ := web.UserFromContext(r.Context())
 	name := web.FormValue(r, "name")
 
-	err := h.journal.RenameWorkType(r.Context(), user.ID, workType.ID, name)
+	var penalized *bool
+	if h.school.PenaltySettings().Enabled {
+		flag := h.penalizedField(r)
+		penalized = &flag
+	}
+
+	err := h.journal.RenameWorkType(r.Context(), user.ID, workType.ID, name, penalized)
 	if errs, ok := web.FormErrors(err); ok {
-		h.renderWorkTypes(w, r, workType.SubjectID, "", "", workTypeEdit{id: workType.ID, name: name, entered: true, message: errs["name"]})
+		edit := workTypeEdit{id: workType.ID, name: name, penalized: workType.Penalized, entered: true, message: errs["name"]}
+		if penalized != nil {
+			edit.penalized = *penalized
+		}
+
+		h.renderWorkTypes(w, r, workType.SubjectID, workTypeNew{}, edit)
+
 		return
 	}
 	if err != nil {
@@ -120,7 +141,7 @@ func (h *Handler) workTypeSetActive(w http.ResponseWriter, r *http.Request, acti
 
 	err := h.journal.SetWorkTypeActive(r.Context(), user.ID, workType.ID, active)
 	if errs, ok := web.FormErrors(err); ok {
-		h.renderWorkTypes(w, r, workType.SubjectID, "", "", workTypeEdit{id: workType.ID, open: true, message: errs["name"]})
+		h.renderWorkTypes(w, r, workType.SubjectID, workTypeNew{}, workTypeEdit{id: workType.ID, open: true, message: errs["name"]})
 		return
 	}
 	if err != nil {
@@ -182,7 +203,7 @@ func (h *Handler) pathWorkType(w http.ResponseWriter, r *http.Request) (journal.
 
 func (h *Handler) workTypesDone(w http.ResponseWriter, r *http.Request, subjectID int64) {
 	if web.IsHTMX(r) {
-		h.renderWorkTypes(w, r, subjectID, "", "", workTypeEdit{})
+		h.renderWorkTypes(w, r, subjectID, workTypeNew{}, workTypeEdit{})
 		return
 	}
 
@@ -194,7 +215,7 @@ func (h *Handler) workTypesDone(w http.ResponseWriter, r *http.Request, subjectI
 	web.Redirect(w, r, target)
 }
 
-func (h *Handler) renderWorkTypes(w http.ResponseWriter, r *http.Request, subjectID int64, newName, newError string, edit workTypeEdit) {
+func (h *Handler) renderWorkTypes(w http.ResponseWriter, r *http.Request, subjectID int64, created workTypeNew, edit workTypeEdit) {
 	user, _ := web.UserFromContext(r.Context())
 
 	subjects, err := h.journal.TeacherSubjects(r.Context(), user.ID)
@@ -207,8 +228,10 @@ func (h *Handler) renderWorkTypes(w http.ResponseWriter, r *http.Request, subjec
 		Shell:        h.base.Shell(r, "Типы работ", workTypesPath),
 		Base:         workTypesBase(subjectID),
 		ShowInactive: showInactive(r),
-		NewName:      newName,
-		NewError:     newError,
+		Penalties:    h.school.PenaltySettings().Enabled,
+		NewName:      created.name,
+		NewPenalized: created.penalized,
+		NewError:     created.message,
 	}
 
 	found := false
@@ -244,12 +267,19 @@ func workTypeRows(workTypes []journal.WorkType, editing int64, edit workTypeEdit
 	rows := make([]view.WorkTypeRow, 0, len(workTypes))
 
 	for _, workType := range workTypes {
-		row := view.WorkTypeRow{ID: workType.ID, Name: workType.Name, Active: workType.Active, Editing: workType.ID == editing}
+		row := view.WorkTypeRow{
+			ID:        workType.ID,
+			Name:      workType.Name,
+			Active:    workType.Active,
+			Penalized: workType.Penalized,
+			Editing:   workType.ID == editing,
+		}
 
 		if workType.ID == edit.id {
 			row.Error = edit.message
 			if edit.entered {
 				row.Name = edit.name
+				row.Penalized = edit.penalized
 			}
 		}
 
@@ -285,6 +315,10 @@ func editingWorkType(r *http.Request, edit workTypeEdit) int64 {
 	}
 
 	return id
+}
+
+func (h *Handler) penalizedField(r *http.Request) bool {
+	return h.school.PenaltySettings().Enabled && r.PostFormValue("penalized") == "1"
 }
 
 func showInactive(r *http.Request) bool {

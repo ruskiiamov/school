@@ -98,7 +98,7 @@ func (h *Handler) adminJournalContent(r *http.Request, page *view.AdminJournalsP
 		lesson.Year = pair.Year
 		row.Expanded = true
 		row.CollapseHref = adminJournalsURL(lesson, 0)
-		row.Marks = lessonMarksBlock(marks, pair.Students, table.Students, pairState{})
+		row.Marks = lessonMarksBlock(marks, pair.Students, table.Students, pairState{}, h.school.PenaltySettings())
 	}
 
 	page.Content = &view.PairJournalContent{
@@ -241,9 +241,16 @@ func (h *Handler) adminJournalsEntry(w http.ResponseWriter, r *http.Request) {
 		Comment:   entry.Comment,
 	}
 
+	settings := h.school.PenaltySettings()
+
 	for _, workType := range entry.Types {
-		if workType.Value != "" {
-			result.Marks = append(result.Marks, view.DiaryMark{Value: view.FormatMark(workType.Value), WorkType: workType.Name, Comment: workType.Comment})
+		mark := view.DiaryMark{Value: view.FormatMark(workType.Value), WorkType: workType.Name, Comment: workType.Comment}
+		if settings.Enabled && workType.Penalty != nil {
+			mark.Penalty = web.PenaltySummary(settings, *workType.Penalty)
+		}
+
+		if mark.Value != "" || mark.Penalty != "" {
+			result.Marks = append(result.Marks, mark)
 		}
 	}
 

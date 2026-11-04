@@ -87,11 +87,13 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 	schoolService := school.NewService(cfg.School.YearStartMonth, cfg.Location,
 		storage.NewSubjectRepo(db), storage.NewClassRepo(db),
 		storage.NewClassStudentRepo(db), storage.NewParentChildRepo(db), storage.NewAssignmentRepo(db),
-		storage.NewSubstitutionRepo(db), log)
+		storage.NewSubstitutionRepo(db), storage.NewSettingRepo(db), log)
+	require.NoError(t, schoolService.LoadSettings(t.Context()))
 
 	journalService := journal.NewService(storage.NewLessonRepo(db), storage.NewMarkRepo(db), storage.NewLessonStudentRepo(db), storage.NewAssignmentRepo(db),
 		storage.NewSubstitutionRepo(db), storage.NewClassRepo(db), storage.NewClassStudentRepo(db),
 		storage.NewSubjectRepo(db), storage.NewWorkTypeRepo(db), storage.NewHomeworkRepo(db), storage.NewHomeworkFileRepo(db),
+		storage.NewPenaltyRepo(db), storage.NewWorkoffRepo(db),
 		store, journal.FileLimits{MaxFileSize: cfg.Files.MaxFileSize(), MaxPerLesson: cfg.Files.MaxPerLesson}, log)
 
 	return &Env{

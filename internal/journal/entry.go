@@ -12,10 +12,12 @@ import (
 )
 
 type EntryType struct {
-	ID      int64
-	Name    string
-	Value   string
-	Comment string
+	ID          int64
+	Name        string
+	Value       string
+	Comment     string
+	CanPenalize bool
+	Penalty     *Penalty
 }
 
 type MarksEntry struct {
@@ -25,17 +27,24 @@ type MarksEntry struct {
 	Types     []EntryType
 	Absent    bool
 	Comment   string
+	Debt      int
 }
 
 type MarksEntryInput struct {
-	Values   map[int64]string
-	Comments map[int64]string
-	Absent   bool
-	Comment  string
+	Values      map[int64]string
+	Comments    map[int64]string
+	Done        map[int64]string
+	PenaltyFull int
+	Absent      bool
+	Comment     string
 }
 
 func EntryTypeKey(workTypeID int64) string {
 	return "type-" + strconv.FormatInt(workTypeID, 10)
+}
+
+func EntryDoneKey(workTypeID int64) string {
+	return "done-" + strconv.FormatInt(workTypeID, 10)
 }
 
 func (s *Service) MarksEntry(ctx context.Context, teacherID, lessonID, studentID int64) (MarksEntry, error) {
@@ -89,6 +98,20 @@ func (s *Service) marksEntry(ctx context.Context, lesson Lesson, studentID int64
 		}
 	}
 
+	ledger, studentPenalties, err := s.ledger(ctx, []int64{studentID})
+	if err != nil {
+		return MarksEntry{}, err
+	}
+
+	entry.Debt = ledger.debts[studentID]
+
+	penalties := map[int64]Penalty{}
+	for _, penalty := range studentPenalties {
+		if penalty.LessonID == lessonID {
+			penalties[penalty.WorkTypeID] = Penalty{DonePercent: penalty.DonePercent, Points: penalty.Points, Status: ledger.statuses[penalty.ID]}
+		}
+	}
+
 	workTypes, err := s.WorkTypes(ctx, lesson.TeacherID, lesson.SubjectID, true)
 	if err != nil {
 		return MarksEntry{}, err
@@ -96,9 +119,25 @@ func (s *Service) marksEntry(ctx context.Context, lesson Lesson, studentID int64
 
 	for _, workType := range workTypes {
 		mark, marked := marks[workType.ID]
-		if marked || (inClass && workType.Active) {
-			entry.Types = append(entry.Types, EntryType{ID: workType.ID, Name: workType.Name, Value: mark.Value, Comment: mark.Comment})
+		penalty, penalized := penalties[workType.ID]
+
+		if !marked && !penalized && (!inClass || !workType.Active) {
+			continue
 		}
+
+		item := EntryType{
+			ID:          workType.ID,
+			Name:        workType.Name,
+			Value:       mark.Value,
+			Comment:     mark.Comment,
+			CanPenalize: inClass && workType.Active && workType.Penalized,
+		}
+
+		if penalized {
+			item.Penalty = &penalty
+		}
+
+		entry.Types = append(entry.Types, item)
 	}
 
 	records, err := s.lessonStudents.ListByLesson(ctx, lessonID)
@@ -150,16 +189,31 @@ func (s *Service) SaveMarksEntry(ctx context.Context, teacherID, lessonID, stude
 
 	errs := validation.Errors{}
 	changes := []storage.MarkChange{}
+	penaltyChanges := []storage.PenaltyChange{}
 
 	for _, workType := range entry.Types {
 		change, message := markChange(studentID, workType, input.Values[workType.ID], input.Comments[workType.ID])
 		if message != "" {
 			errs.Add(EntryTypeKey(workType.ID), message)
+		} else if change.Value != workType.Value || change.Comment != workType.Comment {
+			changes = append(changes, change)
+		}
+
+		raw, sent := input.Done[workType.ID]
+		if !sent {
 			continue
 		}
 
-		if change.Value != workType.Value || change.Comment != workType.Comment {
-			changes = append(changes, change)
+		penalty, changed, message, err := donePenaltyChange(workType.Penalty, workType.CanPenalize, studentID, workType.ID, raw, input.PenaltyFull)
+		if err != nil {
+			return err
+		}
+
+		switch {
+		case message != "":
+			errs.Add(EntryDoneKey(workType.ID), message)
+		case changed:
+			penaltyChanges = append(penaltyChanges, penalty)
 		}
 	}
 
@@ -187,6 +241,10 @@ func (s *Service) SaveMarksEntry(ctx context.Context, teacherID, lessonID, stude
 
 		s.log.InfoContext(ctx, "marks saved", slog.Int64("lesson_id", lessonID), slog.Int64("student_id", studentID),
 			slog.Int("changes", len(changes)), slog.Int64("teacher_id", teacherID))
+	}
+
+	if err := s.savePenalties(ctx, teacherID, lessonID, penaltyChanges); err != nil {
+		return err
 	}
 
 	if entry.InClass && (record.Absent != entry.Absent || record.Comment != entry.Comment) {

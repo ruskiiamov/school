@@ -227,3 +227,48 @@ func TestTeacherWorkTypesMigrationCopiesSharedTypes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, orphans)
 }
+
+func TestPenaltiesMigrationKeepsWorkTypes(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	db, err := Open(ctx, config.DB{Path: filepath.Join(t.TempDir(), "test.db")})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+
+	provider, err := goose.NewProvider(goose.DialectSQLite3, db, migrations.FS)
+	require.NoError(t, err)
+
+	_, err = provider.UpTo(ctx, 9)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `INSERT INTO work_types (teacher_id, subject_id, name, sort_order, active, created_at, updated_at)
+		VALUES (10, 100, 'Домашняя работа', 10, 1, 0, 0)`)
+	require.NoError(t, err)
+
+	_, err = provider.Up(ctx)
+	require.NoError(t, err)
+
+	repo := NewWorkTypeRepo(db)
+
+	list, err := repo.ListByOwner(ctx, 10, 100, true)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.False(t, list[0].Penalized)
+
+	_, err = provider.DownTo(ctx, 9)
+	require.NoError(t, err)
+
+	var tables int
+	require.NoError(t, db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('settings', 'penalties', 'penalty_workoffs')").Scan(&tables))
+	assert.Zero(t, tables)
+
+	_, err = provider.Up(ctx)
+	require.NoError(t, err)
+
+	list, err = repo.ListByOwner(ctx, 10, 100, true)
+	require.NoError(t, err)
+	assert.Len(t, list, 1)
+}

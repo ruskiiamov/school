@@ -18,6 +18,10 @@ func (k MarkKey) Field() string {
 	return "m-" + strconv.FormatInt(k.WorkTypeID, 10) + "-" + strconv.FormatInt(k.StudentID, 10)
 }
 
+func (k MarkKey) DoneField() string {
+	return "d-" + strconv.FormatInt(k.WorkTypeID, 10) + "-" + strconv.FormatInt(k.StudentID, 10)
+}
+
 type LessonMark struct {
 	Value   string
 	Comment string
@@ -29,8 +33,15 @@ type LessonMarks struct {
 	Members    map[int64]bool
 	Absent     map[int64]bool
 	Marks      map[MarkKey]LessonMark
+	Penalties  map[MarkKey]Penalty
 	CanAddType bool
 	ReadOnly   bool
+}
+
+type LessonMarksInput struct {
+	Marks       map[MarkKey]string
+	Done        map[MarkKey]string
+	PenaltyFull int
 }
 
 func (m LessonMarks) Editable(key MarkKey) bool {
@@ -53,6 +64,28 @@ func (m LessonMarks) Editable(key MarkKey) bool {
 	}
 
 	return false
+}
+
+func (m LessonMarks) Penalized(workTypeID int64) bool {
+	for _, workType := range m.Types {
+		if workType.ID == workTypeID {
+			return workType.Penalized && workType.Active
+		}
+	}
+
+	return false
+}
+
+func (m LessonMarks) PenaltyEditable(key MarkKey) bool {
+	if m.ReadOnly {
+		return false
+	}
+
+	if penalty, found := m.Penalties[key]; found {
+		return !penalty.Locked()
+	}
+
+	return m.Members[key.StudentID] && m.Penalized(key.WorkTypeID)
 }
 
 func (s *Service) LessonMarks(ctx context.Context, teacherID, lessonID int64) (LessonMarks, error) {
@@ -108,11 +141,17 @@ func (s *Service) lessonMarks(ctx context.Context, lesson Lesson) (LessonMarks, 
 		return LessonMarks{}, err
 	}
 
+	penalties, _, err := s.lessonPenalties(ctx, lesson.ID)
+	if err != nil {
+		return LessonMarks{}, err
+	}
+
 	result := LessonMarks{
-		Lesson:  lesson,
-		Members: make(map[int64]bool, len(members)),
-		Absent:  map[int64]bool{},
-		Marks:   make(map[MarkKey]LessonMark, len(stored)),
+		Penalties: penalties,
+		Lesson:    lesson,
+		Members:   make(map[int64]bool, len(members)),
+		Absent:    map[int64]bool{},
+		Marks:     make(map[MarkKey]LessonMark, len(stored)),
 	}
 
 	for _, id := range members {
@@ -124,6 +163,10 @@ func (s *Service) lessonMarks(ctx context.Context, lesson Lesson) (LessonMarks, 
 	for _, mark := range stored {
 		result.Marks[MarkKey{WorkTypeID: mark.WorkTypeID, StudentID: mark.StudentID}] = LessonMark{Value: mark.Value, Comment: mark.Comment}
 		used[mark.WorkTypeID] = true
+	}
+
+	for key := range penalties {
+		used[key.WorkTypeID] = true
 	}
 
 	for _, record := range records {
@@ -141,7 +184,7 @@ func (s *Service) lessonMarks(ctx context.Context, lesson Lesson) (LessonMarks, 
 	return result, nil
 }
 
-func (s *Service) SaveLessonMarks(ctx context.Context, teacherID, lessonID int64, values map[MarkKey]string) error {
+func (s *Service) SaveLessonMarks(ctx context.Context, teacherID, lessonID int64, input LessonMarksInput) error {
 	marks, err := s.LessonMarks(ctx, teacherID, lessonID)
 	if err != nil {
 		return err
@@ -149,8 +192,30 @@ func (s *Service) SaveLessonMarks(ctx context.Context, teacherID, lessonID int64
 
 	errs := validation.Errors{}
 	changes := []storage.MarkChange{}
+	penaltyChanges := []storage.PenaltyChange{}
 
-	for key, raw := range values {
+	for key, raw := range input.Done {
+		var current *Penalty
+		if penalty, found := marks.Penalties[key]; found {
+			current = &penalty
+		}
+
+		allowed := marks.Members[key.StudentID] && marks.Penalized(key.WorkTypeID)
+
+		change, changed, message, err := donePenaltyChange(current, allowed, key.StudentID, key.WorkTypeID, raw, input.PenaltyFull)
+		if err != nil {
+			return err
+		}
+
+		switch {
+		case message != "":
+			errs.Add(key.DoneField(), message)
+		case changed:
+			penaltyChanges = append(penaltyChanges, change)
+		}
+	}
+
+	for key, raw := range input.Marks {
 		if !marks.Editable(key) {
 			return ErrForbidden
 		}
@@ -178,18 +243,16 @@ func (s *Service) SaveLessonMarks(ctx context.Context, teacherID, lessonID int64
 		return errs
 	}
 
-	if len(changes) == 0 {
-		return nil
+	if len(changes) > 0 {
+		if err := s.marks.Set(ctx, lessonID, changes); err != nil {
+			return err
+		}
+
+		s.log.InfoContext(ctx, "lesson marks saved", slog.Int64("lesson_id", lessonID), slog.Int("changes", len(changes)),
+			slog.Int64("teacher_id", teacherID))
 	}
 
-	if err := s.marks.Set(ctx, lessonID, changes); err != nil {
-		return err
-	}
-
-	s.log.InfoContext(ctx, "lesson marks saved", slog.Int64("lesson_id", lessonID), slog.Int("changes", len(changes)),
-		slog.Int64("teacher_id", teacherID))
-
-	return nil
+	return s.savePenalties(ctx, teacherID, lessonID, penaltyChanges)
 }
 
 func (s *Service) CreateLessonWorkType(ctx context.Context, teacherID, lessonID int64, name string) (int64, error) {
@@ -202,5 +265,5 @@ func (s *Service) CreateLessonWorkType(ctx context.Context, teacherID, lessonID 
 		return 0, ErrForbidden
 	}
 
-	return s.CreateWorkType(ctx, teacherID, lesson.SubjectID, name)
+	return s.CreateWorkType(ctx, teacherID, lesson.SubjectID, name, false)
 }

@@ -90,6 +90,10 @@ func (h *Handler) studentDashboard(r *http.Request, studentID int64, hidden map[
 		Subjects:  subjectRows(summary, diary),
 	}
 
+	if board.Penalty, err = h.penaltyCard(r, studentID, hidden); err != nil {
+		return view.StudentDashboard{}, err
+	}
+
 	for _, lesson := range lessons {
 		board.Lessons = append(board.Lessons, view.DiaryLessonItem{
 			ID:       lesson.ID,

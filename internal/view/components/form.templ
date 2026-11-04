@@ -154,6 +154,7 @@ templ CreateForm(action, placeholder, label, name, message, target string) {
 			autocomplete="off"
 			class={ InputClassFor(message), "min-w-0 flex-1 basis-40" }
 		/>
+		{ children... }
 		@AddButton()
 		@FieldError(message)
 	</form>

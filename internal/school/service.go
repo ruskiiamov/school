@@ -3,6 +3,7 @@ package school
 import (
 	"errors"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/ruskiiamov/school/internal/storage"
@@ -21,7 +22,11 @@ type Service struct {
 	parentChildren *storage.ParentChildRepo
 	assignments    *storage.AssignmentRepo
 	substitutions  *storage.SubstitutionRepo
+	settings       *storage.SettingRepo
 	log            *slog.Logger
+
+	settingsMu sync.RWMutex
+	penalty    PenaltySettings
 }
 
 func NewService(
@@ -33,6 +38,7 @@ func NewService(
 	parentChildren *storage.ParentChildRepo,
 	assignments *storage.AssignmentRepo,
 	substitutions *storage.SubstitutionRepo,
+	settings *storage.SettingRepo,
 	log *slog.Logger,
 ) *Service {
 	return &Service{
@@ -44,6 +50,8 @@ func NewService(
 		parentChildren: parentChildren,
 		assignments:    assignments,
 		substitutions:  substitutions,
+		settings:       settings,
 		log:            log,
+		penalty:        DefaultPenaltySettings(),
 	}
 }

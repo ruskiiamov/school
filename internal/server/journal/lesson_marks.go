@@ -6,12 +6,15 @@ import (
 	"strings"
 
 	"github.com/ruskiiamov/school/internal/journal"
+	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/web"
 	"github.com/ruskiiamov/school/internal/view"
 	"github.com/ruskiiamov/school/internal/view/pages"
 )
 
 const (
+	doneFieldPrefix       = "d-"
+	doneRowName           = "выполнено, %"
 	markFieldPrefix       = "m-"
 	msgAuthorWithoutTypes = "У автора урока пока нет типов работ"
 )
@@ -54,11 +57,19 @@ func (h *Handler) lessonMarksSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	values, keys := markValues(r)
+	values, keys := cellValues(r, markFieldPrefix)
+	input := journal.LessonMarksInput{Marks: values}
+
+	var doneKeys []journal.MarkKey
+	if settings := h.school.PenaltySettings(); settings.Enabled {
+		input.Done, doneKeys = cellValues(r, doneFieldPrefix)
+		input.PenaltyFull = settings.Full
+	}
+
 	user, _ := web.UserFromContext(r.Context())
 	state := pairState{open: lesson.ID}
 
-	err := h.journal.SaveLessonMarks(r.Context(), user.ID, lesson.ID, values)
+	err := h.journal.SaveLessonMarks(r.Context(), user.ID, lesson.ID, input)
 	errs, invalid := web.FormErrors(err)
 	if err != nil && !invalid {
 		h.base.HandleServiceError(w, r, "save lesson marks", err)
@@ -67,6 +78,7 @@ func (h *Handler) lessonMarksSave(w http.ResponseWriter, r *http.Request) {
 
 	if invalid {
 		state.markValues = values
+		state.doneValues = input.Done
 		state.markErrs = errs
 	}
 
@@ -81,10 +93,10 @@ func (h *Handler) lessonMarksSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderMarkCells(w, r, lesson, state, keys, invalid)
+	h.renderMarkCells(w, r, lesson, state, keys, doneKeys, invalid)
 }
 
-func (h *Handler) renderMarkCells(w http.ResponseWriter, r *http.Request, lesson journal.Lesson, state pairState, keys []journal.MarkKey, invalid bool) {
+func (h *Handler) renderMarkCells(w http.ResponseWriter, r *http.Request, lesson journal.Lesson, state pairState, keys, doneKeys []journal.MarkKey, invalid bool) {
 	content, _, err := h.pairContent(r, lesson.ClassID, lesson.SubjectID, state)
 	if err != nil {
 		h.base.HandleServiceError(w, r, "load lesson marks", err)
@@ -100,6 +112,10 @@ func (h *Handler) renderMarkCells(w http.ResponseWriter, r *http.Request, lesson
 	submitted := map[string]bool{}
 	for _, key := range keys {
 		submitted[markCellID(lesson.ID, key)] = true
+	}
+
+	for _, key := range doneKeys {
+		submitted[doneCellID(lesson.ID, key)] = true
 	}
 
 	var (
@@ -221,7 +237,7 @@ func (h *Handler) renderLessonMarksPage(w http.ResponseWriter, r *http.Request, 
 	h.base.Render(w, r, pages.LessonMarksPage(page))
 }
 
-func lessonMarksBlock(marks journal.LessonMarks, students []journal.JournalStudent, heads []view.JournalStudentHead, state pairState) *view.LessonMarksBlock {
+func lessonMarksBlock(marks journal.LessonMarks, students []journal.JournalStudent, heads []view.JournalStudentHead, state pairState, settings school.PenaltySettings) *view.LessonMarksBlock {
 	lessonID := marks.Lesson.ID
 
 	block := &view.LessonMarksBlock{
@@ -270,17 +286,74 @@ func lessonMarksBlock(marks journal.LessonMarks, students []journal.JournalStude
 		}
 
 		block.Rows = append(block.Rows, row)
+
+		if settings.Enabled && hasPenaltyRow(marks, workType) {
+			block.Rows = append(block.Rows, doneRow(marks, workType, students, heads, state, settings))
+		}
 	}
 
 	return block
 }
 
-func markValues(r *http.Request) (map[journal.MarkKey]string, []journal.MarkKey) {
+func hasPenaltyRow(marks journal.LessonMarks, workType journal.WorkType) bool {
+	if marks.Penalized(workType.ID) {
+		return true
+	}
+
+	for key := range marks.Penalties {
+		if key.WorkTypeID == workType.ID {
+			return true
+		}
+	}
+
+	return false
+}
+
+func doneRow(marks journal.LessonMarks, workType journal.WorkType, students []journal.JournalStudent, heads []view.JournalStudentHead, state pairState, settings school.PenaltySettings) view.LessonMarksRow {
+	lessonID := marks.Lesson.ID
+	row := view.LessonMarksRow{Name: doneRowName, Active: workType.Active, Done: true}
+
+	for i, student := range students {
+		key := journal.MarkKey{WorkTypeID: workType.ID, StudentID: student.ID}
+
+		cell := view.LessonMarkCell{
+			ID:       doneCellID(lessonID, key),
+			Field:    key.DoneField(),
+			Label:    strings.TrimSpace(heads[i].LastName+" "+heads[i].FirstName) + " · " + workType.Name + " · " + doneRowName,
+			Editable: marks.PenaltyEditable(key),
+			Percent:  true,
+		}
+
+		if penalty, found := marks.Penalties[key]; found {
+			cell.Note = view.FormatPoints(settings.Unit, penalty.Points)
+			cell.Value = view.FormatPercent(penalty.DonePercent)
+
+			if cell.Editable {
+				cell.Value = strconv.Itoa(penalty.DonePercent)
+			}
+
+			if penalty.Locked() {
+				cell.Note = web.MsgPenaltyLocked + " · " + cell.Note
+			}
+		}
+
+		if typed, ok := state.doneValues[key]; ok {
+			cell.Value = typed
+			cell.Error = state.markErrs[key.DoneField()]
+		}
+
+		row.Cells = append(row.Cells, cell)
+	}
+
+	return row
+}
+
+func cellValues(r *http.Request, prefix string) (map[journal.MarkKey]string, []journal.MarkKey) {
 	values := map[journal.MarkKey]string{}
 	var keys []journal.MarkKey
 
 	for field := range r.PostForm {
-		raw, found := strings.CutPrefix(field, markFieldPrefix)
+		raw, found := strings.CutPrefix(field, prefix)
 		if !found {
 			continue
 		}
@@ -319,6 +392,10 @@ func findRow(content view.PairJournalContent, lessonID int64) (view.JournalRow, 
 
 func markCellID(lessonID int64, key journal.MarkKey) string {
 	return lessonAnchor(lessonID) + "-" + key.Field()
+}
+
+func doneCellID(lessonID int64, key journal.MarkKey) string {
+	return lessonAnchor(lessonID) + "-" + key.DoneField()
 }
 
 func studentHeadID(studentID int64) string {

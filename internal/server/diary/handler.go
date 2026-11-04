@@ -37,9 +37,11 @@ func New(base *web.Base, authService *auth.Service, schoolService *school.Servic
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET "+diaryPath, h.owner(h.index))
 	mux.Handle("GET "+summaryPath, h.owner(h.summary))
+	mux.Handle("GET "+view.DiaryPenaltiesPath, h.owner(h.penalties))
 	mux.Handle("GET "+adminDiaryPath, h.admin(h.search))
 	mux.Handle("GET "+adminDiaryPath+"/{id}", h.admin(h.studentDiary))
 	mux.Handle("GET "+adminDiaryPath+"/{id}/summary", h.admin(h.adminSummary))
+	mux.Handle("GET "+adminDiaryPath+"/{id}/penalties", h.admin(h.adminPenalties))
 }
 
 func (h *Handler) owner(fn http.HandlerFunc) http.Handler {
@@ -51,14 +53,15 @@ func (h *Handler) admin(fn http.HandlerFunc) http.Handler {
 }
 
 type diaryView struct {
-	title       string
-	active      string
-	path        string
-	student     int64
-	hidden      map[string]string
-	backHref    string
-	summaryHref string
-	children    []view.DiaryChild
+	title         string
+	active        string
+	path          string
+	student       int64
+	hidden        map[string]string
+	backHref      string
+	summaryHref   string
+	penaltiesHref string
+	children      []view.DiaryChild
 }
 
 func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
@@ -198,18 +201,20 @@ func (h *Handler) renderDiary(w http.ResponseWriter, r *http.Request, dv diaryVi
 	dateValue := date.Format(validation.InputDateLayout)
 
 	page := view.DiaryPage{
-		Shell:       h.base.Shell(r, dv.title, dv.active),
-		Title:       dv.title,
-		BackHref:    dv.backHref,
-		SummaryHref: dv.summaryHref,
-		Children:    dv.children,
-		Date:        dateValue,
-		DateLabel:   view.FormatDate(date),
-		DateAction:  dv.path,
-		Hidden:      dv.hidden,
-		PrevHref:    diaryURL(dv, date.AddDate(0, 0, -1), 0),
-		TodayHref:   diaryURL(dv, h.school.Today(), 0),
-		NextHref:    diaryURL(dv, date.AddDate(0, 0, 1), 0),
+		Shell:         h.base.Shell(r, dv.title, dv.active),
+		Title:         dv.title,
+		BackHref:      dv.backHref,
+		SummaryHref:   dv.summaryHref,
+		PenaltiesHref: dv.penaltiesHref,
+		PenaltiesName: h.school.PenaltySettings().Name,
+		Children:      dv.children,
+		Date:          dateValue,
+		DateLabel:     view.FormatDate(date),
+		DateAction:    dv.path,
+		Hidden:        dv.hidden,
+		PrevHref:      diaryURL(dv, date.AddDate(0, 0, -1), 0),
+		TodayHref:     diaryURL(dv, h.school.Today(), 0),
+		NextHref:      diaryURL(dv, date.AddDate(0, 0, 1), 0),
 	}
 
 	requested := queryID(r, "lesson")
@@ -248,9 +253,7 @@ func (h *Handler) renderDiary(w http.ResponseWriter, r *http.Request, dv diaryVi
 			Comment: lesson.Comment,
 		}
 
-		for _, mark := range lesson.Marks {
-			panel.Marks = append(panel.Marks, view.DiaryMark{Value: view.FormatMark(mark.Value), WorkType: mark.WorkTypeName, Comment: mark.Comment})
-		}
+		panel.Marks = diaryMarks(lesson, h.penaltySummary())
 
 		if !lesson.Homework.Empty() {
 			panel.Homework = diaryHomework(lesson.Homework)
@@ -260,6 +263,17 @@ func (h *Handler) renderDiary(w http.ResponseWriter, r *http.Request, dv diaryVi
 	}
 
 	h.renderDiaryPage(w, r, page)
+}
+
+func (h *Handler) penaltySummary() func(journal.Penalty) string {
+	settings := h.school.PenaltySettings()
+	if !settings.Enabled {
+		return nil
+	}
+
+	return func(penalty journal.Penalty) string {
+		return web.PenaltySummary(settings, penalty)
+	}
 }
 
 func (h *Handler) renderDiaryPage(w http.ResponseWriter, r *http.Request, page view.DiaryPage) {

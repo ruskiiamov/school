@@ -64,6 +64,9 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST "+passwordResetPath+"/{id}", h.admin(h.passwordReset))
 	mux.Handle("GET "+passwordResetPath+"/{id}/created", h.admin(h.passwordResetCreated))
 
+	mux.Handle("GET "+penaltySettingsPath, h.admin(h.penaltySettingsShow))
+	mux.Handle("POST "+penaltySettingsPath, h.admin(h.penaltySettingsSave))
+
 	mux.Handle("GET "+backupPath, h.admin(h.backupShow))
 	mux.Handle("GET "+backupDownloadPath, h.admin(h.backupDownload))
 

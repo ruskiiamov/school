@@ -35,7 +35,7 @@ func TestClientIP(t *testing.T) {
 			t.Parallel()
 
 			cfg := &config.Config{HTTP: config.HTTP{BehindProxy: tt.behindProxy}}
-			base := web.New(cfg, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+			base := web.New(cfg, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 			req := httptest.NewRequest(http.MethodPost, "/login", nil)
 			for _, value := range tt.forwarded {

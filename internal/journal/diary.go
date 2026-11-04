@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+type LessonPenalty struct {
+	WorkTypeID   int64
+	WorkTypeName string
+	Penalty
+}
+
 type DiaryLesson struct {
 	ID          int64
 	TeacherID   int64
@@ -13,6 +19,7 @@ type DiaryLesson struct {
 	Topic       string
 	SubjectName string
 	Marks       []Mark
+	Penalties   []LessonPenalty
 	Absent      bool
 	Comment     string
 	Homework    Homework
@@ -38,6 +45,36 @@ func (s *Service) DayLessons(ctx context.Context, studentID int64, date time.Tim
 		subjectNames[subject.ID] = subject.Name
 	}
 
+	ledger, penalties, err := s.ledger(ctx, []int64{studentID})
+	if err != nil {
+		return nil, err
+	}
+
+	typeIDs := make([]int64, 0, len(penalties))
+	for _, penalty := range penalties {
+		typeIDs = append(typeIDs, penalty.WorkTypeID)
+	}
+
+	typeNames, typeOrder, err := s.workTypeNames(ctx, typeIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	lessonPenalties := map[int64][]LessonPenalty{}
+	for _, penalty := range penalties {
+		lessonPenalties[penalty.LessonID] = append(lessonPenalties[penalty.LessonID], LessonPenalty{
+			WorkTypeID:   penalty.WorkTypeID,
+			WorkTypeName: typeNames[penalty.WorkTypeID],
+			Penalty:      Penalty{DonePercent: penalty.DonePercent, Points: penalty.Points, Status: ledger.statuses[penalty.ID]},
+		})
+	}
+
+	for _, list := range lessonPenalties {
+		sort.SliceStable(list, func(i, j int) bool {
+			return typeOrder[list[i].WorkTypeID] < typeOrder[list[j].WorkTypeID]
+		})
+	}
+
 	lessons := make([]DiaryLesson, 0, len(stored))
 
 	for _, item := range stored {
@@ -47,6 +84,7 @@ func (s *Service) DayLessons(ctx context.Context, studentID int64, date time.Tim
 			Date:        item.Date,
 			Topic:       item.Topic,
 			SubjectName: subjectNames[item.SubjectID],
+			Penalties:   lessonPenalties[item.ID],
 		}
 
 		marks, err := s.Marks(ctx, item.ID)

@@ -14,10 +14,17 @@ type JournalMark struct {
 	Comment      string
 }
 
+type JournalPenalty struct {
+	WorkTypeName string
+	DonePercent  int
+	Points       int
+}
+
 type JournalCell struct {
-	Marks   []JournalMark
-	Absent  bool
-	Comment string
+	Marks     []JournalMark
+	Penalties []JournalPenalty
+	Absent    bool
+	Comment   string
 }
 
 type CellKey struct {
@@ -193,7 +200,17 @@ func (s *Service) fillJournalCells(ctx context.Context, journal *PairJournal, in
 		return err
 	}
 
-	names, order, err := s.workTypeNames(ctx, markTypeIDs(marks))
+	penalties, err := s.penalties.ListByPair(ctx, classID, subjectID)
+	if err != nil {
+		return err
+	}
+
+	typeIDs := markTypeIDs(marks)
+	for _, penalty := range penalties {
+		typeIDs = append(typeIDs, penalty.WorkTypeID)
+	}
+
+	names, order, err := s.workTypeNames(ctx, typeIDs)
 	if err != nil {
 		return err
 	}
@@ -231,6 +248,27 @@ func (s *Service) fillJournalCells(ctx context.Context, journal *PairJournal, in
 		key := CellKey{LessonID: mark.LessonID, StudentID: mark.StudentID}
 		cell := journal.Cells[key]
 		cell.Marks = append(cell.Marks, JournalMark{WorkTypeName: names[mark.WorkTypeID], Value: mark.Value, Comment: mark.Comment})
+		journal.Cells[key] = cell
+	}
+
+	sort.SliceStable(penalties, func(i, j int) bool {
+		return order[penalties[i].WorkTypeID] < order[penalties[j].WorkTypeID]
+	})
+
+	for _, penalty := range penalties {
+		if !included[penalty.LessonID] {
+			continue
+		}
+
+		student(penalty.StudentID)
+
+		key := CellKey{LessonID: penalty.LessonID, StudentID: penalty.StudentID}
+		cell := journal.Cells[key]
+		cell.Penalties = append(cell.Penalties, JournalPenalty{
+			WorkTypeName: names[penalty.WorkTypeID],
+			DonePercent:  penalty.DonePercent,
+			Points:       penalty.Points,
+		})
 		journal.Cells[key] = cell
 	}
 

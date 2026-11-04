@@ -155,10 +155,11 @@ func (r *LessonRepo) UpdateDate(ctx context.Context, id int64, date time.Time) e
 
 func (r *LessonRepo) HasRecords(ctx context.Context, id int64) (bool, error) {
 	const query = `SELECT EXISTS (SELECT 1 FROM marks WHERE lesson_id = ?)
-		OR EXISTS (SELECT 1 FROM lesson_students WHERE lesson_id = ?)`
+		OR EXISTS (SELECT 1 FROM lesson_students WHERE lesson_id = ?)
+		OR EXISTS (SELECT 1 FROM penalties WHERE lesson_id = ?)`
 
 	var has bool
-	if err := r.db.QueryRowContext(ctx, query, id, id).Scan(&has); err != nil {
+	if err := r.db.QueryRowContext(ctx, query, id, id, id).Scan(&has); err != nil {
 		return false, fmt.Errorf("check lesson records: %w", err)
 	}
 
@@ -168,7 +169,8 @@ func (r *LessonRepo) HasRecords(ctx context.Context, id int64) (bool, error) {
 func (r *LessonRepo) DeleteEmpty(ctx context.Context, id int64) error {
 	const query = `DELETE FROM lessons WHERE id = ?
 		AND NOT EXISTS (SELECT 1 FROM marks WHERE lesson_id = ?)
-		AND NOT EXISTS (SELECT 1 FROM lesson_students WHERE lesson_id = ?)`
+		AND NOT EXISTS (SELECT 1 FROM lesson_students WHERE lesson_id = ?)
+		AND NOT EXISTS (SELECT 1 FROM penalties WHERE lesson_id = ?)`
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -176,7 +178,7 @@ func (r *LessonRepo) DeleteEmpty(ctx context.Context, id int64) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	result, err := tx.ExecContext(ctx, query, id, id, id)
+	result, err := tx.ExecContext(ctx, query, id, id, id, id)
 	if err != nil {
 		return fmt.Errorf("delete lesson: %w", err)
 	}

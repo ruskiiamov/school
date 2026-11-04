@@ -24,6 +24,7 @@ type WorkType struct {
 	SubjectID int64
 	Name      string
 	Active    bool
+	Penalized bool
 }
 
 type Subject struct {
@@ -87,7 +88,7 @@ func (s *Service) WorkTypes(ctx context.Context, teacherID, subjectID int64, inc
 	return workTypes, nil
 }
 
-func (s *Service) CreateWorkType(ctx context.Context, teacherID, subjectID int64, raw string) (int64, error) {
+func (s *Service) CreateWorkType(ctx context.Context, teacherID, subjectID int64, raw string, penalized bool) (int64, error) {
 	name, err := s.validateWorkTypeName(ctx, teacherID, subjectID, 0, raw)
 	if err != nil {
 		return 0, err
@@ -98,18 +99,18 @@ func (s *Service) CreateWorkType(ctx context.Context, teacherID, subjectID int64
 		return 0, err
 	}
 
-	id, err := s.workTypes.Create(ctx, teacherID, subjectID, name, sortOrder)
+	id, err := s.workTypes.Create(ctx, teacherID, subjectID, name, sortOrder, penalized)
 	if err != nil {
 		return 0, err
 	}
 
 	s.log.InfoContext(ctx, "work type created", slog.Int64("id", id), slog.Int64("teacher_id", teacherID),
-		slog.Int64("subject_id", subjectID), slog.String("name", name))
+		slog.Int64("subject_id", subjectID), slog.String("name", name), slog.Bool("penalized", penalized))
 
 	return id, nil
 }
 
-func (s *Service) RenameWorkType(ctx context.Context, teacherID, id int64, raw string) error {
+func (s *Service) RenameWorkType(ctx context.Context, teacherID, id int64, raw string, penalized *bool) error {
 	workType, err := s.ownWorkType(ctx, teacherID, id)
 	if err != nil {
 		return err
@@ -120,11 +121,16 @@ func (s *Service) RenameWorkType(ctx context.Context, teacherID, id int64, raw s
 		return err
 	}
 
-	if err := s.workTypes.Update(ctx, id, name); err != nil {
+	flag := workType.Penalized
+	if penalized != nil {
+		flag = *penalized
+	}
+
+	if err := s.workTypes.Update(ctx, id, name, flag); err != nil {
 		return err
 	}
 
-	s.log.InfoContext(ctx, "work type renamed", slog.Int64("id", id), slog.String("name", name))
+	s.log.InfoContext(ctx, "work type renamed", slog.Int64("id", id), slog.String("name", name), slog.Bool("penalized", flag))
 
 	return nil
 }
@@ -278,5 +284,6 @@ func toWorkType(stored storage.WorkType) WorkType {
 		SubjectID: stored.SubjectID,
 		Name:      stored.Name,
 		Active:    stored.Active,
+		Penalized: stored.Penalized,
 	}
 }

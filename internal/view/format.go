@@ -2,6 +2,7 @@ package view
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -110,4 +111,16 @@ func FormatAverage(average float64, count int) string {
 	}
 
 	return strings.Replace(fmt.Sprintf("%.2f", average), ".", ",", 1)
+}
+
+func FormatPercent(percent int) string {
+	return strconv.Itoa(percent) + " %"
+}
+
+func FormatPoints(unit string, points int) string {
+	return unit + ": " + strconv.Itoa(points)
+}
+
+func FormatDebt(unit string, debt int) string {
+	return "Долг, " + unit + ": " + strconv.Itoa(debt)
 }

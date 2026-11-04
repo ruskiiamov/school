@@ -42,7 +42,7 @@ func (b *Base) Shell(r *http.Request, title, active string) view.Shell {
 		Title:      title + " — " + b.schoolName,
 		SchoolName: b.schoolName,
 		User:       toViewUser(user),
-		Nav:        view.NavItems(string(user.Role), active),
+		Nav:        view.NavItems(string(user.Role), active, b.penaltiesTitle()),
 	}
 }
 
@@ -61,4 +61,13 @@ func toViewUser(user auth.User) view.User {
 		Greeting:  greeting,
 		Role:      view.RoleTitle(string(user.Role)),
 	}
+}
+
+func (b *Base) penaltiesTitle() string {
+	settings := b.school.PenaltySettings()
+	if !settings.Enabled {
+		return ""
+	}
+
+	return settings.Name
 }

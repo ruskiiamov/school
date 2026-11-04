@@ -16,40 +16,43 @@ import (
 	"github.com/ruskiiamov/school/internal/server/diary"
 	filepages "github.com/ruskiiamov/school/internal/server/files"
 	journalpages "github.com/ruskiiamov/school/internal/server/journal"
+	"github.com/ruskiiamov/school/internal/server/penalties"
 	"github.com/ruskiiamov/school/internal/server/web"
 	"github.com/ruskiiamov/school/internal/view/static"
 )
 
 type Server struct {
-	base     *web.Base
-	auth     *auth.Service
-	school   *school.Service
-	account  *account.Handler
-	admin    *admin.Handler
-	journal  *journalpages.Handler
-	diary    *diary.Handler
-	files    *filepages.Handler
-	location *time.Location
-	log      *slog.Logger
+	base      *web.Base
+	auth      *auth.Service
+	school    *school.Service
+	account   *account.Handler
+	admin     *admin.Handler
+	journal   *journalpages.Handler
+	diary     *diary.Handler
+	penalties *penalties.Handler
+	files     *filepages.Handler
+	location  *time.Location
+	log       *slog.Logger
 
 	secureCookie         bool
 	insecureCookieWarned sync.Once
 }
 
 func New(cfg *config.Config, authService *auth.Service, schoolService *school.Service, journalService *journal.Service, backupService *backup.Service, log *slog.Logger) *Server {
-	base := web.New(cfg, authService, log)
+	base := web.New(cfg, authService, schoolService, log)
 
 	return &Server{
-		base:     base,
-		auth:     authService,
-		school:   schoolService,
-		account:  account.New(base, authService, log),
-		admin:    admin.New(base, authService, schoolService, backupService, cfg.Files.TransferTimeout, log),
-		journal:  journalpages.New(base, authService, schoolService, journalService, cfg.Files),
-		diary:    diary.New(base, authService, schoolService, journalService),
-		files:    filepages.New(base, schoolService, journalService, cfg.Files.TransferTimeout, log),
-		location: cfg.Location,
-		log:      log,
+		base:      base,
+		auth:      authService,
+		school:    schoolService,
+		account:   account.New(base, authService, log),
+		admin:     admin.New(base, authService, schoolService, backupService, cfg.Files.TransferTimeout, log),
+		journal:   journalpages.New(base, authService, schoolService, journalService, cfg.Files),
+		diary:     diary.New(base, authService, schoolService, journalService),
+		penalties: penalties.New(base, authService, schoolService, journalService),
+		files:     filepages.New(base, schoolService, journalService, cfg.Files.TransferTimeout, log),
+		location:  cfg.Location,
+		log:       log,
 
 		secureCookie: cfg.Session.Secure,
 	}
@@ -74,6 +77,7 @@ func (s *Server) pages() http.Handler {
 	s.admin.Routes(mux)
 	s.journal.Routes(mux)
 	s.diary.Routes(mux)
+	s.penalties.Routes(mux)
 	s.files.Routes(mux)
 
 	return mux

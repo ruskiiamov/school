@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ruskiiamov/school/internal/journal"
+	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/web"
 	"github.com/ruskiiamov/school/internal/validation"
 	"github.com/ruskiiamov/school/internal/view"
@@ -15,6 +16,7 @@ import (
 const (
 	entryValuePrefix   = "type-"
 	entryCommentPrefix = "comment-"
+	entryDonePrefix    = "done-"
 )
 
 type entryForm struct {
@@ -49,6 +51,11 @@ func (h *Handler) marksEntrySave(w http.ResponseWriter, r *http.Request) {
 		Absent:   r.PostFormValue("absent") == "1",
 		Comment:  web.FormValue(r, "comment"),
 	}}
+
+	if settings := h.school.PenaltySettings(); settings.Enabled {
+		form.input.Done = formFields(r, entryDonePrefix)
+		form.input.PenaltyFull = settings.Full
+	}
 
 	user, _ := web.UserFromContext(r.Context())
 
@@ -122,6 +129,8 @@ func (h *Handler) entryView(r *http.Request, lessonID, studentID int64, form ent
 		Comment:  entry.Comment,
 	}
 
+	settings := h.school.PenaltySettings()
+
 	for i, workType := range entry.Types {
 		row := view.MarksEntryRow{
 			Name:         workType.Name,
@@ -138,7 +147,15 @@ func (h *Handler) entryView(r *http.Request, lessonID, studentID int64, form ent
 			row.Error = form.errs[row.Field]
 		}
 
+		if settings.Enabled && (workType.Penalty != nil || workType.CanPenalize) {
+			row.Done = entryDone(settings, workType, form)
+		}
+
 		result.Rows = append(result.Rows, row)
+	}
+
+	if settings.Enabled && entry.Debt > 0 {
+		result.Debt = settings.Name + " — долг, " + settings.Unit + ": " + strconv.Itoa(entry.Debt)
 	}
 
 	if len(result.Rows) == 0 {
@@ -152,6 +169,26 @@ func (h *Handler) entryView(r *http.Request, lessonID, studentID int64, form ent
 	}
 
 	return result, nil
+}
+
+func entryDone(settings school.PenaltySettings, workType journal.EntryType, form entryForm) *view.DoneField {
+	done := &view.DoneField{Field: journal.EntryDoneKey(workType.ID)}
+
+	if penalty := workType.Penalty; penalty != nil {
+		done.Value = strconv.Itoa(penalty.DonePercent)
+		done.Points = view.FormatPoints(settings.Unit, penalty.Points)
+
+		if penalty.Locked() {
+			done.Locked = view.FormatPercent(penalty.DonePercent) + " · " + done.Points + " · " + web.PenaltyStatus(penalty.Status)
+		}
+	}
+
+	if form.entered {
+		done.Value = form.input.Done[workType.ID]
+		done.Error = form.errs[done.Field]
+	}
+
+	return done
 }
 
 func entryEmpty(entry journal.MarksEntry, viewerID int64) (string, string) {

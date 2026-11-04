@@ -25,6 +25,8 @@ type Service struct {
 	workTypes      *storage.WorkTypeRepo
 	homework       *storage.HomeworkRepo
 	homeworkFiles  *storage.HomeworkFileRepo
+	penalties      *storage.PenaltyRepo
+	workoffs       *storage.WorkoffRepo
 	store          *files.Store
 	limits         FileLimits
 	log            *slog.Logger
@@ -42,6 +44,8 @@ func NewService(
 	workTypes *storage.WorkTypeRepo,
 	homework *storage.HomeworkRepo,
 	homeworkFiles *storage.HomeworkFileRepo,
+	penalties *storage.PenaltyRepo,
+	workoffs *storage.WorkoffRepo,
 	store *files.Store,
 	limits FileLimits,
 	log *slog.Logger,
@@ -58,6 +62,8 @@ func NewService(
 		workTypes:      workTypes,
 		homework:       homework,
 		homeworkFiles:  homeworkFiles,
+		penalties:      penalties,
+		workoffs:       workoffs,
 		store:          store,
 		limits:         limits,
 		log:            log,

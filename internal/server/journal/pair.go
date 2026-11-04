@@ -26,6 +26,7 @@ type pairState struct {
 	highlight   int64
 	open        int64
 	markValues  map[journal.MarkKey]string
+	doneValues  map[journal.MarkKey]string
 	markErrs    validation.Errors
 	newTypeName string
 	marksError  string
@@ -196,10 +197,11 @@ func (h *Handler) renderPair(w http.ResponseWriter, r *http.Request, classID, su
 	title := pair.Pair.ClassName + " · " + pair.Pair.SubjectName
 
 	page := view.PairJournalPage{
-		Shell:    h.base.Shell(r, title, homePath),
-		Title:    title + " · " + school.YearName(pair.Year),
-		BackHref: homePath,
-		Content:  content,
+		Shell:     h.base.Shell(r, title, homePath),
+		Title:     title + " · " + school.YearName(pair.Year),
+		BackHref:  homePath,
+		Penalties: h.school.PenaltySettings().Enabled,
+		Content:   content,
 	}
 
 	if pair.Year != h.school.CurrentYear() {
@@ -260,7 +262,7 @@ func (h *Handler) pairContent(r *http.Request, classID, subjectID int64, state p
 		}
 
 		row.Expanded = true
-		row.Marks = lessonMarksBlock(marks, pair.Students, content.Table.Students, state)
+		row.Marks = lessonMarksBlock(marks, pair.Students, content.Table.Students, state, h.school.PenaltySettings())
 	}
 
 	return content, pair, nil
@@ -316,6 +318,7 @@ func (h *Handler) journalTable(r *http.Request, pair journal.PairJournal, viewer
 	}
 
 	table := view.JournalTable{}
+	settings := h.school.PenaltySettings()
 
 	for _, student := range pair.Students {
 		user := students[student.ID]
@@ -345,7 +348,7 @@ func (h *Handler) journalTable(r *http.Request, pair journal.PairJournal, viewer
 
 		for _, student := range pair.Students {
 			cell := pair.Cells[journal.CellKey{LessonID: lesson.ID, StudentID: student.ID}]
-			row.Cells = append(row.Cells, journalCell(cell, cellHref(lesson.ID, student.ID)))
+			row.Cells = append(row.Cells, journalCell(cell, cellHref(lesson.ID, student.ID), settings))
 		}
 
 		table.Rows = append(table.Rows, row)
@@ -381,7 +384,7 @@ func (h *Handler) studentsByID(r *http.Request) (map[int64]auth.User, error) {
 	return byID, nil
 }
 
-func journalCell(cell journal.JournalCell, href string) view.JournalCell {
+func journalCell(cell journal.JournalCell, href string, settings school.PenaltySettings) view.JournalCell {
 	values := make([]string, 0, len(cell.Marks)+1)
 	details := make([]string, 0, len(cell.Marks)+2)
 
@@ -399,6 +402,15 @@ func journalCell(cell journal.JournalCell, href string) view.JournalCell {
 		details = append(details, "Отсутствовал")
 	}
 
+	penalized := settings.Enabled && len(cell.Penalties) > 0
+
+	if penalized {
+		for _, penalty := range cell.Penalties {
+			details = append(details, penalty.WorkTypeName+": выполнено "+view.FormatPercent(penalty.DonePercent)+", "+
+				view.FormatPoints(settings.Unit, penalty.Points))
+		}
+	}
+
 	if cell.Comment != "" {
 		details = append(details, cell.Comment)
 	}
@@ -408,6 +420,7 @@ func journalCell(cell journal.JournalCell, href string) view.JournalCell {
 		Text:    strings.Join(values, " "),
 		Title:   strings.Join(details, " · "),
 		Comment: commented,
+		Penalty: penalized,
 	}
 }
 

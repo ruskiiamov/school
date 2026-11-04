@@ -34,6 +34,12 @@ func (s *Service) CleanupOrphans(ctx context.Context) {
 		return
 	}
 
+	penalties, err := s.penalties.DeleteOrphaned(ctx)
+	if err != nil {
+		s.log.ErrorContext(ctx, "delete orphaned penalties", slog.Any("error", err))
+		return
+	}
+
 	records, err := s.lessonStudents.DeleteOrphaned(ctx)
 	if err != nil {
 		s.log.ErrorContext(ctx, "delete orphaned lesson records", slog.Any("error", err))
@@ -64,8 +70,9 @@ func (s *Service) CleanupOrphans(ctx context.Context) {
 		return
 	}
 
-	if marks+records+homework+int64(len(orphanedFiles))+int64(stray) > 0 {
-		s.log.InfoContext(ctx, "journal orphans cleaned up", slog.Int64("marks", marks), slog.Int64("records", records),
+	if marks+penalties+records+homework+int64(len(orphanedFiles))+int64(stray) > 0 {
+		s.log.InfoContext(ctx, "journal orphans cleaned up", slog.Int64("marks", marks), slog.Int64("penalties", penalties),
+			slog.Int64("records", records),
 			slog.Int64("homework", homework), slog.Int("homework_files", len(orphanedFiles)), slog.Int("stray_files", stray))
 	}
 }

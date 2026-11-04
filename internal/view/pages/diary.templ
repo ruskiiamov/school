@@ -15,6 +15,9 @@ templ Diary(page view.DiaryPage) {
 				if page.SummaryHref != "" {
 					<a href={ templ.SafeURL(page.SummaryHref) } class={ components.ButtonSecondaryClass }>Оценки</a>
 				}
+				if page.PenaltiesHref != "" {
+					<a href={ templ.SafeURL(page.PenaltiesHref) } class={ components.ButtonSecondaryClass }>{ page.PenaltiesName }</a>
+				}
 				if page.BackHref != "" {
 					<a href={ templ.SafeURL(page.BackHref) } class={ components.ButtonSecondaryClass }>К поиску</a>
 				}
@@ -194,11 +197,18 @@ templ diaryHomework(homework view.DiaryHomework) {
 }
 
 templ diaryMark(mark view.DiaryMark) {
-	<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-base font-semibold text-indigo-700">{ mark.Value }</span>
+	if mark.Value != "" {
+		<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-base font-semibold text-indigo-700">{ mark.Value }</span>
+	} else {
+		<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-base font-semibold text-slate-400">—</span>
+	}
 	<span class="flex min-w-0 flex-1 flex-col">
 		<span class="text-sm font-medium text-slate-900">{ mark.WorkType }</span>
 		if mark.Comment != "" {
 			<span class="text-sm text-slate-600">{ mark.Comment }</span>
+		}
+		if mark.Penalty != "" {
+			<span class="text-sm text-amber-700">{ mark.Penalty }</span>
 		}
 	</span>
 }

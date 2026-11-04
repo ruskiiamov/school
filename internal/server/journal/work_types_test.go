@@ -147,9 +147,9 @@ func TestMarksEntryUsesLessonAuthorTypes(t *testing.T) {
 	student := createUser(t, f.env, auth.RoleStudent, "student", "Козлов Пётр Ильич")
 	require.NoError(t, f.env.School.AddClassStudent(ctx, f.class, student))
 
-	_, err = f.env.Journal.CreateWorkType(ctx, f.teacher, f.subject, "Диктант")
+	_, err = f.env.Journal.CreateWorkType(ctx, f.teacher, f.subject, "Диктант", false)
 	require.NoError(t, err)
-	_, err = f.env.Journal.CreateWorkType(ctx, substitute, f.subject, "Проект")
+	_, err = f.env.Journal.CreateWorkType(ctx, substitute, f.subject, "Проект", false)
 	require.NoError(t, err)
 
 	teacher := f.env.LoginAs(t, "teacher")

@@ -1,0 +1,213 @@
+package pages
+
+import (
+	"github.com/ruskiiamov/school/internal/view"
+	"github.com/ruskiiamov/school/internal/view/components"
+	"github.com/ruskiiamov/school/internal/view/layout"
+)
+
+const (
+	penaltiesTarget       = "#penalties"
+	penaltyStudentTarget  = "#penalty-student"
+	penaltyHistoryRowBase = "flex flex-wrap items-center gap-x-3 gap-y-1 p-3 sm:px-4"
+)
+
+templ Penalties(page view.PenaltiesPage) {
+	@layout.App(page.Shell) {
+		@PenaltiesContent(page)
+	}
+}
+
+templ PenaltiesContent(page view.PenaltiesPage) {
+	<div id="penalties" class="flex flex-col gap-4 lg:gap-6">
+		@components.PageHeader(page.Title)
+		@components.PageHint(hintPenalties)
+		<form
+			method="get"
+			action={ templ.SafeURL(page.Path) }
+			hx-get={ page.Path }
+			hx-target={ penaltiesTarget }
+			hx-swap="outerHTML"
+			hx-trigger="submit, input changed delay:300ms, change"
+			hx-push-url="true"
+			class={ components.CardClass, "flex flex-wrap items-center gap-2 p-3 sm:p-4" }
+		>
+			<input
+				type="search"
+				id="penalties-search-input"
+				hx-preserve
+				name="q"
+				value={ page.Query }
+				placeholder="Поиск ученика по ФИО"
+				aria-label="Поиск ученика по ФИО"
+				autocomplete="off"
+				class={ components.InputClass, "flex-1 basis-56" }
+			/>
+			@components.RowSelect("year", "Учебный год", page.Years, "", "basis-36")
+			@components.RowSelect("class", "Класс", page.Classes, "", "basis-36")
+			@components.NoScriptSubmit("Показать")
+		</form>
+		<div class={ components.CardClass }>
+			if len(page.Debtors) == 0 {
+				@components.EmptyState(page.Empty)
+			} else {
+				<ul class="divide-y divide-slate-100">
+					for _, debtor := range page.Debtors {
+						<li>
+							<a href={ templ.SafeURL(debtor.Href) } class="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 hover:bg-slate-50 active:bg-slate-100 sm:px-4">
+								<span class="min-w-0 flex-1 basis-56 truncate text-sm font-medium text-slate-900">{ debtor.FullName }</span>
+								<span class="text-sm text-slate-600 sm:w-20">{ debtor.ClassName }</span>
+								<span class="ml-auto text-sm font-semibold text-amber-700 tabular-nums">{ debtor.Debt }</span>
+							</a>
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	</div>
+}
+
+templ PenaltyStudent(page view.PenaltyStudentPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader(page.Title) {
+				<a href={ templ.SafeURL(page.BackHref) } class="text-sm font-medium text-indigo-700 hover:underline">← К списку</a>
+			}
+			@PenaltyStudentContent(page.Block)
+		</div>
+	}
+}
+
+templ PenaltyStudentContent(block view.PenaltyStudentBlock) {
+	<div id="penalty-student" class="flex flex-col gap-4 lg:gap-6">
+		<p class="text-base font-semibold text-slate-900">{ block.History.Debt }</p>
+		if block.Form != nil {
+			@workoffForm(*block.Form)
+		} else {
+			<p class="text-sm text-slate-500">Долга нет</p>
+		}
+		@penaltyHistory(block.History)
+	</div>
+}
+
+templ workoffForm(form view.WorkoffForm) {
+	<form
+		method="post"
+		action={ templ.SafeURL(form.Action) }
+		hx-post={ form.Action }
+		hx-target={ penaltyStudentTarget }
+		hx-swap="outerHTML"
+		class={ components.CardClass, "flex flex-col gap-2 p-3 sm:p-4" }
+	>
+		<h2 class="text-sm font-semibold text-slate-900">Записать отработку</h2>
+		<div class="flex flex-wrap items-start gap-2">
+			@components.RowDate("date", form.Date, "Дата отработки", form.Errors["date"], "basis-40 sm:max-w-48")
+			<span class="flex min-w-0 basis-24 flex-col gap-1">
+				<input
+					name="points"
+					value={ form.Points }
+					placeholder={ form.Unit }
+					aria-label={ "Отработано, " + form.Unit }
+					inputmode="numeric"
+					maxlength="5"
+					autocomplete="off"
+					class={ components.InputClassFor(form.Errors["points"]) }
+				/>
+				@components.FieldError(form.Errors["points"])
+			</span>
+			@components.RowInput("comment", form.Comment, "Комментарий", "Комментарий", form.Errors["comment"], "flex-1 basis-56")
+			@components.AddButton()
+		</div>
+	</form>
+}
+
+templ penaltyHistory(history view.PenaltyHistory) {
+	if len(history.Penalties) == 0 && len(history.Workoffs) == 0 {
+		<div class={ components.CardClass }>
+			@components.EmptyState("Штрафов не было")
+		</div>
+	} else {
+		<section class={ components.CardClass }>
+			<h2 class="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">Начисления</h2>
+			if len(history.Penalties) == 0 {
+				@components.EmptyState("Начислений нет")
+			} else {
+				<ul class="divide-y divide-slate-100">
+					for _, penalty := range history.Penalties {
+						<li class={ penaltyHistoryRowBase }>
+							<span class="flex min-w-0 flex-1 basis-64 flex-wrap items-center gap-x-2 text-sm">
+								if penalty.Href != "" {
+									<a href={ templ.SafeURL(penalty.Href) } class="font-medium text-indigo-700 tabular-nums hover:underline">{ penalty.Date }</a>
+								} else {
+									<span class="font-medium text-slate-900 tabular-nums">{ penalty.Date }</span>
+								}
+								<span class="text-slate-700">{ penalty.Subject } · { penalty.WorkType }</span>
+							</span>
+							<span class="flex flex-wrap items-center gap-x-3 text-sm tabular-nums">
+								<span class="text-slate-600">{ penalty.Done }</span>
+								<span class="font-semibold text-slate-900">{ penalty.Points }</span>
+								if penalty.Status != "" {
+									<span class="text-slate-500">{ penalty.Status }</span>
+								}
+							</span>
+						</li>
+					}
+				</ul>
+			}
+		</section>
+		<section class={ components.CardClass }>
+			<h2 class="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">Отработки</h2>
+			if len(history.Workoffs) == 0 {
+				@components.EmptyState("Отработок нет")
+			} else {
+				<ul class="divide-y divide-slate-100">
+					for _, workoff := range history.Workoffs {
+						<li class={ penaltyHistoryRowBase }>
+							<span class="text-sm font-medium text-slate-900 tabular-nums">{ workoff.Date }</span>
+							<span class="text-sm font-semibold text-slate-900 tabular-nums">{ workoff.Points }</span>
+							<span class="min-w-0 flex-1 basis-48 text-sm text-slate-600">
+								{ workoff.RecordedBy }
+								if workoff.Comment != "" {
+									· { workoff.Comment }
+								}
+							</span>
+							if workoff.DeleteAction != "" {
+								<form method="post" action={ templ.SafeURL(workoff.DeleteAction) } class="ml-auto">
+									@components.DeleteButton(workoff.DeleteAction, penaltyStudentTarget, workoff.Confirm)
+								</form>
+							}
+						</li>
+					}
+				</ul>
+			}
+		</section>
+	}
+}
+
+templ DiaryPenalties(page view.DiaryPenaltiesPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader(page.Title) {
+				if page.BackHref != "" {
+					<a href={ templ.SafeURL(page.BackHref) } class={ components.ButtonSecondaryClass }>К дневнику</a>
+				}
+			}
+			@components.PageHint(hintDiaryPenalties)
+			if page.NoChildren {
+				<div class={ components.CardClass }>
+					@components.EmptyState("К вашему аккаунту не привязаны дети")
+				</div>
+			} else {
+				if len(page.Children) > 1 {
+					<nav aria-label="Дети" class="flex flex-wrap gap-2">
+						for _, child := range page.Children {
+							@childTab(child)
+						}
+					</nav>
+				}
+				<p class="text-base font-semibold text-slate-900">{ page.History.Debt }</p>
+				@penaltyHistory(page.History)
+			}
+		</div>
+	}
+}

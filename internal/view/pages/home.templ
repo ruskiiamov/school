@@ -139,6 +139,12 @@ templ pairCards(title string, cards []view.PairCard) {
 
 templ studentDashboard(board view.StudentDashboard) {
 	<div class="flex flex-col gap-4 lg:gap-6">
+		if board.Penalty != nil {
+			<section class={ components.CardClass }>
+				@dashboardCardHeader(board.Penalty.Title, board.Penalty.Href, "Подробнее")
+				<p class="px-4 py-3 text-sm font-semibold text-amber-700 lg:px-5">{ board.Penalty.Debt }</p>
+			</section>
+		}
 		<section class={ components.CardClass }>
 			@dashboardCardHeader("Сегодня", board.DiaryHref, "Дневник")
 			if len(board.Lessons) == 0 {

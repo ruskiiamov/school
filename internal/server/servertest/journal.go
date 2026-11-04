@@ -1,12 +1,14 @@
 package servertest
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/ruskiiamov/school/internal/journal"
+	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/validation"
 )
 
@@ -89,7 +91,7 @@ func (env *Env) EnsureWorkTypes(t *testing.T, teacherID, subjectID int64) []jour
 
 	if len(existing) == 0 {
 		for _, name := range WorkTypeNames {
-			_, err := env.Journal.CreateWorkType(t.Context(), teacherID, subjectID, name)
+			_, err := env.Journal.CreateWorkType(t.Context(), teacherID, subjectID, name, false)
 			require.NoError(t, err)
 		}
 	}
@@ -98,4 +100,46 @@ func (env *Env) EnsureWorkTypes(t *testing.T, teacherID, subjectID int64) []jour
 	require.NoError(t, err)
 
 	return workTypes
+}
+
+func (env *Env) EnablePenalties(t *testing.T) {
+	t.Helper()
+
+	require.NoError(t, env.School.SavePenaltySettings(t.Context(), school.PenaltySettingsInput{
+		Enabled: true,
+		Name:    "Мытьё полов",
+		Unit:    "м²",
+		Full:    "20",
+	}))
+}
+
+func (env *Env) DisablePenalties(t *testing.T) {
+	t.Helper()
+
+	settings := env.School.PenaltySettings()
+
+	require.NoError(t, env.School.SavePenaltySettings(t.Context(), school.PenaltySettingsInput{
+		Name: settings.Name,
+		Unit: settings.Unit,
+		Full: strconv.Itoa(settings.Full),
+	}))
+}
+
+func (env *Env) SetPenalty(t *testing.T, teacherID, lessonID, studentID, workTypeID int64, done string) {
+	t.Helper()
+
+	env.saveEntry(t, teacherID, lessonID, studentID, func(input *journal.MarksEntryInput) {
+		input.Done = map[int64]string{workTypeID: done}
+		input.PenaltyFull = env.School.PenaltySettings().Full
+	})
+}
+
+func (env *Env) AddWorkoff(t *testing.T, recordedBy, studentID int64, points string) {
+	t.Helper()
+
+	_, err := env.Journal.AddWorkoff(t.Context(), recordedBy, studentID, journal.WorkoffInput{
+		Date:   env.School.Today().Format(validation.DateLayout),
+		Points: points,
+	}, env.School.Today())
+	require.NoError(t, err)
 }
