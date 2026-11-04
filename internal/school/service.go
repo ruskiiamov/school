@@ -16,7 +16,6 @@ type Service struct {
 	yearStartMonth time.Month
 	location       *time.Location
 	subjects       *storage.SubjectRepo
-	workTypes      *storage.WorkTypeRepo
 	classes        *storage.ClassRepo
 	classStudents  *storage.ClassStudentRepo
 	parentChildren *storage.ParentChildRepo
@@ -29,7 +28,6 @@ func NewService(
 	yearStartMonth time.Month,
 	location *time.Location,
 	subjects *storage.SubjectRepo,
-	workTypes *storage.WorkTypeRepo,
 	classes *storage.ClassRepo,
 	classStudents *storage.ClassStudentRepo,
 	parentChildren *storage.ParentChildRepo,
@@ -41,7 +39,6 @@ func NewService(
 		yearStartMonth: yearStartMonth,
 		location:       location,
 		subjects:       subjects,
-		workTypes:      workTypes,
 		classes:        classes,
 		classStudents:  classStudents,
 		parentChildren: parentChildren,

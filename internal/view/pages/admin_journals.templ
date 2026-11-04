@@ -117,8 +117,7 @@ templ adminMarksEntryBody(entry view.AdminMarksEntry) {
 			<ul class="divide-y divide-slate-100 py-1">
 				for _, mark := range entry.Marks {
 					<li class="flex items-center gap-3 px-4 py-2">
-						<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-base font-semibold text-indigo-700">{ mark.Value }</span>
-						<span class="text-sm text-slate-900">{ mark.WorkType }</span>
+						@diaryMark(mark)
 					</li>
 				}
 			</ul>

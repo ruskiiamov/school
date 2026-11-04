@@ -12,6 +12,11 @@ import (
 	"github.com/ruskiiamov/school/internal/view/pages"
 )
 
+const (
+	entryValuePrefix   = "type-"
+	entryCommentPrefix = "comment-"
+)
+
 type entryForm struct {
 	entered bool
 	input   journal.MarksEntryInput
@@ -39,16 +44,11 @@ func (h *Handler) marksEntrySave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	form := entryForm{entered: true, input: journal.MarksEntryInput{
-		Values:  map[int64]string{},
-		Absent:  r.PostFormValue("absent") == "1",
-		Comment: web.FormValue(r, "comment"),
+		Values:   formFields(r, entryValuePrefix),
+		Comments: formFields(r, entryCommentPrefix),
+		Absent:   r.PostFormValue("absent") == "1",
+		Comment:  web.FormValue(r, "comment"),
 	}}
-
-	for key := range r.PostForm {
-		if id, err := strconv.ParseInt(strings.TrimPrefix(key, "type-"), 10, 64); err == nil && strings.HasPrefix(key, "type-") {
-			form.input.Values[id] = web.FormValue(r, key)
-		}
-	}
 
 	user, _ := web.UserFromContext(r.Context())
 
@@ -124,17 +124,17 @@ func (h *Handler) entryView(r *http.Request, lessonID, studentID int64, form ent
 
 	for i, workType := range entry.Types {
 		row := view.MarksEntryRow{
-			Name:      workType.Name,
-			Field:     journal.EntryTypeKey(workType.ID),
-			Autofocus: i == 0,
-		}
-
-		if workType.Value != 0 {
-			row.Value = strconv.Itoa(workType.Value)
+			Name:         workType.Name,
+			Field:        journal.EntryTypeKey(workType.ID),
+			Value:        view.FormatMark(workType.Value),
+			CommentField: entryCommentPrefix + strconv.FormatInt(workType.ID, 10),
+			Comment:      workType.Comment,
+			Autofocus:    i == 0,
 		}
 
 		if form.entered {
 			row.Value = form.input.Values[workType.ID]
+			row.Comment = form.input.Comments[workType.ID]
 			row.Error = form.errs[row.Field]
 		}
 
@@ -148,6 +148,23 @@ func (h *Handler) entryView(r *http.Request, lessonID, studentID int64, form ent
 	}
 
 	return result, nil
+}
+
+func formFields(r *http.Request, prefix string) map[int64]string {
+	fields := map[int64]string{}
+
+	for key := range r.PostForm {
+		raw, found := strings.CutPrefix(key, prefix)
+		if !found {
+			continue
+		}
+
+		if id, err := strconv.ParseInt(raw, 10, 64); err == nil {
+			fields[id] = web.FormValue(r, key)
+		}
+	}
+
+	return fields
 }
 
 func entryPathIDs(w http.ResponseWriter, r *http.Request) (int64, int64, bool) {

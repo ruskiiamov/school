@@ -49,7 +49,8 @@ func TestHomeRendersDashboardForAuthenticatedUser(t *testing.T) {
 	assert.Contains(t, body, "Иванова М. П.")
 	assert.Contains(t, body, "Администратор")
 	assert.Contains(t, body, `href="/admin/classes"`)
-	assert.Contains(t, body, "Типы работ")
+	assert.Contains(t, body, `href="/admin/subjects"`)
+	assert.NotContains(t, body, "Типы работ")
 	assert.Contains(t, body, `<form method="post" action="/logout" hx-post="/logout">`)
 }
 

@@ -13,7 +13,8 @@ type Mark struct {
 	LessonID   int64
 	StudentID  int64
 	WorkTypeID int64
-	Value      int
+	Value      string
+	Comment    string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
@@ -26,7 +27,7 @@ func NewMarkRepo(db *sql.DB) *MarkRepo {
 	return &MarkRepo{db: db}
 }
 
-const markColumns = "id, lesson_id, student_id, work_type_id, value, created_at, updated_at"
+const markColumns = "id, lesson_id, student_id, work_type_id, value, comment, created_at, updated_at"
 
 func (r *MarkRepo) ListByLesson(ctx context.Context, lessonID int64) ([]Mark, error) {
 	const query = "SELECT " + markColumns + " FROM marks WHERE lesson_id = ? ORDER BY id"
@@ -76,7 +77,7 @@ type StudentMark struct {
 }
 
 func (r *MarkRepo) ListByStudentPeriod(ctx context.Context, studentID int64, from, to time.Time) ([]StudentMark, error) {
-	const query = `SELECT m.id, m.lesson_id, m.student_id, m.work_type_id, m.value, m.created_at, m.updated_at, l.subject_id, l.date
+	const query = `SELECT m.id, m.lesson_id, m.student_id, m.work_type_id, m.value, m.comment, m.created_at, m.updated_at, l.subject_id, l.date
 		FROM marks m JOIN lessons l ON l.id = m.lesson_id
 		WHERE m.student_id = ? AND l.date BETWEEN ? AND ?
 		ORDER BY l.date, m.id`
@@ -97,7 +98,7 @@ func (r *MarkRepo) ListByStudentPeriod(ctx context.Context, studentID int64, fro
 			updatedAt int64
 		)
 
-		err := rows.Scan(&mark.ID, &mark.LessonID, &mark.StudentID, &mark.WorkTypeID, &mark.Value,
+		err := rows.Scan(&mark.ID, &mark.LessonID, &mark.StudentID, &mark.WorkTypeID, &mark.Value, &mark.Comment,
 			&createdAt, &updatedAt, &mark.SubjectID, &date)
 		if err != nil {
 			return nil, fmt.Errorf("scan student mark: %w", err)
@@ -139,11 +140,13 @@ func collectMarks(rows *sql.Rows) ([]Mark, error) {
 }
 
 type MarkChange struct {
+	StudentID  int64
 	WorkTypeID int64
-	Value      int
+	Value      string
+	Comment    string
 }
 
-func (r *MarkRepo) SetForStudent(ctx context.Context, lessonID, studentID int64, changes []MarkChange) error {
+func (r *MarkRepo) Set(ctx context.Context, lessonID int64, changes []MarkChange) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
@@ -151,29 +154,29 @@ func (r *MarkRepo) SetForStudent(ctx context.Context, lessonID, studentID int64,
 	defer func() { _ = tx.Rollback() }()
 
 	const (
-		upsert = `INSERT INTO marks (lesson_id, student_id, work_type_id, value, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
-			ON CONFLICT (lesson_id, student_id, work_type_id) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+		upsert = `INSERT INTO marks (lesson_id, student_id, work_type_id, value, comment, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT (lesson_id, student_id, work_type_id) DO UPDATE SET value = excluded.value, comment = excluded.comment, updated_at = excluded.updated_at`
 		remove = "DELETE FROM marks WHERE lesson_id = ? AND student_id = ? AND work_type_id = ?"
 	)
 
 	now := toMillis(time.Now())
 
 	for _, change := range changes {
-		if change.Value == 0 {
-			if _, err := tx.ExecContext(ctx, remove, lessonID, studentID, change.WorkTypeID); err != nil {
-				return fmt.Errorf("delete student mark: %w", err)
+		if change.Value == "" {
+			if _, err := tx.ExecContext(ctx, remove, lessonID, change.StudentID, change.WorkTypeID); err != nil {
+				return fmt.Errorf("delete mark: %w", err)
 			}
 
 			continue
 		}
 
-		if _, err := tx.ExecContext(ctx, upsert, lessonID, studentID, change.WorkTypeID, change.Value, now, now); err != nil {
-			return fmt.Errorf("upsert student mark: %w", err)
+		if _, err := tx.ExecContext(ctx, upsert, lessonID, change.StudentID, change.WorkTypeID, change.Value, change.Comment, now, now); err != nil {
+			return fmt.Errorf("upsert mark: %w", err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit student marks: %w", err)
+		return fmt.Errorf("commit marks: %w", err)
 	}
 
 	return nil
@@ -197,7 +200,7 @@ func scanMark(row scanner) (Mark, error) {
 		updatedAt int64
 	)
 
-	err := row.Scan(&mark.ID, &mark.LessonID, &mark.StudentID, &mark.WorkTypeID, &mark.Value, &createdAt, &updatedAt)
+	err := row.Scan(&mark.ID, &mark.LessonID, &mark.StudentID, &mark.WorkTypeID, &mark.Value, &mark.Comment, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Mark{}, ErrNotFound
 	}

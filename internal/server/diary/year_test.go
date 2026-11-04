@@ -40,7 +40,7 @@ func newPastFixture(t *testing.T) pastFixture {
 	})
 	require.NoError(t, err)
 
-	f.env.SetMark(t, f.teacher, f.lesson, f.student, f.workType, 4)
+	f.env.SetMark(t, f.teacher, f.lesson, f.student, f.workType, "4")
 
 	return f
 }

@@ -16,18 +16,24 @@ import (
 )
 
 type pairState struct {
-	newDate   string
-	newError  string
-	rowID     int64
-	rowDate   string
-	dateError string
-	topic     string
-	topicErr  string
-	highlight int64
+	newDate     string
+	newError    string
+	rowID       int64
+	rowDate     string
+	dateError   string
+	topic       string
+	topicErr    string
+	highlight   int64
+	open        int64
+	markValues  map[journal.MarkKey]string
+	markErrs    validation.Errors
+	newTypeName string
+	marksError  string
 }
 
 const (
 	journalContentID = "journal-content"
+	openLessonHeader = "X-Journal-Open"
 )
 
 func (h *Handler) pairShow(w http.ResponseWriter, r *http.Request) {
@@ -228,15 +234,33 @@ func (h *Handler) pairContent(r *http.Request, classID, subjectID int64, state p
 		content.Periods = substitutionPeriods(pair.Pair.Periods)
 	}
 
+	open := state.open
+	if open == 0 && web.IsHTMX(r) {
+		open, _ = strconv.ParseInt(r.Header.Get(openLessonHeader), 10, 64)
+	}
+
 	for i, lesson := range pair.Lessons {
 		row := &content.Table.Rows[i]
 		row.Highlight = lesson.ID == state.highlight
 		row.Edit = rowEdit(lesson, state)
 		row.CardHref = lessonPath(lesson.ID, "")
+		row.MarksHref = lessonPath(lesson.ID, "/marks")
 
 		if lesson.ID == state.rowID && state.topicErr != "" {
 			row.Topic = state.topic
 		}
+
+		if lesson.ID != open {
+			continue
+		}
+
+		marks, err := h.journal.LessonMarks(r.Context(), user.ID, lesson.ID)
+		if err != nil {
+			return view.PairJournalContent{}, journal.PairJournal{}, err
+		}
+
+		row.Expanded = true
+		row.Marks = lessonMarksBlock(marks, pair.Students, content.Table.Students, state)
 	}
 
 	return content, pair, nil
@@ -296,6 +320,7 @@ func (h *Handler) journalTable(r *http.Request, pair journal.PairJournal, viewer
 	for _, student := range pair.Students {
 		user := students[student.ID]
 		table.Students = append(table.Students, view.JournalStudentHead{
+			ID:        studentHeadID(student.ID),
 			LastName:  user.Name.Last,
 			FirstName: user.Name.First,
 			FullName:  user.FullName,
@@ -360,9 +385,13 @@ func journalCell(cell journal.JournalCell, href string) view.JournalCell {
 	values := make([]string, 0, len(cell.Marks)+1)
 	details := make([]string, 0, len(cell.Marks)+2)
 
+	commented := cell.Comment != ""
+
 	for _, mark := range cell.Marks {
-		values = append(values, strconv.Itoa(mark.Value))
-		details = append(details, mark.WorkTypeName+": "+strconv.Itoa(mark.Value))
+		value := view.FormatMark(mark.Value)
+		values = append(values, value)
+		details = append(details, markDetail(mark.WorkTypeName, value, mark.Comment))
+		commented = commented || mark.Comment != ""
 	}
 
 	if cell.Absent {
@@ -378,6 +407,14 @@ func journalCell(cell journal.JournalCell, href string) view.JournalCell {
 		Href:    href,
 		Text:    strings.Join(values, " "),
 		Title:   strings.Join(details, " · "),
-		Comment: cell.Comment != "",
+		Comment: commented,
 	}
+}
+
+func markDetail(workType, value, comment string) string {
+	if comment == "" {
+		return workType + ": " + value
+	}
+
+	return workType + ": " + value + " (" + comment + ")"
 }

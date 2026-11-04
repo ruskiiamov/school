@@ -249,7 +249,7 @@ func (h *Handler) renderDiary(w http.ResponseWriter, r *http.Request, dv diaryVi
 		}
 
 		for _, mark := range lesson.Marks {
-			panel.Marks = append(panel.Marks, view.DiaryMark{Value: strconv.Itoa(mark.Value), WorkType: mark.WorkTypeName})
+			panel.Marks = append(panel.Marks, view.DiaryMark{Value: view.FormatMark(mark.Value), WorkType: mark.WorkTypeName, Comment: mark.Comment})
 		}
 
 		if !lesson.Homework.Empty() {
@@ -287,7 +287,7 @@ func diarySummary(lesson journal.DiaryLesson) string {
 			summary += ", "
 		}
 
-		summary += strconv.Itoa(mark.Value)
+		summary += view.FormatMark(mark.Value)
 	}
 
 	switch {

@@ -100,6 +100,10 @@ func Plural(n int, one, few, many string) string {
 	}
 }
 
+func FormatMark(value string) string {
+	return strings.ReplaceAll(value, "-", "−")
+}
+
 func FormatAverage(average float64, count int) string {
 	if count == 0 {
 		return "—"

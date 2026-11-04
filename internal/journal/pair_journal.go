@@ -10,7 +10,8 @@ import (
 
 type JournalMark struct {
 	WorkTypeName string
-	Value        int
+	Value        string
+	Comment      string
 }
 
 type JournalCell struct {
@@ -192,17 +193,9 @@ func (s *Service) fillJournalCells(ctx context.Context, journal *PairJournal, in
 		return err
 	}
 
-	workTypes, err := s.workTypes.List(ctx, true)
+	names, order, err := s.workTypeNames(ctx, markTypeIDs(marks))
 	if err != nil {
 		return err
-	}
-
-	names := make(map[int64]string, len(workTypes))
-	order := make(map[int64]int, len(workTypes))
-
-	for i, workType := range workTypes {
-		names[workType.ID] = workType.Name
-		order[workType.ID] = i
 	}
 
 	index := map[int64]int{}
@@ -233,11 +226,11 @@ func (s *Service) fillJournalCells(ctx context.Context, journal *PairJournal, in
 
 		current := student(mark.StudentID)
 		current.MarkCount++
-		current.Average += float64(mark.Value)
+		current.Average += MarkPoints(mark.Value)
 
 		key := CellKey{LessonID: mark.LessonID, StudentID: mark.StudentID}
 		cell := journal.Cells[key]
-		cell.Marks = append(cell.Marks, JournalMark{WorkTypeName: names[mark.WorkTypeID], Value: mark.Value})
+		cell.Marks = append(cell.Marks, JournalMark{WorkTypeName: names[mark.WorkTypeID], Value: mark.Value, Comment: mark.Comment})
 		journal.Cells[key] = cell
 	}
 

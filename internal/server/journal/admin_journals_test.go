@@ -45,7 +45,7 @@ func TestAdminJournals(t *testing.T) {
 	replaced := openLesson(t, f.env, f.env.LoginAs(t, "substitute"), f.class, f.subject, f.today.AddDate(0, 0, -1))
 	require.NoError(t, f.env.Journal.UpdateTopic(ctx, f.teacher, lesson, "Дроби"))
 	require.NoError(t, f.env.Journal.SaveHomework(ctx, f.teacher, lesson, journalHomework("Упр. 12")))
-	f.env.SetMark(t, f.teacher, lesson, maria, firstWorkType(t, f), 5)
+	f.env.SetCommentedMark(t, f.teacher, lesson, maria, firstWorkType(t, f), "5-", "Без пояснений")
 	f.env.SetRecord(t, f.teacher, lesson, maria, true, "Опоздала")
 
 	body := servertest.Get(t, f.env.Handler, "/admin/journals", admin).Body.String()
@@ -81,7 +81,8 @@ func TestAdminJournals(t *testing.T) {
 	assert.Contains(t, entry, "Иванова Мария · ")
 	assert.Contains(t, entry, ">Отсутствовал<")
 	assert.Contains(t, entry, "Опоздала")
-	assert.Contains(t, entry, ">5<")
+	assert.Contains(t, entry, ">5−<")
+	assert.Contains(t, entry, "Без пояснений")
 	assert.Contains(t, entry, `href="`+html.EscapeString("/admin/diary/"+strconv.FormatInt(maria, 10)+"?"+url.Values{"date": {dateValue(f.today)}, "lesson": {strconv.FormatInt(lesson, 10)}}.Encode())+`"`)
 	assert.NotContains(t, entry, "<form")
 

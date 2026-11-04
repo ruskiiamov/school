@@ -21,14 +21,16 @@ func NavItems(role, active string) []NavItem {
 			NavItem{Title: "Родители", Href: "/admin/parents", Icon: IconParents, Group: groupSchool},
 			NavItem{Title: "Замены", Href: "/admin/substitutions", Icon: IconSwap, Group: groupSchool},
 			NavItem{Title: "Предметы", Href: "/admin/subjects", Icon: IconSubjects, Group: groupCatalogs},
-			NavItem{Title: "Типы работ", Href: "/admin/work-types", Icon: IconWorkTypes, Group: groupCatalogs},
 			NavItem{Title: "Журналы", Href: "/admin/journals", Icon: IconTable, Group: groupReading},
 			NavItem{Title: "Дневники", Href: "/admin/diary", Icon: IconDiary, Group: groupReading},
 			NavItem{Title: "Сброс пароля", Href: "/admin/password-reset", Icon: IconKey, Group: groupService},
 			NavItem{Title: "Резервная копия", Href: "/admin/backup", Icon: IconArchive, Group: groupService},
 		)
 	case "teacher":
-		items = append(items, NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey})
+		items = append(items,
+			NavItem{Title: "Типы работ", Href: "/journal/work-types", Icon: IconWorkTypes},
+			NavItem{Title: "Сменить пароль", Href: "/account/password", Icon: IconKey},
+		)
 	default:
 		items = append(items,
 			NavItem{Title: "Дневник", Href: "/diary", Icon: IconDiary},

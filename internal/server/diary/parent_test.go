@@ -29,8 +29,8 @@ func TestParentDiaryChildrenSwitch(t *testing.T) {
 
 	algebra := f.openLesson(t, f.class, f.algebra, f.today)
 	otherLesson := f.openLesson(t, f.other, f.algebra, f.today)
-	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, 5)
-	f.env.SetMark(t, f.teacher, otherLesson, second, f.workType, 3)
+	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, "5")
+	f.env.SetMark(t, f.teacher, otherLesson, second, f.workType, "3")
 
 	cookie := f.env.LoginAs(t, "parent")
 	secondQuery := url.Values{"child": {idValue(second)}}

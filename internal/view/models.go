@@ -168,11 +168,13 @@ type MarksEntry struct {
 }
 
 type MarksEntryRow struct {
-	Name      string
-	Field     string
-	Value     string
-	Error     string
-	Autofocus bool
+	Name         string
+	Field        string
+	Value        string
+	CommentField string
+	Comment      string
+	Error        string
+	Autofocus    bool
 }
 
 type AdminJournalsPage struct {
@@ -225,6 +227,7 @@ type JournalTable struct {
 }
 
 type JournalStudentHead struct {
+	ID        string
 	LastName  string
 	FirstName string
 	FullName  string
@@ -240,10 +243,58 @@ type JournalRow struct {
 	Topic     string
 	Homework  bool
 	CardHref  string
+	MarksHref string
+	Expanded  bool
 	Author    string
 	Highlight bool
 	Edit      *JournalRowEdit
 	Cells     []JournalCell
+	Marks     *LessonMarksBlock
+}
+
+type LessonMarksBlock struct {
+	Lesson  string
+	Columns int
+	Action  string
+	ErrorID string
+	Error   string
+	Rows    []LessonMarksRow
+	NewType *NewWorkTypeForm
+}
+
+type LessonMarksRow struct {
+	Name   string
+	Active bool
+	Cells  []LessonMarkCell
+}
+
+type LessonMarkCell struct {
+	ID       string
+	Field    string
+	Label    string
+	Value    string
+	Comment  string
+	Error    string
+	Editable bool
+}
+
+type NewWorkTypeForm struct {
+	Action string
+	Name   string
+}
+
+type LessonMarksPage struct {
+	Shell    Shell
+	Title    string
+	BackHref string
+	Students []LessonMarksStudent
+	Block    LessonMarksBlock
+	Errors   []string
+}
+
+type LessonMarksStudent struct {
+	Name string
+	Href string
 }
 
 type JournalRowEdit struct {
@@ -289,6 +340,7 @@ type DiaryLessonItem struct {
 type DiaryMark struct {
 	Value    string
 	WorkType string
+	Comment  string
 }
 
 type DiaryLessonPanel struct {
@@ -365,10 +417,18 @@ type WorkTypeRow struct {
 
 type WorkTypesPage struct {
 	Shell        Shell
+	Base         string
+	Subjects     []SubjectTab
 	WorkTypes    []WorkTypeRow
 	ShowInactive bool
 	NewName      string
 	NewError     string
+}
+
+type SubjectTab struct {
+	Name   string
+	Href   string
+	Active bool
 }
 
 type YearOption struct {

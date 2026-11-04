@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -10,6 +11,8 @@ import (
 
 type WorkType struct {
 	ID        int64
+	TeacherID int64
+	SubjectID int64
 	Name      string
 	SortOrder int
 	Active    bool
@@ -26,24 +29,49 @@ func NewWorkTypeRepo(db *sql.DB) *WorkTypeRepo {
 }
 
 const (
-	workTypeColumns = "id, name, sort_order, active, created_at, updated_at"
+	workTypeColumns = "id, teacher_id, subject_id, name, sort_order, active, created_at, updated_at"
 	sortOrderStep   = 10
 )
 
-func (r *WorkTypeRepo) List(ctx context.Context, includeInactive bool) ([]WorkType, error) {
-	query := "SELECT " + workTypeColumns + " FROM work_types"
+func (r *WorkTypeRepo) ListByOwner(ctx context.Context, teacherID, subjectID int64, includeInactive bool) ([]WorkType, error) {
+	query := "SELECT " + workTypeColumns + " FROM work_types WHERE teacher_id = ? AND subject_id = ?"
 	if !includeInactive {
-		query += " WHERE active = 1"
+		query += " AND active = 1"
 	}
 
 	query += " ORDER BY sort_order, id"
 
-	rows, err := r.db.QueryContext(ctx, query)
+	rows, err := r.db.QueryContext(ctx, query, teacherID, subjectID)
 	if err != nil {
 		return nil, fmt.Errorf("select work types: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
+	return collectWorkTypes(rows)
+}
+
+func (r *WorkTypeRepo) ListByIDs(ctx context.Context, ids []int64) ([]WorkType, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	list, err := json.Marshal(ids)
+	if err != nil {
+		return nil, fmt.Errorf("encode work type ids: %w", err)
+	}
+
+	const query = "SELECT " + workTypeColumns + " FROM work_types WHERE id IN (SELECT value FROM json_each(?)) ORDER BY sort_order, id"
+
+	rows, err := r.db.QueryContext(ctx, query, string(list))
+	if err != nil {
+		return nil, fmt.Errorf("select work types by ids: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	return collectWorkTypes(rows)
+}
+
+func collectWorkTypes(rows *sql.Rows) ([]WorkType, error) {
 	var workTypes []WorkType
 
 	for rows.Next() {
@@ -73,13 +101,13 @@ func (r *WorkTypeRepo) ByID(ctx context.Context, id int64) (WorkType, error) {
 	return workType, nil
 }
 
-func (r *WorkTypeRepo) Create(ctx context.Context, name string, sortOrder int) (int64, error) {
-	const query = `INSERT INTO work_types (name, sort_order, active, created_at, updated_at)
-		VALUES (?, ?, 1, ?, ?)`
+func (r *WorkTypeRepo) Create(ctx context.Context, teacherID, subjectID int64, name string, sortOrder int) (int64, error) {
+	const query = `INSERT INTO work_types (teacher_id, subject_id, name, sort_order, active, created_at, updated_at)
+		VALUES (?, ?, ?, ?, 1, ?, ?)`
 
 	now := toMillis(time.Now())
 
-	result, err := r.db.ExecContext(ctx, query, name, sortOrder, now, now)
+	result, err := r.db.ExecContext(ctx, query, teacherID, subjectID, name, sortOrder, now, now)
 	if err != nil {
 		return 0, fmt.Errorf("insert work type: %w", err)
 	}
@@ -114,22 +142,60 @@ func (r *WorkTypeRepo) SetActive(ctx context.Context, id int64, active bool) err
 	return requireAffected(result, "set work type active")
 }
 
-func (r *WorkTypeRepo) ActiveNameExists(ctx context.Context, name string, excludeID int64) (bool, error) {
-	const query = "SELECT EXISTS (SELECT 1 FROM work_types WHERE active = 1 AND name = ? AND id != ?)"
+func (r *WorkTypeRepo) CreateDefaults(ctx context.Context, teacherID, subjectID int64, names []string) (bool, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("begin default work types: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	const (
+		exists = "SELECT EXISTS (SELECT 1 FROM work_types WHERE teacher_id = ? AND subject_id = ?)"
+		insert = `INSERT INTO work_types (teacher_id, subject_id, name, sort_order, active, created_at, updated_at)
+			VALUES (?, ?, ?, ?, 1, ?, ?)`
+	)
+
+	var found bool
+	if err := tx.QueryRowContext(ctx, exists, teacherID, subjectID).Scan(&found); err != nil {
+		return false, fmt.Errorf("check work types: %w", err)
+	}
+
+	if found {
+		return false, nil
+	}
+
+	now := toMillis(time.Now())
+
+	for i, name := range names {
+		if _, err := tx.ExecContext(ctx, insert, teacherID, subjectID, name, (i+1)*sortOrderStep, now, now); err != nil {
+			return false, fmt.Errorf("insert default work type: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit default work types: %w", err)
+	}
+
+	return true, nil
+}
+
+func (r *WorkTypeRepo) ActiveNameExists(ctx context.Context, teacherID, subjectID int64, name string, excludeID int64) (bool, error) {
+	const query = `SELECT EXISTS (SELECT 1 FROM work_types
+		WHERE teacher_id = ? AND subject_id = ? AND active = 1 AND name = ? AND id != ?)`
 
 	var exists bool
-	if err := r.db.QueryRowContext(ctx, query, name, excludeID).Scan(&exists); err != nil {
+	if err := r.db.QueryRowContext(ctx, query, teacherID, subjectID, name, excludeID).Scan(&exists); err != nil {
 		return false, fmt.Errorf("check work type name: %w", err)
 	}
 
 	return exists, nil
 }
 
-func (r *WorkTypeRepo) NextSortOrder(ctx context.Context) (int, error) {
-	const query = "SELECT COALESCE(MAX(sort_order), 0) FROM work_types"
+func (r *WorkTypeRepo) NextSortOrder(ctx context.Context, teacherID, subjectID int64) (int, error) {
+	const query = "SELECT COALESCE(MAX(sort_order), 0) FROM work_types WHERE teacher_id = ? AND subject_id = ?"
 
 	var highest int
-	if err := r.db.QueryRowContext(ctx, query).Scan(&highest); err != nil {
+	if err := r.db.QueryRowContext(ctx, query, teacherID, subjectID).Scan(&highest); err != nil {
 		return 0, fmt.Errorf("select max work type order: %w", err)
 	}
 
@@ -167,7 +233,7 @@ func scanWorkType(row scanner) (WorkType, error) {
 		updatedAt int64
 	)
 
-	err := row.Scan(&workType.ID, &workType.Name, &workType.SortOrder, &workType.Active, &createdAt, &updatedAt)
+	err := row.Scan(&workType.ID, &workType.TeacherID, &workType.SubjectID, &workType.Name, &workType.SortOrder, &workType.Active, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return WorkType{}, ErrNotFound
 	}

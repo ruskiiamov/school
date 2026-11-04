@@ -21,7 +21,8 @@ type SubjectSummary struct {
 type SummaryMark struct {
 	LessonID     int64
 	Date         time.Time
-	Value        int
+	Value        string
+	Comment      string
 	WorkTypeName string
 }
 
@@ -46,14 +47,14 @@ func (s *Service) StudentSummary(ctx context.Context, studentID int64, from, to 
 		subjectNames[subject.ID] = subject.Name
 	}
 
-	workTypes, err := s.workTypes.List(ctx, true)
-	if err != nil {
-		return StudentSummary{}, err
+	typeIDs := make([]int64, 0, len(marks))
+	for _, mark := range marks {
+		typeIDs = append(typeIDs, mark.WorkTypeID)
 	}
 
-	workTypeNames := make(map[int64]string, len(workTypes))
-	for _, workType := range workTypes {
-		workTypeNames[workType.ID] = workType.Name
+	workTypeNames, _, err := s.workTypeNames(ctx, typeIDs)
+	if err != nil {
+		return StudentSummary{}, err
 	}
 
 	index := map[int64]int{}
@@ -76,9 +77,10 @@ func (s *Service) StudentSummary(ctx context.Context, studentID int64, from, to 
 			LessonID:     mark.LessonID,
 			Date:         mark.Date,
 			Value:        mark.Value,
+			Comment:      mark.Comment,
 			WorkTypeName: workTypeNames[mark.WorkTypeID],
 		})
-		current.Average += float64(mark.Value)
+		current.Average += MarkPoints(mark.Value)
 	}
 
 	for subjectID, count := range absences {

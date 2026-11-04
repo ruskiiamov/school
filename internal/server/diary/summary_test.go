@@ -34,14 +34,14 @@ func TestStudentMarksSummary(t *testing.T) {
 	require.Equal(t, http.StatusOK, code)
 	assert.Contains(t, body, `href="/diary/summary" aria-current="page"`)
 	assert.Contains(t, body, "Оценок за период нет")
-	assert.Contains(t, body, "простое среднее, без весов и четвертей")
+	assert.Contains(t, body, "добавляют и отнимают полбалла, весов и четвертей нет")
 	assert.Contains(t, body, ">Этот месяц<")
 
 	algebra := f.openLesson(t, f.class, f.algebra, f.today)
 	history := f.openLesson(t, f.class, f.history, f.today.AddDate(0, 0, 1))
-	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, 5)
-	f.env.SetMark(t, f.teacher, algebra, f.student, f.another, 4)
-	f.env.SetMark(t, f.teacher, history, f.student, f.workType, 3)
+	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, "5")
+	f.env.SetMark(t, f.teacher, algebra, f.student, f.another, "4")
+	f.env.SetCommentedMark(t, f.teacher, history, f.student, f.historyType, "3+", "Доклад")
 	f.env.SetRecord(t, f.teacher, history, f.student, true, "")
 
 	path := "/diary/summary?" + periodQuery(f.today, f.today.AddDate(0, 0, 1), nil)
@@ -53,9 +53,10 @@ func TestStudentMarksSummary(t *testing.T) {
 	assert.Contains(t, body, `href="`+html.EscapeString(diaryURL("/diary", f.today, url.Values{"lesson": {idValue(algebra)}, "year": {f.year()}}))+`" title="`+f.today.Format("02.01.2006")+" · Ответ на уроке"+`"`)
 	assert.Contains(t, body, ">5</a>")
 	assert.Contains(t, body, ">4</a>")
-	assert.Contains(t, body, ">3</a>")
+	assert.Contains(t, body, ">3+</a>")
+	assert.Contains(t, body, " · Ответ на уроке · Доклад\"")
 	assert.Contains(t, body, "Средний: 4,50")
-	assert.Contains(t, body, "Средний: 3,00")
+	assert.Contains(t, body, "Средний: 3,50")
 	assert.Contains(t, body, "Н: 1")
 	assert.Contains(t, body, "Н: 0")
 
@@ -77,7 +78,7 @@ func TestParentAndAdminMarksSummary(t *testing.T) {
 	require.NoError(t, f.env.School.AddChild(ctx, parent, f.student))
 
 	algebra := f.openLesson(t, f.class, f.algebra, f.today)
-	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, 5)
+	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, "5")
 
 	cookie := f.env.LoginAs(t, "parent")
 	code, body := get(t, f.env, "/diary/summary", cookie, false)

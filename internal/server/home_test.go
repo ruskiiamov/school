@@ -245,12 +245,12 @@ func TestHomeStudentSeesTodayAndWeekMarks(t *testing.T) {
 	require.NoError(t, env.School.AssignTeacher(ctx, classID, subjectID, teacherID))
 	require.NoError(t, env.School.AddChild(ctx, parentID, studentID))
 
-	workTypes, err := env.School.WorkTypes(ctx, false)
+	workTypes, err := env.Journal.WorkTypes(ctx, teacherID, subjectID, false)
 	require.NoError(t, err)
 
 	today := env.School.Today()
 	lessonID := env.CreateLesson(t, teacherID, classID, subjectID, today)
-	env.SetMark(t, teacherID, lessonID, studentID, workTypes[0].ID, 5)
+	env.SetMark(t, teacherID, lessonID, studentID, workTypes[0].ID, "5")
 
 	lessonHref := "/diary?date=" + today.Format(validation.DateLayout) + "&amp;lesson=" + strconv.FormatInt(lessonID, 10)
 

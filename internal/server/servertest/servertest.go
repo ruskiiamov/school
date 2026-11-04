@@ -85,7 +85,7 @@ func NewWithLogger(t *testing.T, log *slog.Logger) *Env {
 	require.NoError(t, authService.EnsureAdmin(t.Context(), cfg.Admin))
 
 	schoolService := school.NewService(cfg.School.YearStartMonth, cfg.Location,
-		storage.NewSubjectRepo(db), storage.NewWorkTypeRepo(db), storage.NewClassRepo(db),
+		storage.NewSubjectRepo(db), storage.NewClassRepo(db),
 		storage.NewClassStudentRepo(db), storage.NewParentChildRepo(db), storage.NewAssignmentRepo(db),
 		storage.NewSubstitutionRepo(db), log)
 

@@ -6,26 +6,36 @@ import (
 	"github.com/ruskiiamov/school/internal/view/layout"
 )
 
-const (
-	workTypesBase   = "/admin/work-types"
-	workTypesTarget = "#work-types"
-)
+const workTypesTarget = "#work-types"
 
 templ WorkTypes(page view.WorkTypesPage) {
 	@layout.App(page.Shell) {
 		<div class="flex flex-col gap-4 lg:gap-6">
 			@components.PageHeader("Типы работ") {
-				@components.InactiveToggle(inactiveToggleURL(workTypesBase, page.ShowInactive), page.ShowInactive)
+				if page.Base != "" {
+					@components.InactiveToggle(inactiveToggleURL(page.Base, page.ShowInactive), page.ShowInactive)
+				}
 			}
 			@components.PageHint(hintWorkTypes)
-			@WorkTypesList(page)
+			if len(page.Subjects) == 0 {
+				<div class={ components.CardClass }>
+					@components.EmptyState("Вам пока не назначены предметы")
+				</div>
+			} else {
+				<nav aria-label="Предмет" class="flex flex-wrap gap-1">
+					for _, subject := range page.Subjects {
+						@tabLink(subject.Name, subject.Href, subject.Active)
+					}
+				</nav>
+				@WorkTypesList(page)
+			}
 		</div>
 	}
 }
 
 templ WorkTypesList(page view.WorkTypesPage) {
 	<div id="work-types" class="flex flex-col gap-4 lg:gap-6">
-		@components.CreateForm(catalogURL(workTypesBase, 0, "", page.ShowInactive),
+		@components.CreateForm(catalogURL(page.Base, 0, "", page.ShowInactive),
 			"Новый тип работы", "Название нового типа работы", page.NewName, page.NewError, workTypesTarget)
 		<div class={ components.CardClass, "overflow-hidden" }>
 			if len(page.WorkTypes) == 0 {
@@ -33,7 +43,7 @@ templ WorkTypesList(page view.WorkTypesPage) {
 			} else {
 				<ul class="divide-y divide-slate-100">
 					for _, workType := range page.WorkTypes {
-						@workTypeRow(workType, page.ShowInactive)
+						@workTypeRow(page.Base, workType, page.ShowInactive)
 					}
 				</ul>
 			}
@@ -41,23 +51,23 @@ templ WorkTypesList(page view.WorkTypesPage) {
 	</div>
 }
 
-templ workTypeRow(row view.WorkTypeRow, showInactive bool) {
+templ workTypeRow(base string, row view.WorkTypeRow, showInactive bool) {
 	<li class={ "flex flex-wrap items-center gap-2", templ.KV("p-3 sm:p-4", row.Editing) }>
 		if row.Active && !row.Editing {
-			<form method="post" action={ templ.SafeURL(catalogURL(workTypesBase, row.ID, "/up", showInactive)) } class="flex shrink-0 items-center pl-3 sm:pl-4">
-				@moveButton(catalogURL(workTypesBase, row.ID, "/up", showInactive), view.IconUp, "Выше", row.CanUp)
-				@moveButton(catalogURL(workTypesBase, row.ID, "/down", showInactive), view.IconDown, "Ниже", row.CanDown)
+			<form method="post" action={ templ.SafeURL(catalogURL(base, row.ID, "/up", showInactive)) } class="flex shrink-0 items-center pl-3 sm:pl-4">
+				@moveButton(catalogURL(base, row.ID, "/up", showInactive), view.IconUp, "Выше", row.CanUp)
+				@moveButton(catalogURL(base, row.ID, "/down", showInactive), view.IconDown, "Ниже", row.CanDown)
 			</form>
 		}
 		if row.Editing {
-			@components.EditForm(catalogURL(workTypesBase, row.ID, "", showInactive),
-				catalogURL(workTypesBase, 0, "", showInactive), row.Name, "Название типа работы", row.Error, workTypesTarget) {
+			@components.EditForm(catalogURL(base, row.ID, "", showInactive),
+				catalogURL(base, 0, "", showInactive), row.Name, "Название типа работы", row.Error, workTypesTarget) {
 				@components.ActiveButton(row.Active,
-					catalogURL(workTypesBase, row.ID, "/deactivate", showInactive),
-					catalogURL(workTypesBase, row.ID, "/activate", showInactive))
+					catalogURL(base, row.ID, "/deactivate", showInactive),
+					catalogURL(base, row.ID, "/activate", showInactive))
 			}
 		} else {
-			@components.RowLink(catalogEditURL(workTypesBase, row.ID, showInactive), workTypesTarget) {
+			@components.RowLink(catalogEditURL(base, row.ID, showInactive), workTypesTarget) {
 				if row.Active {
 					<span class="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{ row.Name }</span>
 				} else {

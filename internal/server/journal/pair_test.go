@@ -44,7 +44,7 @@ func TestPairJournalTable(t *testing.T) {
 		require.NoError(t, f.env.School.AddClassStudent(ctx, f.class, id))
 	}
 
-	workTypes, err := f.env.School.WorkTypes(ctx, false)
+	workTypes, err := f.env.Journal.WorkTypes(ctx, f.teacher, f.subject, false)
 	require.NoError(t, err)
 	answer, test := workTypes[0], workTypes[1]
 
@@ -53,10 +53,10 @@ func TestPairJournalTable(t *testing.T) {
 	require.NoError(t, f.env.Journal.UpdateTopic(ctx, f.teacher, earlier, "Квадратные уравнения"))
 	require.NoError(t, f.env.Journal.SaveHomework(ctx, f.teacher, earlier, journalHomework("Упр. 12")))
 
-	f.env.SetMark(t, f.teacher, today, maria, test.ID, 4)
-	f.env.SetMark(t, f.teacher, today, maria, answer.ID, 5)
-	f.env.SetMark(t, f.teacher, earlier, maria, answer.ID, 4)
-	f.env.SetMark(t, f.teacher, earlier, gone, answer.ID, 3)
+	f.env.SetMark(t, f.teacher, today, maria, test.ID, "4")
+	f.env.SetMark(t, f.teacher, today, maria, answer.ID, "5")
+	f.env.SetMark(t, f.teacher, earlier, maria, answer.ID, "4")
+	f.env.SetMark(t, f.teacher, earlier, gone, answer.ID, "3")
 	f.env.SetRecord(t, f.teacher, today, petr, true, "Болел")
 	require.NoError(t, f.env.School.RemoveClassStudent(ctx, f.class, gone))
 	require.NoError(t, f.env.Auth.SetUserActive(ctx, petr, false))
@@ -192,7 +192,7 @@ func TestPairJournalLessons(t *testing.T) {
 		assert.Contains(t, recorder.Body.String(), `name="date" value="`+html.EscapeString(tc.date)+`" aria-label="Дата нового урока"`, tc.name)
 	}
 
-	f.env.SetMark(t, f.teacher, today, maria, firstWorkType(t, f), 5)
+	f.env.SetMark(t, f.teacher, today, maria, firstWorkType(t, f), "5")
 
 	moved := f.today.AddDate(0, 0, -3)
 	recorder := servertest.PostForm(t, f.env.Handler, lessonPath(today, "/date"), url.Values{"date": {dateValue(moved)}}, []*http.Cookie{teacher}, nil)
@@ -331,7 +331,7 @@ func TestPairJournalLessonsForbidden(t *testing.T) {
 func firstWorkType(t *testing.T, f fixture) int64 {
 	t.Helper()
 
-	workTypes, err := f.env.School.WorkTypes(t.Context(), false)
+	workTypes, err := f.env.Journal.WorkTypes(t.Context(), f.teacher, f.subject, false)
 	require.NoError(t, err)
 
 	return workTypes[0].ID

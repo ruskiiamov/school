@@ -24,7 +24,7 @@ func TestAdminDiarySearchAndOpen(t *testing.T) {
 	require.NoError(t, f.env.Auth.SetUserActive(ctx, gone, false))
 
 	algebra := f.openLesson(t, f.class, f.algebra, f.today)
-	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, 5)
+	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, "5")
 
 	code, body := get(t, f.env, "/admin/diary", admin, false)
 	require.Equal(t, http.StatusOK, code)

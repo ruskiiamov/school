@@ -182,8 +182,8 @@ func (h *Handler) adminJournalsEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, workType := range entry.Types {
-		if workType.Value != 0 {
-			result.Marks = append(result.Marks, view.DiaryMark{Value: strconv.Itoa(workType.Value), WorkType: workType.Name})
+		if workType.Value != "" {
+			result.Marks = append(result.Marks, view.DiaryMark{Value: view.FormatMark(workType.Value), WorkType: workType.Name, Comment: workType.Comment})
 		}
 	}
 

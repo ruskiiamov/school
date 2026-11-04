@@ -5,16 +5,17 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
-	"strings"
+	"unicode/utf8"
 
 	"github.com/ruskiiamov/school/internal/storage"
 	"github.com/ruskiiamov/school/internal/validation"
 )
 
 type EntryType struct {
-	ID    int64
-	Name  string
-	Value int
+	ID      int64
+	Name    string
+	Value   string
+	Comment string
 }
 
 type MarksEntry struct {
@@ -27,9 +28,10 @@ type MarksEntry struct {
 }
 
 type MarksEntryInput struct {
-	Values  map[int64]string
-	Absent  bool
-	Comment string
+	Values   map[int64]string
+	Comments map[int64]string
+	Absent   bool
+	Comment  string
 }
 
 func EntryTypeKey(workTypeID int64) string {
@@ -80,22 +82,22 @@ func (s *Service) marksEntry(ctx context.Context, lesson Lesson, studentID int64
 		return MarksEntry{}, err
 	}
 
-	values := map[int64]int{}
+	marks := map[int64]storage.Mark{}
 	for _, mark := range stored {
 		if mark.StudentID == studentID {
-			values[mark.WorkTypeID] = mark.Value
+			marks[mark.WorkTypeID] = mark
 		}
 	}
 
-	workTypes, err := s.workTypes.List(ctx, true)
+	workTypes, err := s.WorkTypes(ctx, lesson.TeacherID, lesson.SubjectID, true)
 	if err != nil {
 		return MarksEntry{}, err
 	}
 
 	for _, workType := range workTypes {
-		value, marked := values[workType.ID]
+		mark, marked := marks[workType.ID]
 		if marked || (inClass && workType.Active) {
-			entry.Types = append(entry.Types, EntryType{ID: workType.ID, Name: workType.Name, Value: value})
+			entry.Types = append(entry.Types, EntryType{ID: workType.ID, Name: workType.Name, Value: mark.Value, Comment: mark.Comment})
 		}
 	}
 
@@ -150,14 +152,14 @@ func (s *Service) SaveMarksEntry(ctx context.Context, teacherID, lessonID, stude
 	changes := []storage.MarkChange{}
 
 	for _, workType := range entry.Types {
-		value, ok := parseMarkValue(input.Values[workType.ID])
-		if !ok {
-			errs.Add(EntryTypeKey(workType.ID), msgValueRange)
+		change, message := markChange(studentID, workType, input.Values[workType.ID], input.Comments[workType.ID])
+		if message != "" {
+			errs.Add(EntryTypeKey(workType.ID), message)
 			continue
 		}
 
-		if value != workType.Value {
-			changes = append(changes, storage.MarkChange{WorkTypeID: workType.ID, Value: value})
+		if change.Value != workType.Value || change.Comment != workType.Comment {
+			changes = append(changes, change)
 		}
 	}
 
@@ -179,7 +181,7 @@ func (s *Service) SaveMarksEntry(ctx context.Context, teacherID, lessonID, stude
 	}
 
 	if len(changes) > 0 {
-		if err := s.marks.SetForStudent(ctx, lessonID, studentID, changes); err != nil {
+		if err := s.marks.Set(ctx, lessonID, changes); err != nil {
 			return err
 		}
 
@@ -194,16 +196,20 @@ func (s *Service) SaveMarksEntry(ctx context.Context, teacherID, lessonID, stude
 	return nil
 }
 
-func parseMarkValue(raw string) (int, bool) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return 0, true
+func markChange(studentID int64, workType EntryType, rawValue, rawComment string) (storage.MarkChange, string) {
+	value, ok := parseMarkValue(rawValue)
+	if !ok {
+		return storage.MarkChange{}, msgValueRange
 	}
 
-	value, err := strconv.Atoi(raw)
-	if err != nil || value < 1 || value > 5 {
-		return 0, false
+	comment := validation.NormalizeSpaces(rawComment)
+
+	switch {
+	case utf8.RuneCountInString(comment) > maxMarkCommentLength:
+		return storage.MarkChange{}, msgMarkCommentTooLong
+	case value == "" && comment != "":
+		return storage.MarkChange{}, msgMarkCommentWithoutValue
 	}
 
-	return value, true
+	return storage.MarkChange{StudentID: studentID, WorkTypeID: workType.ID, Value: value, Comment: comment}, ""
 }

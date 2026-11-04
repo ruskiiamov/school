@@ -16,17 +16,18 @@ import (
 )
 
 type fixture struct {
-	env      *servertest.Env
-	today    time.Time
-	class    int64
-	other    int64
-	algebra  int64
-	history  int64
-	teacher  int64
-	student  int64
-	stranger int64
-	workType int64
-	another  int64
+	env         *servertest.Env
+	today       time.Time
+	class       int64
+	other       int64
+	algebra     int64
+	history     int64
+	teacher     int64
+	student     int64
+	stranger    int64
+	workType    int64
+	another     int64
+	historyType int64
 }
 
 func newFixture(t *testing.T) fixture {
@@ -54,12 +55,14 @@ func newFixture(t *testing.T) fixture {
 	require.NoError(t, env.School.AssignTeacher(ctx, class, history, teacher))
 	require.NoError(t, env.School.AssignTeacher(ctx, other, algebra, teacher))
 
-	workTypes, err := env.School.WorkTypes(ctx, false)
+	workTypes, err := env.Journal.WorkTypes(ctx, teacher, algebra, false)
+	require.NoError(t, err)
+	historyTypes, err := env.Journal.WorkTypes(ctx, teacher, history, false)
 	require.NoError(t, err)
 
 	return fixture{
 		env: env, today: env.School.Today(), class: class, other: other, algebra: algebra, history: history,
-		teacher: teacher, student: student, stranger: stranger, workType: workTypes[0].ID, another: workTypes[1].ID,
+		teacher: teacher, student: student, stranger: stranger, workType: workTypes[0].ID, another: workTypes[1].ID, historyType: historyTypes[0].ID,
 	}
 }
 

@@ -58,12 +58,20 @@ templ marksEntryForm(entry view.MarksEntry, modal bool) {
 							name={ row.Field }
 							value={ row.Value }
 							inputmode="numeric"
-							maxlength="1"
+							maxlength="2"
 							autocomplete="off"
 							if row.Autofocus {
 								autofocus
 							}
 							class={ components.InputCompactClassFor(row.Error), "w-14 text-center text-base font-semibold" }
+						/>
+						<input
+							name={ row.CommentField }
+							value={ row.Comment }
+							placeholder="Комментарий"
+							aria-label={ "Комментарий: " + row.Name }
+							autocomplete="off"
+							class={ components.InputCompactClassFor(""), "basis-full sm:basis-48" }
 						/>
 						if row.Error != "" {
 							<span class="basis-full text-right text-xs text-rose-600">{ row.Error }</span>
@@ -74,12 +82,12 @@ templ marksEntryForm(entry view.MarksEntry, modal bool) {
 		}
 		if entry.InClass {
 			<div class="flex flex-col gap-1 px-4 pb-3">
-				<label for="entry-comment" class="sr-only">Комментарий ученику</label>
+				<label for="entry-comment" class="sr-only">Комментарий к уроку</label>
 				<input
 					id="entry-comment"
 					name="comment"
 					value={ entry.Comment }
-					placeholder="Комментарий ученику"
+					placeholder="Комментарий к уроку"
 					autocomplete="off"
 					class={ components.InputCompactClassFor(entry.CommentError), "w-full" }
 				/>

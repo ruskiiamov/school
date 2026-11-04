@@ -1,7 +1,6 @@
 package servertest
 
 import (
-	"strconv"
 	"testing"
 	"time"
 
@@ -25,11 +24,20 @@ func (env *Env) CreateLesson(t *testing.T, teacherID, classID, subjectID int64, 
 	return id
 }
 
-func (env *Env) SetMark(t *testing.T, teacherID, lessonID, studentID, workTypeID int64, value int) {
+func (env *Env) SetMark(t *testing.T, teacherID, lessonID, studentID, workTypeID int64, value string) {
 	t.Helper()
 
 	env.saveEntry(t, teacherID, lessonID, studentID, func(input *journal.MarksEntryInput) {
-		input.Values[workTypeID] = strconv.Itoa(value)
+		input.Values[workTypeID] = value
+	})
+}
+
+func (env *Env) SetCommentedMark(t *testing.T, teacherID, lessonID, studentID, workTypeID int64, value, comment string) {
+	t.Helper()
+
+	env.saveEntry(t, teacherID, lessonID, studentID, func(input *journal.MarksEntryInput) {
+		input.Values[workTypeID] = value
+		input.Comments[workTypeID] = comment
 	})
 }
 
@@ -48,15 +56,18 @@ func (env *Env) saveEntry(t *testing.T, teacherID, lessonID, studentID int64, ch
 	entry, err := env.Journal.MarksEntry(t.Context(), teacherID, lessonID, studentID)
 	require.NoError(t, err)
 
-	input := journal.MarksEntryInput{Values: map[int64]string{}, Absent: entry.Absent, Comment: entry.Comment}
+	input := journal.MarksEntryInput{Values: map[int64]string{}, Comments: map[int64]string{}, Absent: entry.Absent, Comment: entry.Comment}
 
 	for _, workType := range entry.Types {
-		if workType.Value != 0 {
-			input.Values[workType.ID] = strconv.Itoa(workType.Value)
-		}
+		input.Values[workType.ID] = workType.Value
+		input.Comments[workType.ID] = workType.Comment
 	}
 
+	known := len(input.Values)
+
 	change(&input)
+
+	require.Len(t, input.Values, known, "work type is not offered for this lesson")
 
 	require.NoError(t, env.Journal.SaveMarksEntry(t.Context(), teacherID, lessonID, studentID, input))
 }

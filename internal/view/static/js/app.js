@@ -401,3 +401,71 @@
     }
   });
 })();
+
+(function () {
+  "use strict";
+
+  function openToggle() {
+    return document.querySelector('[data-marks-toggle][aria-expanded="true"]');
+  }
+
+  function collapse(toggle) {
+    var row = toggle.closest("tr");
+
+    document.querySelectorAll('tr[data-marks-of="' + row.id + '"]').forEach(function (block) {
+      block.remove();
+    });
+    toggle.setAttribute("aria-expanded", "false");
+  }
+
+  document.addEventListener(
+    "click",
+    function (event) {
+      var toggle = event.target.closest("[data-marks-toggle]");
+
+      if (!toggle) {
+        return;
+      }
+
+      if (toggle.getAttribute("aria-expanded") === "true") {
+        event.preventDefault();
+        event.stopPropagation();
+        collapse(toggle);
+
+        return;
+      }
+
+      var open = openToggle();
+      if (open) {
+        collapse(open);
+      }
+    },
+    true
+  );
+
+  document.addEventListener("htmx:configRequest", function (event) {
+    var open = openToggle();
+
+    if (open) {
+      event.detail.headers["X-Journal-Open"] = open.closest("tr").id.replace("lesson-", "");
+    }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter" || !event.target.matches || !event.target.matches("input[data-mark-cell]")) {
+      return;
+    }
+
+    event.preventDefault();
+
+    var cells = Array.prototype.slice.call(event.target.closest("tr").querySelectorAll("input[data-mark-cell]"));
+    var next = cells[cells.indexOf(event.target) + 1];
+
+    if (next) {
+      next.focus();
+      next.select();
+    } else {
+      event.target.blur();
+    }
+  });
+})();

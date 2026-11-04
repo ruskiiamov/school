@@ -21,7 +21,8 @@ templ PairJournal(page view.PairJournalPage) {
 			}
 			@components.PageHelp("Как работать с журналом") {
 				<p>В ячейке — оценки за урок по порядку типов работ, «Н» — ученик не был на уроке, точка — есть комментарий</p>
-				<p>Чтобы поставить оценку, нажмите на ячейку</p>
+				<p>Оценку и комментарий одному ученику — нажмите на ячейку</p>
+				<p>Чтобы поставить оценки всему классу, нажмите стрелку у урока: под ним откроются строки типов работ</p>
 				<p>Новый урок — введите его дату в первой строке таблицы</p>
 				<p>Чтобы удалить урок без оценок и записей, сотрите его дату</p>
 			}
@@ -68,13 +69,13 @@ templ PairJournalContent(content view.PairJournalContent, oob bool) {
 }
 
 templ journalTable(content view.PairJournalContent) {
-	<div class="journal-scroll min-h-0 flex-1 scroll-pt-[var(--journal-head,15rem)] overflow-auto rounded-xl">
+	<div class="journal-scroll min-h-0 flex-1 scroll-pt-[var(--journal-head,15rem)] scroll-pl-[var(--journal-side,0px)] overflow-auto rounded-xl">
 		<table class="journal-table w-full border-separate border-spacing-0 text-sm">
 			<thead>
 				<tr>
 					<td class="sticky top-0 left-0 z-30 w-px border-b border-slate-200 bg-white px-5 align-middle text-sm font-semibold whitespace-nowrap text-slate-900">Всего: { content.Lessons }</td>
 					for _, student := range content.Table.Students {
-						@journalStudentHead(student)
+						@journalStudentHead(student, false)
 					}
 					if len(content.Table.Students) == 0 {
 						<th scope="col" class="sticky top-0 z-20 border-b border-slate-200 bg-white px-3 py-2 text-left font-normal text-slate-500">В классе пока нет учеников</th>
@@ -128,8 +129,16 @@ templ newLessonRow(form view.NewLessonForm, cells int) {
 	</tr>
 }
 
-templ journalStudentHead(student view.JournalStudentHead) {
-	<th scope="col" title={ studentTitle(student) } class="sticky top-0 z-20 border-b border-l border-slate-200 bg-white px-1 py-2 align-bottom">
+templ journalStudentHead(student view.JournalStudentHead, oob bool) {
+	<th
+		id={ student.ID }
+		if oob {
+			hx-swap-oob="true"
+		}
+		scope="col"
+		title={ studentTitle(student) }
+		class="sticky top-0 z-20 border-b border-l border-slate-200 bg-white px-1 py-2 align-bottom"
+	>
 		<span class="flex flex-col items-center gap-1">
 			<span
 				class={ "mx-auto flex min-w-16 flex-col text-xs leading-tight font-medium whitespace-nowrap sm:min-w-[4.5rem] sm:text-sm",
@@ -162,7 +171,24 @@ func studentTitle(student view.JournalStudentHead) string {
 }
 
 templ journalRow(row view.JournalRow) {
-	<tr id={ row.Anchor } data-highlight?={ row.Highlight }>
+	@journalLessonRow(row, false)
+	if row.Marks != nil {
+		@lessonMarksRows(*row.Marks, true)
+	}
+}
+
+templ JournalRowGroup(row view.JournalRow) {
+	@journalRow(row)
+}
+
+templ journalLessonRow(row view.JournalRow, oob bool) {
+	<tr
+		id={ row.Anchor }
+		if oob {
+			hx-swap-oob="true"
+		}
+		data-highlight?={ row.Highlight }
+	>
 		<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-100 bg-white px-3 py-1 text-left font-normal whitespace-nowrap">
 			<span class="flex items-center gap-1">
 				if row.Edit != nil {
@@ -191,6 +217,9 @@ templ journalRow(row view.JournalRow) {
 						@homeworkLabel(row.Homework)
 					}
 				</span>
+				if row.MarksHref != "" {
+					@marksToggle(row)
+				}
 				if row.Author != "" {
 					<span title={ "Урок провёл " + row.Author } class="ml-1 text-slate-400">
 						@components.Icon(view.IconSwap, "size-4")
@@ -269,3 +298,188 @@ templ homeworkLabel(set bool) {
 		}
 	>ДЗ</span>
 }
+
+templ marksToggle(row view.JournalRow) {
+	<a
+		href={ templ.SafeURL(row.MarksHref) }
+		hx-get={ row.MarksHref }
+		hx-target={ "#" + row.Anchor }
+		hx-swap="outerHTML"
+		data-marks-toggle
+		aria-expanded={ strconv.FormatBool(row.Expanded) }
+		aria-label="Оценки всему классу"
+		title="Оценки всему классу"
+		class="group ml-1 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 aria-expanded:bg-indigo-50 aria-expanded:text-indigo-700"
+	>
+		@components.Icon(view.IconDown, "size-4 -rotate-90 transition-transform group-aria-expanded:rotate-0")
+	</a>
+}
+
+templ lessonMarksRows(block view.LessonMarksBlock, live bool) {
+	for _, row := range block.Rows {
+		<tr data-marks-of={ block.Lesson }>
+			<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-100 bg-slate-50 py-1 pr-3 pl-5 text-left text-sm font-normal whitespace-nowrap sm:pl-10">
+				<span
+					title={ row.Name }
+					class={ "block max-w-28 truncate sm:max-w-54", templ.KV("text-slate-700", row.Active), templ.KV("text-slate-400", !row.Active) }
+				>{ row.Name }</span>
+			</th>
+			for _, cell := range row.Cells {
+				@lessonMarkCell(block.Action, cell, live, false)
+			}
+		</tr>
+	}
+	<tr data-marks-of={ block.Lesson }>
+		<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-200 bg-slate-50 py-1 pr-3 pl-5 text-left font-normal whitespace-nowrap sm:pl-10">
+			if block.NewType != nil && live {
+				@newWorkTypeForm(*block.NewType)
+			}
+			@marksError(block.ErrorID, block.Error, false)
+		</th>
+		<td colspan={ strconv.Itoa(block.Columns) } class="border-b border-slate-200 bg-slate-50"></td>
+	</tr>
+}
+
+templ newWorkTypeForm(form view.NewWorkTypeForm) {
+	<form
+		method="post"
+		action={ templ.SafeURL(form.Action) }
+		hx-post={ form.Action }
+		hx-target={ "#" + journalContentID }
+		hx-swap="outerHTML"
+		class="flex items-center gap-2"
+	>
+		<input
+			name="name"
+			value={ form.Name }
+			placeholder="Новый тип работы"
+			aria-label="Новый тип работы"
+			autocomplete="off"
+			class={ components.InputCompactClass, "w-32 sm:w-54" }
+		/>
+		@components.NoScriptSubmit("Добавить")
+	</form>
+}
+
+templ marksError(id, message string, oob bool) {
+	<span
+		id={ id }
+		if oob {
+			hx-swap-oob="true"
+		}
+		class="block max-w-xs text-xs whitespace-normal text-rose-600 empty:hidden"
+	>{ message }</span>
+}
+
+templ lessonMarkCell(action string, cell view.LessonMarkCell, live bool, oob bool) {
+	<td
+		id={ cell.ID }
+		if oob {
+			hx-swap-oob="true"
+		}
+		class="bg-slate-50"
+	>
+		if cell.Editable {
+			<span class="flex items-center justify-center gap-0.5 px-1 py-1">
+				<input
+					name={ cell.Field }
+					value={ cell.Value }
+					inputmode="numeric"
+					maxlength="2"
+					autocomplete="off"
+					aria-label={ cell.Label }
+					if cell.Error != "" {
+						title={ cell.Error }
+						aria-invalid="true"
+					} else if cell.Comment != "" {
+						title={ cell.Comment }
+					}
+					if live {
+						data-mark-cell
+						hx-post={ action }
+						hx-trigger="change"
+						hx-target="closest td"
+						hx-swap="outerHTML"
+						hx-sync="closest tbody:queue all"
+					}
+					class={ components.InputCompactClassFor(cell.Error), "w-11 text-center font-semibold" }
+				/>
+				if cell.Comment != "" {
+					<span title={ cell.Comment } class="text-indigo-500">•</span>
+				}
+			</span>
+		}
+	</td>
+}
+
+templ LessonMarkCells(action string, cells []view.LessonMarkCell, row *view.JournalRow, students []view.JournalStudentHead, errorID, message string) {
+	for _, cell := range cells {
+		@lessonMarkCell(action, cell, true, false)
+	}
+	if row != nil {
+		<template>
+			@journalLessonRow(*row, true)
+		</template>
+	}
+	for _, student := range students {
+		<template>
+			@journalStudentHead(student, true)
+		</template>
+	}
+	@marksError(errorID, message, true)
+}
+
+templ LessonMarksPage(page view.LessonMarksPage) {
+	@layout.App(page.Shell) {
+		<div class="flex flex-col gap-4 lg:gap-6">
+			@components.PageHeader(page.Title) {
+				<a href={ templ.SafeURL(page.BackHref) } class="text-sm font-medium text-indigo-700 hover:underline">← К журналу</a>
+			}
+			if len(page.Errors) > 0 {
+				<ul class="flex flex-col gap-1 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">
+					for _, message := range page.Errors {
+						<li>{ message }</li>
+					}
+				</ul>
+			}
+			<form method="post" action={ templ.SafeURL(page.Block.Action) } class={ components.CardClass, "flex flex-col" }>
+				<div class="overflow-x-auto">
+					<table class="journal-table w-full border-separate border-spacing-0 text-sm">
+						<thead>
+							<tr>
+								<td class="w-px border-b border-slate-200 bg-white px-3"></td>
+								for _, student := range page.Students {
+									<th scope="col" class="border-b border-l border-slate-200 bg-white px-1 py-2 text-xs font-medium whitespace-nowrap">
+										<a href={ templ.SafeURL(student.Href) } class="text-indigo-700 hover:underline">{ student.Name }</a>
+									</th>
+								}
+							</tr>
+						</thead>
+						<tbody>
+							@lessonMarksRows(page.Block, false)
+						</tbody>
+					</table>
+				</div>
+				<div class="flex justify-center border-t border-slate-100 px-4 py-3">
+					<button type="submit" class={ components.ButtonPrimaryClass }>Сохранить</button>
+				</div>
+			</form>
+			if page.Block.NewType != nil {
+				<section class={ components.CardClass, "p-4" }>
+					<form method="post" action={ templ.SafeURL(page.Block.NewType.Action) } class="flex flex-wrap items-center gap-2">
+						<input
+							name="name"
+							value={ page.Block.NewType.Name }
+							placeholder="Новый тип работы"
+							aria-label="Новый тип работы"
+							autocomplete="off"
+							class={ components.InputCompactClass, "w-64" }
+						/>
+						<button type="submit" class={ components.ButtonSecondaryClass }>Добавить</button>
+					</form>
+				</section>
+			}
+		</div>
+	}
+}
+

@@ -148,8 +148,7 @@ templ diaryLessonPanel(panel view.DiaryLessonPanel) {
 			<ul class="divide-y divide-slate-100">
 				for _, mark := range panel.Marks {
 					<li class="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 sm:p-4">
-						<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-base font-semibold text-indigo-700">{ mark.Value }</span>
-						<span class="text-sm font-medium text-slate-900">{ mark.WorkType }</span>
+						@diaryMark(mark)
 					</li>
 				}
 			</ul>
@@ -192,4 +191,14 @@ templ diaryHomework(homework view.DiaryHomework) {
 			</ul>
 		}
 	</div>
+}
+
+templ diaryMark(mark view.DiaryMark) {
+	<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-base font-semibold text-indigo-700">{ mark.Value }</span>
+	<span class="flex min-w-0 flex-1 flex-col">
+		<span class="text-sm font-medium text-slate-900">{ mark.WorkType }</span>
+		if mark.Comment != "" {
+			<span class="text-sm text-slate-600">{ mark.Comment }</span>
+		}
+	</span>
 }

@@ -21,7 +21,6 @@ func TestAdminSectionsExplainThemselves(t *testing.T) {
 		hint string
 	}{
 		{"/admin/subjects", "чтобы в карточке класса назначить, кто что ведёт"},
-		{"/admin/work-types", "за что поставлена оценка"},
 		{"/admin/classes", "Как устроены классы"},
 		{"/admin/teachers", "задаётся в карточке класса"},
 		{"/admin/students", "Класс ученика можно указать сразу или позже"},

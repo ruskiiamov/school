@@ -9,8 +9,10 @@ Go 1.27. Сервер рендерит HTML на templ, интерактивно
 (standalone-бинарник, без npm), данные — SQLite через `modernc.org/sqlite`.
 
 Интерфейс полностью на русском; вёрстка должна быть одинаково пригодна на телефоне
-и на десктопе. Готовы итерации 1–8 (до выпуска v0.1.0) и итерация 9
-«журнал пары» (D-087…D-104, старые страницы журнала и сводок удалены).
+и на десктопе. Готовы итерации 1–8 (до выпуска v0.1.0), итерация 9
+«журнал пары» (D-087…D-104, старые страницы журнала и сводок удалены) и
+итерация 10 (D-105…D-109): свои типы работ учителя, оценки «±» и «0»,
+комментарий к оценке, оценки уроку раскрывающейся строкой журнала.
 Меню
 строится по роли в `view.NavItems(role, active)`; у админа пункты несут
 `NavItem.Group` («Школа», «Справочники», «Просмотр», «Служебное», D-080),
@@ -141,7 +143,7 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
   - `server/admin` — всё под `/admin`: `Handler` (`handler.go`: `New`,
     `Routes`, обёртка `h.admin(fn)` = `RequireAuth` + `RequireRole(admin)`,
     `activeUser`), по файлу на раздел (`classes.go`, `class_card.go`,
-    `subjects.go`, `work_types.go`, `users.go`, `parent_children.go`,
+    `subjects.go`, `users.go`, `parent_children.go`,
     `password_reset.go`, `substitutions.go`, `transfer.go` — перевод
     классов `/admin/classes/transfer`, обычная форма без HTMX,
     `backup.go` — страница `/admin/backup` и скачивание
@@ -171,7 +173,19 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
     `http.MaxBytesReader` и продлением дедлайна — `prepareUpload`),
     `cardDone` (окно — таблица через `hx-swap-oob` и закрытие, иначе
     редирект), `entry.go` — окно ученика за урок
-    `/journal/lessons/{id}/students/{sid}/marks`, `admin_journals.go` —
+    `/journal/lessons/{id}/students/{sid}/marks` (поля `type-{id}` и
+    `comment-{id}` у каждого типа, `formFields`), `lesson_marks.go` —
+    раскрытый урок `/journal/lessons/{id}/marks` (D-108: HTMX — строка
+    урока и строки типов `data-marks-of` по `outerHTML` на `#lesson-{id}`,
+    без JS — страница с «Сохранить»; POST с полями `m-{type}-{sid}`
+    сохраняет присланные, ответ на одну ячейку — её `<td>` плюс
+    `hx-swap-oob` строки урока и шапки ученика `#student-{id}` в
+    `<template>` и слот ошибки; новый тип — `POST …/work-types`;
+    раскрытый урок `pairContent` берёт из заголовка `X-Journal-Open`,
+    который ставит `app.js`), `work_types.go` — «Типы работ» учителя
+    `/journal/work-types` (редирект на первый предмет) и
+    `/journal/subjects/{subject}/work-types` (вкладки предметов,
+    строчный паттерн; чужой тип или предмет — 404), `admin_journals.go` —
     «Журналы» админа `/admin/journals` и окна только на чтение
     (`pairOptions`, `diaryHomework`; D-066 — исключение из «всё под
     `/admin` в `admin`», как `/admin/diary`). Окна — один `<dialog
@@ -200,7 +214,8 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
   - `server/servertest` — окружение для тестов (см. «Как добавить страницу»);
     `env.Files` — хранилище файлов во временном каталоге (`env.FilesDir`) с
     лимитами 1 МБ и 3 файла на урок; данные журнала для тестов —
-    `env.CreateLesson`, `env.SetMark`, `env.SetRecord` (`journal.go`,
+    `env.CreateLesson`, `env.SetMark` (значение строкой: `"4+"`),
+    `env.SetCommentedMark`, `env.SetRecord` (`journal.go`,
     поверх `CreateLesson` и `SaveMarksEntry`; методов сервиса «только для
     тестов» нет, D-104).
   Маршруты для одной роли — `base.RequireAuth(web.RequireRole(role...)(h))`
@@ -224,8 +239,8 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
   (`http.behind_proxy` → последний `X-Forwarded-For`). В тестах больше
   четырёх неверных входов по одному логину на одно окружение не делать;
   cookie ответа входа искать через `servertest.CookieNamed`.
-- `internal/school` — справочники: предметы (`subject.go`), типы работ
-  (`work_type.go`), классы (`class.go`), состав класса (`student.go`,
+- `internal/school` — справочники: предметы (`subject.go`), классы
+  (`class.go`), состав класса (`student.go`,
   `StudentClassIn` по году), нагрузка (`assignment.go`), замены
   (`substitution.go`), дети родителя (`parent.go`), перевод классов
   (`transfer.go`: `CanTransfer`, `TransferPlan` — активные классы
@@ -256,12 +271,25 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
   создание и перенос урока (`lesson_date.go`: `CreateLesson`, `MoveLesson`
   с границами года `YearBounds` от вызывающего), окно ученика
   (`entry.go`: `MarksEntry`, `AdminMarksEntry`, `SaveMarksEntry` — всё
-  или ничего, оценки одной транзакцией `MarkRepo.SetForStudent`, одна
-  оценка на тип работы, D-088), окно урока (`lesson_card.go`:
+  или ничего, оценки одной транзакцией `MarkRepo.Set`, одна
+  оценка на тип работы, D-088, комментарий к оценке до 200 символов и
+  только при оценке, D-105), оценки урока всему классу
+  (`lesson_marks.go`: `LessonMarks` — типы автора урока, состав,
+  оценки по `MarkKey`, `Editable`; `SaveLessonMarks` — только
+  присланные ячейки, всё или ничего, комментарий сохраняется, стёртая
+  оценка удаляет его; `CreateLessonWorkType` — только автору урока),
+  типы работ (`work_type.go`: список пары «учитель, предмет»
+  `WorkTypes` — при первом обращении сам создаёт стандартный набор
+  `defaultWorkTypes`, если у пары нет ни одной строки; создание,
+  переименование, порядок, активность, `TeacherSubjects`; в уроке —
+  всегда типы его автора, D-107, D-108), окно урока (`lesson_card.go`:
   `CheckLessonCard`, `SaveLessonCard` — тема, ДЗ, удаление отмеченных
   файлов; `DiscardHomeworkFiles`), уроки с правами D-031 (`lesson.go`:
   `LessonForTeacher`, `LessonByID`, `UpdateTopic`, `DeleteLesson` только
-  пустой), оценки урока для дневника (`mark.go`: `Marks`), запись об
+  пустой), оценки урока для дневника (`mark.go`: `Marks`; значение —
+  строка `"5"`, `"4+"`, `"3-"`, `"0"`, разбор `parseMarkValue` принимает и
+  «−», баллы для среднего — `MarkPoints`, ±0,5, D-108; на экран — через
+  `view.FormatMark`, «-» → «−»), запись об
   уроке (`record.go`: `validateRecord`, `storeRecord` — пустая запись
   удаляет строку), уборка осиротевших строк (`cleanup.go`), чтение для
   дневника (`diary.go`: `DayLessons` — уроки дня ученика с его оценками,
@@ -359,7 +387,7 @@ make dist      # архивы релиза под linux/amd64 и arm64 + SHA256S
 списков — квадратные иконки с `aria-label` и `title`
 (`IconSubmit`, `IconFormAction`, `AddButton`, `RemoveButton`; классы
 `ButtonIcon{Primary,Secondary,Danger}Class`). Ошибка активации держит
-строку в режиме правки (`rowEdit.open`). Так устроены предметы, типы работ, классы, пользователи,
+строку в режиме правки (`rowEdit.open`). Так устроены предметы, типы работ учителя, классы, пользователи,
 замены. Обработчик читает поля через `web.FormValue`
 (с `TrimSpace`), `id` из пути — через `web.PathID` (404 при мусоре), зовёт сервис
 и ветвится: `web.FormErrors(err)` → перерисовать страницу с введённым значением и
@@ -561,7 +589,8 @@ CSS-переменные `--journal-head`/`--journal-side` (поля полос 
 `data-date-pick` открывает `showPicker()` скрытого `<input type="date">`,
 его `input`/`change` гасятся в фазе захвата, выбранная дата пишется в
 текстовое поле и шлёт `change`, D-098), имена выбранных файлов
-(`data-file-names` → `data-file-list`). CSS-переменные ставятся через CSSOM (`style.setProperty`)
+(`data-file-names` → `data-file-list`), раскрытый урок журнала
+(`data-marks-toggle`, `data-mark-cell`, заголовок `X-Journal-Open`). CSS-переменные ставятся через CSSOM (`style.setProperty`)
 — CSP это разрешает, атрибут `style` в разметке — нет. Обработчики
 делегированы на `document`, чтобы работать после HTMX-подмен (D-053).
 
@@ -598,7 +627,11 @@ CSS-переменные `--journal-head`/`--journal-side` (поля полос 
 без оценок и записей; подтверждение — `data-confirm-empty` на форме,
 `app.js` перехватывает `htmx:confirm` (D-101). Окна: урок —
 `/journal/lessons/{id}`, ученик за урок — `/journal/lessons/{id}/students/{sid}/marks`
-(D-104). Даты во всех полях — `ДД.ММ.ГГГГ`
+(D-104). Раскрытый урок (D-108): кнопка ▸ `data-marks-toggle` с
+`aria-expanded` в строке урока, под ней строки типов `data-marks-of` с
+полями `data-mark-cell` (`hx-trigger="change"`, цель — `closest td`);
+раскрыт один урок, сворачивание и Enter → следующая ячейка — `app.js`.
+Даты во всех полях — `ДД.ММ.ГГГГ`
 (`components.DateInput`, не `<input type="date">`: его формат зависит от
 языка браузера).
 

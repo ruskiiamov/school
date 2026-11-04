@@ -35,11 +35,11 @@ func TestStudentDiaryDayAndLesson(t *testing.T) {
 	foreign := f.openLesson(t, f.other, f.algebra, f.today)
 
 	require.NoError(t, f.env.Journal.UpdateTopic(ctx, f.teacher, algebra, "Квадратные уравнения"))
-	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, 5)
-	f.env.SetMark(t, f.teacher, algebra, f.student, f.another, 4)
+	f.env.SetMark(t, f.teacher, algebra, f.student, f.workType, "5")
+	f.env.SetCommentedMark(t, f.teacher, algebra, f.student, f.another, "4-", "Не решена задача 3")
 	f.env.SetRecord(t, f.teacher, algebra, f.student, true, "Опоздала на 10 минут")
 	f.env.SetRecord(t, f.teacher, history, f.student, true, "")
-	f.env.SetMark(t, f.teacher, foreign, f.stranger, f.workType, 3)
+	f.env.SetMark(t, f.teacher, foreign, f.stranger, f.workType, "3")
 
 	code, body = get(t, f.env, "/diary", student, false)
 	require.Equal(t, http.StatusOK, code)
@@ -47,7 +47,9 @@ func TestStudentDiaryDayAndLesson(t *testing.T) {
 	assert.Contains(t, body, `href="`+html.EscapeString(diaryURL("/diary", f.today, url.Values{"lesson": {idValue(history)}}))+`" hx-get`)
 	assert.Less(t, indexOf(body, ">Алгебра<"), indexOf(body, ">История<"))
 	assert.Contains(t, body, "Сидорова А.")
-	assert.Contains(t, body, ">5, 4 · Н<")
+	assert.Contains(t, body, ">5, 4− · Н<")
+	assert.Contains(t, body, ">4−</span>")
+	assert.Contains(t, body, "Не решена задача 3")
 	assert.Contains(t, body, ">Н<")
 	assert.Contains(t, body, "Алгебра · "+f.today.Format("02.01.2006"))
 	assert.Contains(t, body, "Сидорова Анна Андреевна")
@@ -86,7 +88,7 @@ func TestStudentDiaryDayAndLesson(t *testing.T) {
 
 	code, body = get(t, f.env, "/diary", student, false)
 	require.Equal(t, http.StatusOK, code)
-	assert.Contains(t, body, ">5, 4 · Н<")
+	assert.Contains(t, body, ">5, 4− · Н<")
 	assert.Contains(t, body, ">История<")
 }
 

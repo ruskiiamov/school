@@ -34,9 +34,9 @@ func TestLessonSurvivesEndedSubstitution(t *testing.T) {
 	substituteCookie := f.env.LoginAs(t, "substitute")
 	lesson := openLesson(t, f.env, substituteCookie, f.class, f.subject, f.today)
 
-	workTypes, err := f.env.School.WorkTypes(ctx, false)
+	workTypes, err := f.env.Journal.WorkTypes(ctx, substitute, f.subject, false)
 	require.NoError(t, err)
-	f.env.SetMark(t, substitute, lesson, student, workTypes[0].ID, 5)
+	f.env.SetMark(t, substitute, lesson, student, workTypes[0].ID, "5")
 
 	var refused validation.Errors
 	require.ErrorAs(t, f.env.School.DeleteSubstitution(ctx, substitutionID), &refused)
@@ -50,7 +50,7 @@ func TestLessonSurvivesEndedSubstitution(t *testing.T) {
 	assert.Equal(t, http.StatusOK, servertest.Get(t, f.env.Handler, lessonPath(lesson, ""), substituteCookie).Code)
 	assert.Equal(t, http.StatusOK, servertest.Get(t, f.env.Handler, lessonPath(lesson, ""), f.env.LoginAs(t, "teacher")).Code)
 
-	f.env.SetMark(t, substitute, lesson, student, workTypes[1].ID, 4)
+	f.env.SetMark(t, substitute, lesson, student, workTypes[1].ID, "4")
 
 	home := servertest.Get(t, f.env.Handler, "/", substituteCookie).Body.String()
 	assert.Contains(t, home, `href="`+path+`"`)

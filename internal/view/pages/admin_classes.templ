@@ -57,10 +57,14 @@ templ ClassesList(page view.ClassesPage) {
 }
 
 templ yearTab(year view.YearOption) {
-	if year.Active {
-		<a href={ templ.SafeURL(year.Href) } aria-current="page" class="inline-flex min-h-11 items-center rounded-lg bg-indigo-50 px-3 text-sm font-semibold text-indigo-700">{ year.Name }</a>
+	@tabLink(year.Name, year.Href, year.Active)
+}
+
+templ tabLink(name, href string, active bool) {
+	if active {
+		<a href={ templ.SafeURL(href) } aria-current="page" class="inline-flex min-h-11 items-center rounded-lg bg-indigo-50 px-3 text-sm font-semibold text-indigo-700">{ name }</a>
 	} else {
-		<a href={ templ.SafeURL(year.Href) } class="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100">{ year.Name }</a>
+		<a href={ templ.SafeURL(href) } class="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100">{ name }</a>
 	}
 }
 

@@ -78,13 +78,6 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST "+subjectsPath+"/{id}/deactivate", h.admin(h.subjectDeactivate))
 	mux.Handle("POST "+subjectsPath+"/{id}/activate", h.admin(h.subjectActivate))
 
-	mux.Handle("GET "+workTypesPath, h.admin(h.workTypesList))
-	mux.Handle("POST "+workTypesPath, h.admin(h.workTypeCreate))
-	mux.Handle("POST "+workTypesPath+"/{id}", h.admin(h.workTypeUpdate))
-	mux.Handle("POST "+workTypesPath+"/{id}/deactivate", h.admin(h.workTypeDeactivate))
-	mux.Handle("POST "+workTypesPath+"/{id}/activate", h.admin(h.workTypeActivate))
-	mux.Handle("POST "+workTypesPath+"/{id}/up", h.admin(h.workTypeUp))
-	mux.Handle("POST "+workTypesPath+"/{id}/down", h.admin(h.workTypeDown))
 }
 
 func (h *Handler) admin(fn http.HandlerFunc) http.Handler {

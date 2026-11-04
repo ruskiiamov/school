@@ -151,7 +151,7 @@ func subjectRows(summary journal.StudentSummary, diary diaryView) []view.Subject
 
 		for _, mark := range subject.Marks {
 			row.Marks = append(row.Marks, view.MarkChip{
-				Value: strconv.Itoa(mark.Value),
+				Value: view.FormatMark(mark.Value),
 				Title: markTitle(mark),
 				Href:  diaryURL(diary, mark.Date, mark.LessonID),
 			})
@@ -173,5 +173,10 @@ func (h *Handler) renderMarksPage(w http.ResponseWriter, r *http.Request, page v
 }
 
 func markTitle(mark journal.SummaryMark) string {
-	return view.FormatShortDate(mark.Date) + " · " + mark.WorkTypeName
+	title := view.FormatShortDate(mark.Date) + " · " + mark.WorkTypeName
+	if mark.Comment != "" {
+		title += " · " + mark.Comment
+	}
+
+	return title
 }

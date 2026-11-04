@@ -67,7 +67,6 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error
 		cfg.School.YearStartMonth,
 		cfg.Location,
 		storage.NewSubjectRepo(db),
-		storage.NewWorkTypeRepo(db),
 		storage.NewClassRepo(db),
 		storage.NewClassStudentRepo(db),
 		storage.NewParentChildRepo(db),
