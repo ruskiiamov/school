@@ -71,3 +71,31 @@ func (env *Env) saveEntry(t *testing.T, teacherID, lessonID, studentID int64, ch
 
 	require.NoError(t, env.Journal.SaveMarksEntry(t.Context(), teacherID, lessonID, studentID, input))
 }
+
+var WorkTypeNames = []string{
+	"Ответ на уроке",
+	"Классная работа",
+	"Самостоятельная работа",
+	"Контрольная работа",
+	"Домашняя работа (письменная)",
+	"Домашняя работа (устная)",
+}
+
+func (env *Env) EnsureWorkTypes(t *testing.T, teacherID, subjectID int64) []journal.WorkType {
+	t.Helper()
+
+	existing, err := env.Journal.WorkTypes(t.Context(), teacherID, subjectID, true)
+	require.NoError(t, err)
+
+	if len(existing) == 0 {
+		for _, name := range WorkTypeNames {
+			_, err := env.Journal.CreateWorkType(t.Context(), teacherID, subjectID, name)
+			require.NoError(t, err)
+		}
+	}
+
+	workTypes, err := env.Journal.WorkTypes(t.Context(), teacherID, subjectID, false)
+	require.NoError(t, err)
+
+	return workTypes
+}

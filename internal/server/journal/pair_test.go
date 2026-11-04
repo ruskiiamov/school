@@ -44,8 +44,7 @@ func TestPairJournalTable(t *testing.T) {
 		require.NoError(t, f.env.School.AddClassStudent(ctx, f.class, id))
 	}
 
-	workTypes, err := f.env.Journal.WorkTypes(ctx, f.teacher, f.subject, false)
-	require.NoError(t, err)
+	workTypes := f.env.EnsureWorkTypes(t, f.teacher, f.subject)
 	answer, test := workTypes[0], workTypes[1]
 
 	today := openLesson(t, f.env, teacher, f.class, f.subject, f.today)
@@ -331,8 +330,7 @@ func TestPairJournalLessonsForbidden(t *testing.T) {
 func firstWorkType(t *testing.T, f fixture) int64 {
 	t.Helper()
 
-	workTypes, err := f.env.Journal.WorkTypes(t.Context(), f.teacher, f.subject, false)
-	require.NoError(t, err)
+	workTypes := f.env.EnsureWorkTypes(t, f.teacher, f.subject)
 
 	return workTypes[0].ID
 }

@@ -44,7 +44,7 @@ func (h *Handler) adminJournals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if selectedOption(page.Classes) && selectedOption(page.Subjects) {
-		if err := h.adminJournalContent(r, &page, classID, subjectID); err != nil {
+		if err := h.adminJournalContent(r, &page, classID, subjectID, adminOpenLesson(r)); err != nil {
 			h.base.HandleServiceError(w, r, "load admin journal", err)
 			return
 		}
@@ -58,7 +58,16 @@ func (h *Handler) adminJournals(w http.ResponseWriter, r *http.Request) {
 	h.base.Render(w, r, pages.AdminJournals(page))
 }
 
-func (h *Handler) adminJournalContent(r *http.Request, page *view.AdminJournalsPage, classID, subjectID int64) error {
+func adminOpenLesson(r *http.Request) int64 {
+	if web.IsHTMX(r) {
+		open, _ := strconv.ParseInt(r.Header.Get(openLessonHeader), 10, 64)
+		return open
+	}
+
+	return queryID(r, "open")
+}
+
+func (h *Handler) adminJournalContent(r *http.Request, page *view.AdminJournalsPage, classID, subjectID, open int64) error {
 	pair, err := h.journal.AdminPairJournal(r.Context(), classID, subjectID)
 	if err != nil {
 		return err
@@ -70,9 +79,26 @@ func (h *Handler) adminJournalContent(r *http.Request, page *view.AdminJournalsP
 	}
 
 	for i, lesson := range pair.Lessons {
+		row := &table.Rows[i]
+		row.MarksHref = adminLessonPath(lesson.ID) + "/marks"
+
 		if pair.WithHomework[lesson.ID] {
-			table.Rows[i].CardHref = adminJournalsLessonsPath + "/" + strconv.FormatInt(lesson.ID, 10)
+			row.CardHref = adminLessonPath(lesson.ID)
 		}
+
+		if lesson.ID != open {
+			continue
+		}
+
+		marks, err := h.journal.AdminLessonMarks(r.Context(), lesson.ID)
+		if err != nil {
+			return err
+		}
+
+		lesson.Year = pair.Year
+		row.Expanded = true
+		row.CollapseHref = adminJournalsURL(lesson, 0)
+		row.Marks = lessonMarksBlock(marks, pair.Students, table.Students, pairState{})
 	}
 
 	page.Content = &view.PairJournalContent{
@@ -104,6 +130,40 @@ func selectedOption(options []view.Option) bool {
 	return false
 }
 
+func (h *Handler) adminJournalsMarks(w http.ResponseWriter, r *http.Request) {
+	id, ok := web.PathID(r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	lesson, err := h.journal.LessonByID(r.Context(), id)
+	if err != nil {
+		h.base.HandleServiceError(w, r, "load lesson", err)
+		return
+	}
+
+	if !web.IsHTMX(r) {
+		web.Redirect(w, r, adminJournalsURL(lesson, lesson.ID))
+		return
+	}
+
+	var page view.AdminJournalsPage
+	if err := h.adminJournalContent(r, &page, lesson.ClassID, lesson.SubjectID, lesson.ID); err != nil {
+		h.base.HandleServiceError(w, r, "load lesson marks", err)
+		return
+	}
+
+	row, found := findRow(*page.Content, lesson.ID)
+	if !found {
+		http.NotFound(w, r)
+		return
+	}
+
+	w.Header().Set("HX-Push-Url", "false")
+	h.base.Render(w, r, pages.JournalRowGroup(row))
+}
+
 func (h *Handler) adminJournalsCard(w http.ResponseWriter, r *http.Request) {
 	id, ok := web.PathID(r)
 	if !ok {
@@ -131,7 +191,7 @@ func (h *Handler) adminJournalsCard(w http.ResponseWriter, r *http.Request) {
 
 	card := view.AdminLessonCard{
 		Title:    "Урок " + view.FormatShortDate(lesson.Date),
-		BackHref: adminJournalsURL(lesson),
+		BackHref: adminJournalsURL(lesson, 0),
 		Teacher:  "Провёл: " + view.ShortName(teachers[lesson.TeacherID]),
 		Topic:    lesson.Topic,
 	}
@@ -174,7 +234,7 @@ func (h *Handler) adminJournalsEntry(w http.ResponseWriter, r *http.Request) {
 
 	result := view.AdminMarksEntry{
 		Title:     strings.TrimSpace(student.Name.Last+" "+student.Name.First) + " · " + view.FormatShortDate(lesson.Date),
-		BackHref:  adminJournalsURL(lesson),
+		BackHref:  adminJournalsURL(lesson, 0),
 		DiaryHref: adminDiaryPath + "/" + strconv.FormatInt(studentID, 10) + "?" + diary.Encode(),
 		InClass:   entry.InClass,
 		Absent:    entry.Absent,
@@ -198,14 +258,22 @@ func (h *Handler) adminJournalsEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 func adminEntryPath(lessonID, studentID int64) string {
-	return adminJournalsLessonsPath + "/" + strconv.FormatInt(lessonID, 10) + "/students/" + strconv.FormatInt(studentID, 10)
+	return adminLessonPath(lessonID) + "/students/" + strconv.FormatInt(studentID, 10)
 }
 
-func adminJournalsURL(lesson journal.Lesson) string {
+func adminLessonPath(lessonID int64) string {
+	return adminJournalsLessonsPath + "/" + strconv.FormatInt(lessonID, 10)
+}
+
+func adminJournalsURL(lesson journal.Lesson, open int64) string {
 	query := url.Values{
 		"year":    {strconv.Itoa(lesson.Year)},
 		"class":   {strconv.FormatInt(lesson.ClassID, 10)},
 		"subject": {strconv.FormatInt(lesson.SubjectID, 10)},
+	}
+
+	if open != 0 {
+		query.Set("open", strconv.FormatInt(open, 10))
 	}
 
 	return adminJournalsPath + "?" + query.Encode() + "#" + lessonAnchor(lesson.ID)
@@ -219,20 +287,26 @@ func (h *Handler) pairOptions(r *http.Request, classes, subjects *[]view.Option,
 		return err
 	}
 
-	subjectList, err := h.school.Subjects(ctx, false)
-	if err != nil {
-		return err
-	}
-
-	*classes = []view.Option{{Name: classOption, Selected: classID == 0}}
+	*classes = []view.Option{{Name: classOption}}
 	for _, class := range classList {
 		*classes = append(*classes, view.Option{ID: class.ID, Name: class.Name, Selected: class.ID == classID})
 	}
 
-	*subjects = []view.Option{{Name: subjectOption, Selected: subjectID == 0}}
-	for _, subject := range subjectList {
-		*subjects = append(*subjects, view.Option{ID: subject.ID, Name: subject.Name, Selected: subject.ID == subjectID})
+	*subjects = []view.Option{{Name: subjectOption}}
+
+	if selectedOption(*classes) {
+		subjectList, err := h.journal.ClassSubjects(ctx, classID)
+		if err != nil {
+			return err
+		}
+
+		for _, subject := range subjectList {
+			*subjects = append(*subjects, view.Option{ID: subject.ID, Name: subject.Name, Selected: subject.ID == subjectID})
+		}
 	}
+
+	(*classes)[0].Selected = !selectedOption(*classes)
+	(*subjects)[0].Selected = !selectedOption(*subjects)
 
 	return nil
 }

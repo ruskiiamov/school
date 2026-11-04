@@ -18,15 +18,6 @@ const (
 	maxWorkTypeNameLength   = 100
 )
 
-var defaultWorkTypes = []string{
-	"Ответ на уроке",
-	"Классная работа",
-	"Самостоятельная работа",
-	"Контрольная работа",
-	"Домашняя работа (письменная)",
-	"Домашняя работа (устная)",
-}
-
 type WorkType struct {
 	ID        int64
 	TeacherID int64
@@ -54,6 +45,20 @@ func (s *Service) TeacherSubjects(ctx context.Context, teacherID int64) ([]Subje
 	return subjects, nil
 }
 
+func (s *Service) ClassSubjects(ctx context.Context, classID int64) ([]Subject, error) {
+	stored, err := s.subjects.ListForClass(ctx, classID)
+	if err != nil {
+		return nil, err
+	}
+
+	subjects := make([]Subject, 0, len(stored))
+	for _, subject := range stored {
+		subjects = append(subjects, Subject{ID: subject.ID, Name: subject.Name})
+	}
+
+	return subjects, nil
+}
+
 func (s *Service) TeacherSubject(ctx context.Context, teacherID, subjectID int64) (Subject, error) {
 	subjects, err := s.TeacherSubjects(ctx, teacherID)
 	if err != nil {
@@ -69,15 +74,6 @@ func (s *Service) TeacherSubject(ctx context.Context, teacherID, subjectID int64
 }
 
 func (s *Service) WorkTypes(ctx context.Context, teacherID, subjectID int64, includeInactive bool) ([]WorkType, error) {
-	created, err := s.workTypes.CreateDefaults(ctx, teacherID, subjectID, defaultWorkTypes)
-	if err != nil {
-		return nil, err
-	}
-
-	if created {
-		s.log.InfoContext(ctx, "default work types created", slog.Int64("teacher_id", teacherID), slog.Int64("subject_id", subjectID))
-	}
-
 	stored, err := s.workTypes.ListByOwner(ctx, teacherID, subjectID, includeInactive)
 	if err != nil {
 		return nil, err

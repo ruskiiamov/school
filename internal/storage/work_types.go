@@ -142,43 +142,6 @@ func (r *WorkTypeRepo) SetActive(ctx context.Context, id int64, active bool) err
 	return requireAffected(result, "set work type active")
 }
 
-func (r *WorkTypeRepo) CreateDefaults(ctx context.Context, teacherID, subjectID int64, names []string) (bool, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return false, fmt.Errorf("begin default work types: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	const (
-		exists = "SELECT EXISTS (SELECT 1 FROM work_types WHERE teacher_id = ? AND subject_id = ?)"
-		insert = `INSERT INTO work_types (teacher_id, subject_id, name, sort_order, active, created_at, updated_at)
-			VALUES (?, ?, ?, ?, 1, ?, ?)`
-	)
-
-	var found bool
-	if err := tx.QueryRowContext(ctx, exists, teacherID, subjectID).Scan(&found); err != nil {
-		return false, fmt.Errorf("check work types: %w", err)
-	}
-
-	if found {
-		return false, nil
-	}
-
-	now := toMillis(time.Now())
-
-	for i, name := range names {
-		if _, err := tx.ExecContext(ctx, insert, teacherID, subjectID, name, (i+1)*sortOrderStep, now, now); err != nil {
-			return false, fmt.Errorf("insert default work type: %w", err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return false, fmt.Errorf("commit default work types: %w", err)
-	}
-
-	return true, nil
-}
-
 func (r *WorkTypeRepo) ActiveNameExists(ctx context.Context, teacherID, subjectID int64, name string, excludeID int64) (bool, error) {
 	const query = `SELECT EXISTS (SELECT 1 FROM work_types
 		WHERE teacher_id = ? AND subject_id = ? AND active = 1 AND name = ? AND id != ?)`

@@ -34,8 +34,7 @@ func TestLessonSurvivesEndedSubstitution(t *testing.T) {
 	substituteCookie := f.env.LoginAs(t, "substitute")
 	lesson := openLesson(t, f.env, substituteCookie, f.class, f.subject, f.today)
 
-	workTypes, err := f.env.Journal.WorkTypes(ctx, substitute, f.subject, false)
-	require.NoError(t, err)
+	workTypes := f.env.EnsureWorkTypes(t, substitute, f.subject)
 	f.env.SetMark(t, substitute, lesson, student, workTypes[0].ID, "5")
 
 	var refused validation.Errors

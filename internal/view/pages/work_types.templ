@@ -39,7 +39,7 @@ templ WorkTypesList(page view.WorkTypesPage) {
 			"Новый тип работы", "Название нового типа работы", page.NewName, page.NewError, workTypesTarget)
 		<div class={ components.CardClass, "overflow-hidden" }>
 			if len(page.WorkTypes) == 0 {
-				@components.EmptyState("Пока нет типов работ")
+				@components.EmptyState("Пока нет типов работ. Добавьте те, за которые ставите оценки")
 			} else {
 				<ul class="divide-y divide-slate-100">
 					for _, workType := range page.WorkTypes {

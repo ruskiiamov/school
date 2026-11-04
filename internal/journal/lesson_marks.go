@@ -30,9 +30,14 @@ type LessonMarks struct {
 	Absent     map[int64]bool
 	Marks      map[MarkKey]LessonMark
 	CanAddType bool
+	ReadOnly   bool
 }
 
 func (m LessonMarks) Editable(key MarkKey) bool {
+	if m.ReadOnly {
+		return false
+	}
+
 	if _, marked := m.Marks[key]; marked {
 		return true
 	}
@@ -56,17 +61,44 @@ func (s *Service) LessonMarks(ctx context.Context, teacherID, lessonID int64) (L
 		return LessonMarks{}, err
 	}
 
+	marks, err := s.lessonMarks(ctx, lesson)
+	if err != nil {
+		return LessonMarks{}, err
+	}
+
+	marks.CanAddType = lesson.TeacherID == teacherID
+
+	return marks, nil
+}
+
+func (s *Service) AdminLessonMarks(ctx context.Context, lessonID int64) (LessonMarks, error) {
+	lesson, err := s.LessonByID(ctx, lessonID)
+	if err != nil {
+		return LessonMarks{}, err
+	}
+
+	marks, err := s.lessonMarks(ctx, lesson)
+	if err != nil {
+		return LessonMarks{}, err
+	}
+
+	marks.ReadOnly = true
+
+	return marks, nil
+}
+
+func (s *Service) lessonMarks(ctx context.Context, lesson Lesson) (LessonMarks, error) {
 	members, err := s.classStudents.StudentIDs(ctx, lesson.ClassID)
 	if err != nil {
 		return LessonMarks{}, err
 	}
 
-	stored, err := s.marks.ListByLesson(ctx, lessonID)
+	stored, err := s.marks.ListByLesson(ctx, lesson.ID)
 	if err != nil {
 		return LessonMarks{}, err
 	}
 
-	records, err := s.lessonStudents.ListByLesson(ctx, lessonID)
+	records, err := s.lessonStudents.ListByLesson(ctx, lesson.ID)
 	if err != nil {
 		return LessonMarks{}, err
 	}
@@ -77,11 +109,10 @@ func (s *Service) LessonMarks(ctx context.Context, teacherID, lessonID int64) (L
 	}
 
 	result := LessonMarks{
-		Lesson:     lesson,
-		Members:    make(map[int64]bool, len(members)),
-		Absent:     map[int64]bool{},
-		Marks:      make(map[MarkKey]LessonMark, len(stored)),
-		CanAddType: lesson.TeacherID == teacherID,
+		Lesson:  lesson,
+		Members: make(map[int64]bool, len(members)),
+		Absent:  map[int64]bool{},
+		Marks:   make(map[MarkKey]LessonMark, len(stored)),
 	}
 
 	for _, id := range members {

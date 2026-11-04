@@ -227,35 +227,3 @@ func TestTeacherWorkTypesMigrationCopiesSharedTypes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, orphans)
 }
-
-func TestDefaultWorkTypesCreatedOnce(t *testing.T) {
-	t.Parallel()
-
-	ctx := t.Context()
-
-	db, err := Open(ctx, config.DB{Path: filepath.Join(t.TempDir(), "test.db")})
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, db.Close()) })
-	require.NoError(t, Migrate(ctx, db))
-
-	repo := NewWorkTypeRepo(db)
-
-	created, err := repo.CreateDefaults(ctx, 1, 2, []string{"А", "Б"})
-	require.NoError(t, err)
-	assert.True(t, created)
-
-	list, err := repo.ListByOwner(ctx, 1, 2, true)
-	require.NoError(t, err)
-	require.Len(t, list, 2)
-
-	require.NoError(t, repo.SetActive(ctx, list[0].ID, false))
-	require.NoError(t, repo.SetActive(ctx, list[1].ID, false))
-
-	created, err = repo.CreateDefaults(ctx, 1, 2, []string{"А", "Б"})
-	require.NoError(t, err)
-	assert.False(t, created)
-
-	active, err := repo.ListByOwner(ctx, 1, 2, false)
-	require.NoError(t, err)
-	assert.Empty(t, active)
-}

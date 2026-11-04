@@ -198,3 +198,36 @@ func (r *SubjectRepo) ListTaughtBy(ctx context.Context, teacherID int64) ([]Subj
 
 	return subjects, nil
 }
+
+func (r *SubjectRepo) ListForClass(ctx context.Context, classID int64) ([]Subject, error) {
+	const query = "SELECT " + subjectColumns + ` FROM subjects
+		WHERE id IN (
+			SELECT subject_id FROM teaching_assignments WHERE class_id = ?
+			UNION SELECT subject_id FROM substitutions WHERE class_id = ?
+			UNION SELECT subject_id FROM lessons WHERE class_id = ?
+		)
+		ORDER BY name, id`
+
+	rows, err := r.db.QueryContext(ctx, query, classID, classID, classID)
+	if err != nil {
+		return nil, fmt.Errorf("select class subjects: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var subjects []Subject
+
+	for rows.Next() {
+		subject, err := scanSubject(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan subject: %w", err)
+		}
+
+		subjects = append(subjects, subject)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate class subjects: %w", err)
+	}
+
+	return subjects, nil
+}

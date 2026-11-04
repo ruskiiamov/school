@@ -13,6 +13,7 @@ import (
 	"github.com/ruskiiamov/school/internal/journal"
 	"github.com/ruskiiamov/school/internal/school"
 	"github.com/ruskiiamov/school/internal/server/servertest"
+	"github.com/ruskiiamov/school/internal/view/components"
 )
 
 func markField(workTypeID, studentID int64) string {
@@ -56,8 +57,7 @@ func newMarksFixture(t *testing.T) marksFixture {
 		require.NoError(t, f.env.School.AddClassStudent(ctx, f.class, id))
 	}
 
-	workTypes, err := f.env.Journal.WorkTypes(ctx, f.teacher, f.subject, false)
-	require.NoError(t, err)
+	workTypes := f.env.EnsureWorkTypes(t, f.teacher, f.subject)
 
 	cookie := f.env.LoginAs(t, "teacher")
 
@@ -94,6 +94,7 @@ func TestLessonMarksExpand(t *testing.T) {
 	assert.Contains(t, block, `aria-label="Козлов Пётр · Контрольная работа"`)
 	assert.Contains(t, block, `hx-post="`+marksURL+`" hx-trigger="change" hx-target="closest td"`)
 	assert.Contains(t, block, `placeholder="Новый тип работы"`)
+	assert.Contains(t, block, `aria-label="Добавить тип работы" title="Добавить тип работы" class="`+components.ButtonIconCompactClass+` peer-placeholder-shown:hidden"`)
 	assert.NotContains(t, block, "<html")
 
 	reopened := servertest.Get(t, f.env.Handler, pairPath(f.class, f.subject), f.cookie,
@@ -185,8 +186,7 @@ func TestLessonMarksRules(t *testing.T) {
 		servertest.PostForm(t, f.env.Handler, marksURL, url.Values{markField(f.test.ID, f.petr): {"3"}}, cookies, cellHeaders()).Code)
 
 	other := createUser(t, f.env, auth.RoleTeacher, "other", "Кузнецов Виктор Павлович")
-	foreign, err := f.env.Journal.WorkTypes(ctx, other, f.subject, false)
-	require.NoError(t, err)
+	foreign := f.env.EnsureWorkTypes(t, other, f.subject)
 	assert.Equal(t, http.StatusNotFound,
 		servertest.PostForm(t, f.env.Handler, marksURL, url.Values{markField(foreign[0].ID, f.maria): {"5"}}, cookies, cellHeaders()).Code)
 
@@ -241,6 +241,51 @@ func TestLessonMarksNewWorkType(t *testing.T) {
 	assert.Contains(t, block, `data-marks-of="lesson-`+strconv.FormatInt(replaced, 10)+`"`)
 	assert.NotContains(t, block, `placeholder="Новый тип работы"`)
 	assert.NotContains(t, block, `title="Диктант"`)
+	assert.Contains(t, block, "У автора урока пока нет типов работ")
 	assert.Equal(t, http.StatusNotFound,
 		servertest.PostForm(t, f.env.Handler, lessonPath(replaced, "/work-types"), url.Values{"name": {"Чужой"}}, cookies, headers).Code)
+}
+
+func TestLessonWithoutWorkTypes(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t)
+	ctx := t.Context()
+	require.NoError(t, f.env.School.AssignTeacher(ctx, f.class, f.subject, f.teacher))
+
+	maria := createUser(t, f.env, auth.RoleStudent, "maria", "Иванова Мария Петровна")
+	require.NoError(t, f.env.School.AddClassStudent(ctx, f.class, maria))
+
+	cookie := f.env.LoginAs(t, "teacher")
+	lesson := openLesson(t, f.env, cookie, f.class, f.subject, f.today)
+
+	window := servertest.Get(t, f.env.Handler, studentMarksPath(lesson, maria), cookie, modalHeaders()).Body.String()
+	assert.Contains(t, window, "Типов работ пока нет")
+	assert.Contains(t, window, `href="/journal/subjects/`+strconv.FormatInt(f.subject, 10)+`/work-types"`)
+	assert.Contains(t, window, `name="comment"`)
+
+	block := servertest.Get(t, f.env.Handler, lessonPath(lesson, "/marks"), cookie, cellHeaders()).Body.String()
+	assert.Contains(t, block, "Типов работ пока нет, добавьте первый")
+	assert.Contains(t, block, `placeholder="Новый тип работы"`)
+
+	admin := servertest.Login(t, f.env.Handler)
+	adminBlock := servertest.Get(t, f.env.Handler, "/admin/journals/lessons/"+strconv.FormatInt(lesson, 10)+"/marks", admin, cellHeaders()).Body.String()
+	assert.Contains(t, adminBlock, "У учителя пока нет типов работ")
+
+	workTypes, err := f.env.Journal.WorkTypes(ctx, f.teacher, f.subject, true)
+	require.NoError(t, err)
+	assert.Empty(t, workTypes)
+
+	f.env.SetRecord(t, f.teacher, lesson, maria, true, "Болела")
+
+	substitute := createUser(t, f.env, auth.RoleTeacher, "substitute", "Кузнецов Виктор Павлович")
+	_, err = f.env.School.CreateSubstitution(ctx, school.SubstitutionInput{
+		ClassID: f.class, SubjectID: f.subject, TeacherID: substitute, StartDate: dateValue(f.today.AddDate(0, 0, 1)),
+	})
+	require.NoError(t, err)
+	replaced := openLesson(t, f.env, f.env.LoginAs(t, "substitute"), f.class, f.subject, f.today.AddDate(0, 0, 1))
+
+	foreign := servertest.Get(t, f.env.Handler, studentMarksPath(replaced, maria), cookie, modalHeaders()).Body.String()
+	assert.Contains(t, foreign, "У автора урока пока нет типов работ")
+	assert.NotContains(t, foreign, "Добавить типы работ")
 }

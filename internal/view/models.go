@@ -162,6 +162,8 @@ type MarksEntry struct {
 	BackHref     string
 	InClass      bool
 	Rows         []MarksEntryRow
+	Empty        string
+	EmptyHref    string
 	Absent       bool
 	Comment      string
 	CommentError string
@@ -238,18 +240,19 @@ type JournalStudentHead struct {
 }
 
 type JournalRow struct {
-	Anchor    string
-	Date      string
-	Topic     string
-	Homework  bool
-	CardHref  string
-	MarksHref string
-	Expanded  bool
-	Author    string
-	Highlight bool
-	Edit      *JournalRowEdit
-	Cells     []JournalCell
-	Marks     *LessonMarksBlock
+	Anchor       string
+	Date         string
+	Topic        string
+	Homework     bool
+	CardHref     string
+	MarksHref    string
+	CollapseHref string
+	Expanded     bool
+	Author       string
+	Highlight    bool
+	Edit         *JournalRowEdit
+	Cells        []JournalCell
+	Marks        *LessonMarksBlock
 }
 
 type LessonMarksBlock struct {
@@ -258,6 +261,7 @@ type LessonMarksBlock struct {
 	Action  string
 	ErrorID string
 	Error   string
+	Empty   string
 	Rows    []LessonMarksRow
 	NewType *NewWorkTypeForm
 }

@@ -45,8 +45,7 @@ func newPastFixture(t *testing.T) pastFixture {
 	})
 	require.NoError(t, err)
 
-	workTypes, err := f.env.Journal.WorkTypes(ctx, f.teacher, f.subject, false)
-	require.NoError(t, err)
+	workTypes := f.env.EnsureWorkTypes(t, f.teacher, f.subject)
 	f.env.SetMark(t, f.teacher, f.lesson, f.maria, workTypes[0].ID, "5")
 
 	return f

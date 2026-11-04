@@ -42,11 +42,13 @@ func TestTeacherWorkTypes(t *testing.T) {
 	assert.Contains(t, body, `href="`+workTypesURL(f.subject, "")+`" aria-current="page"`)
 	assert.Contains(t, body, `href="`+workTypesURL(geometry, "")+`"`)
 	assert.Contains(t, body, "общий для всех ваших классов")
-	assert.Contains(t, body, ">Ответ на уроке<")
-	assert.Contains(t, body, ">Домашняя работа (устная)<")
+	assert.Contains(t, body, "Пока нет типов работ")
+	assert.NotContains(t, body, ">Ответ на уроке<")
 
-	created := servertest.PostForm(t, f.env.Handler, workTypesURL(f.subject, ""), url.Values{"name": {" Диктант "}}, cookies, nil)
-	servertest.AssertRedirect(t, created, workTypesURL(f.subject, ""))
+	for _, name := range []string{"Ответ на уроке", "Контрольная работа", " Диктант "} {
+		created := servertest.PostForm(t, f.env.Handler, workTypesURL(f.subject, ""), url.Values{"name": {name}}, cookies, nil)
+		servertest.AssertRedirect(t, created, workTypesURL(f.subject, ""))
+	}
 
 	duplicate := servertest.PostForm(t, f.env.Handler, workTypesURL(f.subject, ""), url.Values{"name": {"Диктант"}}, cookies, nil)
 	require.Equal(t, http.StatusOK, duplicate.Code)
@@ -57,13 +59,13 @@ func TestTeacherWorkTypes(t *testing.T) {
 
 	algebra, err := f.env.Journal.WorkTypes(ctx, f.teacher, f.subject, false)
 	require.NoError(t, err)
-	require.Len(t, algebra, 7)
-	dictation := algebra[6]
+	require.Len(t, algebra, 3)
+	dictation := algebra[2]
 	assert.Equal(t, "Диктант", dictation.Name)
 
-	geometryTypes, err := f.env.Journal.WorkTypes(ctx, f.teacher, geometry, false)
+	geometryTypes, err := f.env.Journal.WorkTypes(ctx, f.teacher, geometry, true)
 	require.NoError(t, err)
-	assert.Len(t, geometryTypes, 6)
+	assert.Empty(t, geometryTypes)
 
 	servertest.AssertRedirect(t, servertest.PostForm(t, f.env.Handler, workTypeURL(f.subject, dictation.ID, "/up"), nil, cookies, nil), workTypesURL(f.subject, ""))
 	servertest.AssertRedirect(t, servertest.PostForm(t, f.env.Handler, workTypeURL(f.subject, dictation.ID, ""), url.Values{"name": {"Словарный диктант"}}, cookies, nil), workTypesURL(f.subject, ""))
@@ -71,8 +73,9 @@ func TestTeacherWorkTypes(t *testing.T) {
 
 	algebra, err = f.env.Journal.WorkTypes(ctx, f.teacher, f.subject, false)
 	require.NoError(t, err)
-	require.Len(t, algebra, 6)
-	assert.Equal(t, "Словарный диктант", algebra[4].Name)
+	require.Len(t, algebra, 2)
+	assert.Equal(t, "Словарный диктант", algebra[0].Name)
+	assert.Equal(t, "Контрольная работа", algebra[1].Name)
 
 	fragment := servertest.PostForm(t, f.env.Handler, workTypesURL(f.subject, "?inactive=1"), url.Values{"name": {"Проект"}}, cookies, map[string]string{"HX-Request": "true"})
 	require.Equal(t, http.StatusOK, fragment.Code)
@@ -95,8 +98,7 @@ func TestTeacherWorkTypesForbidden(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.env.School.AssignTeacher(ctx, f.class, history, other))
 
-	types, err := f.env.Journal.WorkTypes(ctx, f.teacher, f.subject, true)
-	require.NoError(t, err)
+	types := f.env.EnsureWorkTypes(t, f.teacher, f.subject)
 
 	otherCookie := f.env.LoginAs(t, "other")
 	otherCookies := []*http.Cookie{otherCookie}

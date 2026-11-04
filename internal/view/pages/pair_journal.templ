@@ -21,6 +21,7 @@ templ PairJournal(page view.PairJournalPage) {
 			}
 			@components.PageHelp("Как работать с журналом") {
 				<p>В ячейке — оценки за урок по порядку типов работ, «Н» — ученик не был на уроке, точка — есть комментарий</p>
+				<p>Перед первой оценкой заведите типы работ: в разделе «Типы работ» или в строке «Новый тип работы» под раскрытым уроком</p>
 				<p>Оценку и комментарий одному ученику — нажмите на ячейку</p>
 				<p>Чтобы поставить оценки всему классу, нажмите стрелку у урока: под ним откроются строки типов работ</p>
 				<p>Новый урок — введите его дату в первой строке таблицы</p>
@@ -155,6 +156,14 @@ templ journalStudentHead(student view.JournalStudentHead, oob bool) {
 			</span>
 		</span>
 	</th>
+}
+
+func marksToggleHref(row view.JournalRow) string {
+	if row.Expanded && row.CollapseHref != "" {
+		return row.CollapseHref
+	}
+
+	return row.MarksHref
 }
 
 func studentTitle(student view.JournalStudentHead) string {
@@ -301,14 +310,14 @@ templ homeworkLabel(set bool) {
 
 templ marksToggle(row view.JournalRow) {
 	<a
-		href={ templ.SafeURL(row.MarksHref) }
+		href={ templ.SafeURL(marksToggleHref(row)) }
 		hx-get={ row.MarksHref }
 		hx-target={ "#" + row.Anchor }
 		hx-swap="outerHTML"
 		data-marks-toggle
 		aria-expanded={ strconv.FormatBool(row.Expanded) }
-		aria-label="Оценки всему классу"
-		title="Оценки всему классу"
+		aria-label="Оценки по типам работ"
+		title="Оценки по типам работ"
 		class="group ml-1 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 aria-expanded:bg-indigo-50 aria-expanded:text-indigo-700"
 	>
 		@components.Icon(view.IconDown, "size-4 -rotate-90 transition-transform group-aria-expanded:rotate-0")
@@ -331,6 +340,9 @@ templ lessonMarksRows(block view.LessonMarksBlock, live bool) {
 	}
 	<tr data-marks-of={ block.Lesson }>
 		<th scope="row" class="sticky left-0 z-10 w-px border-b border-slate-200 bg-slate-50 py-1 pr-3 pl-5 text-left font-normal whitespace-nowrap sm:pl-10">
+			if len(block.Rows) == 0 && block.Empty != "" {
+				<span class="block py-1 text-sm text-slate-500">{ block.Empty }</span>
+			}
 			if block.NewType != nil && live {
 				@newWorkTypeForm(*block.NewType)
 			}
@@ -355,9 +367,9 @@ templ newWorkTypeForm(form view.NewWorkTypeForm) {
 			placeholder="Новый тип работы"
 			aria-label="Новый тип работы"
 			autocomplete="off"
-			class={ components.InputCompactClass, "w-32 sm:w-54" }
+			class={ components.InputCompactClass, "peer w-32 sm:w-54" }
 		/>
-		@components.NoScriptSubmit("Добавить")
+		@components.IconSubmit(view.IconPlus, "Добавить тип работы", components.ButtonIconCompactClass+" peer-placeholder-shown:hidden")
 	</form>
 }
 
@@ -406,6 +418,18 @@ templ lessonMarkCell(action string, cell view.LessonMarkCell, live bool, oob boo
 				/>
 				if cell.Comment != "" {
 					<span title={ cell.Comment } class="text-indigo-500">•</span>
+				}
+			</span>
+		} else if cell.Value != "" {
+			<span
+				if cell.Comment != "" {
+					title={ cell.Comment }
+				}
+				class="flex items-center justify-center gap-0.5 px-1 py-1.5 font-semibold text-slate-900 tabular-nums"
+			>
+				{ cell.Value }
+				if cell.Comment != "" {
+					<span class="text-indigo-500">•</span>
 				}
 			</span>
 		}

@@ -141,6 +141,10 @@ func (h *Handler) entryView(r *http.Request, lessonID, studentID int64, form ent
 		result.Rows = append(result.Rows, row)
 	}
 
+	if len(result.Rows) == 0 {
+		result.Empty, result.EmptyHref = entryEmpty(entry, user.ID)
+	}
+
 	if form.entered {
 		result.Absent = form.input.Absent
 		result.Comment = form.input.Comment
@@ -148,6 +152,17 @@ func (h *Handler) entryView(r *http.Request, lessonID, studentID int64, form ent
 	}
 
 	return result, nil
+}
+
+func entryEmpty(entry journal.MarksEntry, viewerID int64) (string, string) {
+	switch {
+	case !entry.InClass:
+		return "Оценок за этот урок нет", ""
+	case entry.Lesson.TeacherID == viewerID:
+		return "Типов работ пока нет", workTypesBase(entry.Lesson.SubjectID)
+	default:
+		return msgAuthorWithoutTypes, ""
+	}
 }
 
 func formFields(r *http.Request, prefix string) map[int64]string {

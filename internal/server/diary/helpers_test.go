@@ -55,10 +55,8 @@ func newFixture(t *testing.T) fixture {
 	require.NoError(t, env.School.AssignTeacher(ctx, class, history, teacher))
 	require.NoError(t, env.School.AssignTeacher(ctx, other, algebra, teacher))
 
-	workTypes, err := env.Journal.WorkTypes(ctx, teacher, algebra, false)
-	require.NoError(t, err)
-	historyTypes, err := env.Journal.WorkTypes(ctx, teacher, history, false)
-	require.NoError(t, err)
+	workTypes := env.EnsureWorkTypes(t, teacher, algebra)
+	historyTypes := env.EnsureWorkTypes(t, teacher, history)
 
 	return fixture{
 		env: env, today: env.School.Today(), class: class, other: other, algebra: algebra, history: history,

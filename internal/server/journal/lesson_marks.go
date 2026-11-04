@@ -11,7 +11,10 @@ import (
 	"github.com/ruskiiamov/school/internal/view/pages"
 )
 
-const markFieldPrefix = "m-"
+const (
+	markFieldPrefix       = "m-"
+	msgAuthorWithoutTypes = "У автора урока пока нет типов работ"
+)
 
 func (h *Handler) lessonMarksShow(w http.ResponseWriter, r *http.Request) {
 	lesson, ok := h.pathLesson(w, r)
@@ -231,6 +234,15 @@ func lessonMarksBlock(marks journal.LessonMarks, students []journal.JournalStude
 
 	if marks.CanAddType {
 		block.NewType = &view.NewWorkTypeForm{Action: lessonPath(lessonID, "/work-types"), Name: state.newTypeName}
+	}
+
+	switch {
+	case marks.CanAddType:
+		block.Empty = "Типов работ пока нет, добавьте первый"
+	case marks.ReadOnly:
+		block.Empty = "У учителя пока нет типов работ"
+	default:
+		block.Empty = msgAuthorWithoutTypes
 	}
 
 	for _, workType := range marks.Types {

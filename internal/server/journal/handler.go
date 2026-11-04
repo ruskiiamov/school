@@ -52,6 +52,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST "+journalPath+"/subjects/{subject}/work-types/{id}/down", h.teacher(h.workTypeDown))
 	mux.Handle("GET "+adminJournalsPath, h.admin(h.adminJournals))
 	mux.Handle("GET "+adminJournalsLessonsPath+"/{id}", h.admin(h.adminJournalsCard))
+	mux.Handle("GET "+adminJournalsLessonsPath+"/{id}/marks", h.admin(h.adminJournalsMarks))
 	mux.Handle("GET "+adminJournalsLessonsPath+"/{id}/students/{sid}", h.admin(h.adminJournalsEntry))
 }
 

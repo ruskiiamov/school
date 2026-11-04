@@ -245,8 +245,7 @@ func TestHomeStudentSeesTodayAndWeekMarks(t *testing.T) {
 	require.NoError(t, env.School.AssignTeacher(ctx, classID, subjectID, teacherID))
 	require.NoError(t, env.School.AddChild(ctx, parentID, studentID))
 
-	workTypes, err := env.Journal.WorkTypes(ctx, teacherID, subjectID, false)
-	require.NoError(t, err)
+	workTypes := env.EnsureWorkTypes(t, teacherID, subjectID)
 
 	today := env.School.Today()
 	lessonID := env.CreateLesson(t, teacherID, classID, subjectID, today)

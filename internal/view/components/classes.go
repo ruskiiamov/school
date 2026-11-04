@@ -16,6 +16,7 @@ const (
 
 	ButtonIconPrimaryClass   = "inline-flex size-11 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-70"
 	ButtonIconSecondaryClass = "inline-flex size-11 shrink-0 items-center justify-center rounded-lg bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 active:bg-slate-100"
+	ButtonIconCompactClass   = "inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-70"
 	ButtonIconDangerClass    = "inline-flex size-11 shrink-0 items-center justify-center rounded-lg bg-white text-rose-700 ring-1 ring-rose-300 hover:bg-rose-50 active:bg-rose-100"
 )
 

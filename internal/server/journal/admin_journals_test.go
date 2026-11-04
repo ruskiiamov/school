@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -97,4 +98,106 @@ func TestAdminJournals(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, servertest.Get(t, f.env.Handler, "/admin/journals/lessons/9999", admin).Code)
 	servertest.AssertRedirect(t, servertest.Get(t, f.env.Handler, adminJournalsQuery(f)), "/login")
+}
+
+func TestAdminJournalsLessonMarks(t *testing.T) {
+	t.Parallel()
+
+	f := newMarksFixture(t)
+	admin := servertest.Login(t, f.env.Handler)
+	f.env.SetCommentedMark(t, f.teacher, f.lesson, f.maria, f.test.ID, "4+", "Без чертежа")
+
+	lesson := strconv.FormatInt(f.lesson, 10)
+	marksURL := "/admin/journals/lessons/" + lesson + "/marks"
+	collapsed := adminJournalsQuery(f.fixture)
+
+	table := servertest.Get(t, f.env.Handler, collapsed, admin).Body.String()
+	assert.Contains(t, table, `href="`+marksURL+`" hx-get="`+marksURL+`" hx-target="#lesson-`+lesson+`" hx-swap="outerHTML" data-marks-toggle aria-expanded="false"`)
+	assert.NotContains(t, table, "data-marks-of")
+
+	expanded := servertest.Get(t, f.env.Handler, marksURL, admin, cellHeaders())
+	require.Equal(t, http.StatusOK, expanded.Code)
+	assert.Equal(t, "false", expanded.Header().Get("HX-Push-Url"))
+	block := expanded.Body.String()
+	assert.Contains(t, block, `href="`+html.EscapeString(collapsed+"#lesson-"+lesson)+`" hx-get="`+marksURL+`"`)
+	assert.Contains(t, block, `aria-expanded="true"`)
+	assert.Contains(t, block, `data-marks-of="lesson-`+lesson+`"`)
+	assert.Contains(t, block, ">Контрольная работа<")
+	assert.Contains(t, block, `title="Без чертежа"`)
+	assert.Contains(t, block, "4+")
+	assert.NotContains(t, block, "<input")
+	assert.NotContains(t, block, "Новый тип работы")
+	assert.NotContains(t, block, "<html")
+
+	reopened := servertest.Get(t, f.env.Handler, collapsed, admin,
+		map[string]string{"HX-Request": "true", "HX-Target": "admin-journals", "X-Journal-Open": lesson})
+	assert.Contains(t, reopened.Body.String(), `data-marks-of="lesson-`+lesson+`"`)
+
+	opened := "/admin/journals?" + url.Values{
+		"year":    {f.year()},
+		"class":   {strconv.FormatInt(f.class, 10)},
+		"subject": {strconv.FormatInt(f.subject, 10)},
+		"open":    {lesson},
+	}.Encode()
+	servertest.AssertRedirect(t, servertest.Get(t, f.env.Handler, marksURL, admin), opened+"#lesson-"+lesson)
+
+	page := servertest.Get(t, f.env.Handler, opened, admin).Body.String()
+	assert.Contains(t, page, `data-marks-of="lesson-`+lesson+`"`)
+	assert.Contains(t, page, `href="`+html.EscapeString(collapsed+"#lesson-"+lesson)+`"`)
+
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, f.env.Handler, marksURL, f.cookie, cellHeaders()).Code)
+	assert.Equal(t, http.StatusNotFound, servertest.Get(t, f.env.Handler, "/admin/journals/lessons/9999/marks", admin, cellHeaders()).Code)
+}
+
+func TestAdminJournalsSubjectsOfClass(t *testing.T) {
+	t.Parallel()
+
+	f := newFixture(t)
+	ctx := t.Context()
+	admin := servertest.Login(t, f.env.Handler)
+
+	geometry, err := f.env.School.CreateSubject(ctx, school.SubjectInput{Name: "Геометрия"})
+	require.NoError(t, err)
+	history, err := f.env.School.CreateSubject(ctx, school.SubjectInput{Name: "История"})
+	require.NoError(t, err)
+	_, err = f.env.School.CreateSubject(ctx, school.SubjectInput{Name: "Химия"})
+	require.NoError(t, err)
+
+	require.NoError(t, f.env.School.AssignTeacher(ctx, f.class, f.subject, f.teacher))
+
+	substitute := createUser(t, f.env, auth.RoleTeacher, "substitute", "Кузнецов Виктор Павлович")
+	_, err = f.env.School.CreateSubstitution(ctx, school.SubstitutionInput{
+		ClassID: f.class, SubjectID: geometry, TeacherID: substitute, StartDate: dateValue(f.today), EndDate: dateValue(f.today),
+	})
+	require.NoError(t, err)
+
+	other, err := f.env.School.CreateClass(ctx, "8Б")
+	require.NoError(t, err)
+	require.NoError(t, f.env.School.AssignTeacher(ctx, other, history, f.teacher))
+
+	subjectOptions := func(body string) []string {
+		var names []string
+		for _, name := range []string{"Алгебра", "Геометрия", "История", "Химия"} {
+			if strings.Contains(body, ">"+name+"</option>") {
+				names = append(names, name)
+			}
+		}
+
+		return names
+	}
+
+	empty := servertest.Get(t, f.env.Handler, "/admin/journals", admin).Body.String()
+	assert.Empty(t, subjectOptions(empty))
+	assert.Contains(t, empty, `<option value="0" selected>Предмет</option>`)
+
+	query := url.Values{"year": {f.year()}, "class": {strconv.FormatInt(f.class, 10)}, "subject": {strconv.FormatInt(history, 10)}}
+	body := servertest.Get(t, f.env.Handler, "/admin/journals?"+query.Encode(), admin).Body.String()
+	assert.Equal(t, []string{"Алгебра", "Геометрия"}, subjectOptions(body))
+	assert.Contains(t, body, `<option value="0" selected>Предмет</option>`)
+	assert.Contains(t, body, "Выберите класс и предмет")
+
+	query.Set("class", strconv.FormatInt(other, 10))
+	body = servertest.Get(t, f.env.Handler, "/admin/journals?"+query.Encode(), admin).Body.String()
+	assert.Equal(t, []string{"История"}, subjectOptions(body))
+	assert.NotContains(t, body, "Выберите класс и предмет")
 }
